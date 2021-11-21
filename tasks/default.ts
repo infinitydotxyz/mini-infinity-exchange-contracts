@@ -127,7 +127,8 @@ task('deployTokenTransferProxy', 'Deploy')
       await infinityFactory.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityFactory.address,
-        contract: 'contracts/WyvernTokenTransferProxy.sol:WyvernTokenTransferProxy'
+        contract: 'contracts/WyvernTokenTransferProxy.sol:WyvernTokenTransferProxy',
+        constructorArguments: [args.proxy]
       });
     }
   });
@@ -166,7 +167,8 @@ task('deployExchange', 'Deploy')
       await infinityFactory.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityFactory.address,
-        contract: 'contracts/WyvernExchange.sol:WyvernExchange'
+        contract: 'contracts/WyvernExchange.sol:WyvernExchange',
+        constructorArguments: [args.proxy, args.tokentransferproxy, args.tokenaddress, args.protocolfeeaddress]
       });
     }
   });

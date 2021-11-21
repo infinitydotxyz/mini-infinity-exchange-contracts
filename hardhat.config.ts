@@ -28,7 +28,7 @@ export default {
     polygonprod: {
       url: 'https://polygon-rpc.com/',
       accounts: [process.env.POLYGON_PROD_PRIV_KEY],
-      gasPrice: parseUnits('100', 'gwei').toNumber()
+      gasPrice: parseUnits('200', 'gwei').toNumber()
     }
   },
   solidity: {
