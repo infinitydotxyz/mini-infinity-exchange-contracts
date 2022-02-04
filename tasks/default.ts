@@ -172,3 +172,42 @@ task('deployExchange', 'Deploy')
       });
     }
   });
+
+task('deployRoyaltyWrapper', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .addParam('exchange', 'exchange address')
+  .addParam('royaltyengine', 'royalty engine address')
+  .addParam('wallet', 'wallet address')
+  .setAction(async (args, { ethers, run, network }) => {
+    // log config
+    console.log('Network');
+    console.log('  ', network.name);
+    console.log('Task Args');
+    console.log(args);
+
+    // compile
+    await run('compile');
+    // get signer
+    const signer = (await ethers.getSigners())[0];
+    console.log('Signer');
+    console.log('  at', signer.address);
+    console.log('  ETH', formatEther(await signer.getBalance()));
+
+    const infinityFactory = await deployContract(
+      'WrapperWyvernExchange',
+      await ethers.getContractFactory('WrapperWyvernExchange'),
+      signer,
+      [args.exchange, args.royaltyengine, args.wallet]
+    );
+
+    // verify source
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await infinityFactory.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: infinityFactory.address,
+        contract: 'contracts/WrapperWyvernExchange.sol:WrapperWyvernExchange',
+        constructorArguments: [args.exchange, args.royaltyengine, args.wallet]
+      });
+    }
+  });
