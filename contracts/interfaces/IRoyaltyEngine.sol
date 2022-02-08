@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: GPL-3.0-only
+pragma solidity 0.8.9;
 
 interface IRoyaltyEngine {
   function owner () external view returns ( address );
