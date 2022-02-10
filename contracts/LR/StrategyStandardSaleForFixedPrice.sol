@@ -10,7 +10,7 @@ import {IExecutionStrategy} from "../interfaces/IExecutionStrategy.sol";
  * can be taken either by a bid or an ask.
  */
 contract StrategyStandardSaleForFixedPrice is IExecutionStrategy {
-    uint256 public immutable PROTOCOL_FEE;
+    uint256 public immutable PROTOCOL_FEE; //todo
 
     /**
      * @notice Constructor

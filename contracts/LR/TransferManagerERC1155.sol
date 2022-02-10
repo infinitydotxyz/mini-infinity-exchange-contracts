@@ -10,14 +10,14 @@ import {ITransferManagerNFT} from "../interfaces/ITransferManagerNFT.sol";
  * @notice It allows the transfer of ERC1155 tokens.
  */
 contract TransferManagerERC1155 is ITransferManagerNFT {
-    address public immutable LOOKS_RARE_EXCHANGE;
+    address public immutable INFINITY_EXCHANGE;
 
     /**
      * @notice Constructor
-     * @param _looksRareExchange address of the LooksRare exchange
+     * @param _infinityExchange address of the Infinity exchange
      */
-    constructor(address _looksRareExchange) {
-        LOOKS_RARE_EXCHANGE = _looksRareExchange;
+    constructor(address _infinityExchange) {
+        INFINITY_EXCHANGE = _infinityExchange;
     }
 
     /**
@@ -35,7 +35,7 @@ contract TransferManagerERC1155 is ITransferManagerNFT {
         uint256 tokenId,
         uint256 amount
     ) external override {
-        require(msg.sender == LOOKS_RARE_EXCHANGE, "Transfer: Only LooksRare Exchange");
+        require(msg.sender == INFINITY_EXCHANGE, "Transfer: Only Infinity Exchange");
         // https://docs.openzeppelin.com/contracts/3.x/api/token/erc1155#IERC1155-safeTransferFrom-address-address-uint256-uint256-bytes-
         IERC1155(collection).safeTransferFrom(from, to, tokenId, amount, "");
     }

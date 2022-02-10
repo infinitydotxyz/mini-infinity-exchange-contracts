@@ -8,7 +8,7 @@ import {ICurrencyManager} from "../interfaces/ICurrencyManager.sol";
 
 /**
  * @title CurrencyManager
- * @notice It allows adding/removing currencies for trading on the LooksRare exchange.
+ * @notice allows adding/removing currencies for trading on the Infinity exchange.
  */
 contract CurrencyManager is ICurrencyManager, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -19,7 +19,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
     event CurrencyWhitelisted(address indexed currency);
 
     /**
-     * @notice Add a currency in the system
+     * @notice Adds a currency
      * @param currency address of the currency to add
      */
     function addCurrency(address currency) external override onlyOwner {
@@ -41,7 +41,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
     }
 
     /**
-     * @notice Returns if a currency is in the system
+     * @notice Returns if a currency was whitelisted
      * @param currency address of the currency
      */
     function isCurrencyWhitelisted(address currency) external view override returns (bool) {
@@ -56,7 +56,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
     }
 
     /**
-     * @notice See whitelisted currencies in the system
+     * @notice See whitelisted currencies
      * @param cursor cursor (should start at 0 for first request)
      * @param size size of the response (e.g., 50)
      */

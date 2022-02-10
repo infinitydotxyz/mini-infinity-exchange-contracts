@@ -10,7 +10,7 @@ import {IExecutionStrategy} from "../interfaces/IExecutionStrategy.sol";
  * a specific address.
  */
 contract StrategyPrivateSale is IExecutionStrategy {
-    uint256 public immutable PROTOCOL_FEE;
+    uint256 public immutable PROTOCOL_FEE; // todo
 
     /**
      * @notice Constructor

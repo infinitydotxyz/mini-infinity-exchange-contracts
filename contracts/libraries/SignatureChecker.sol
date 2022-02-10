@@ -12,7 +12,7 @@ library SignatureChecker {
     /**
      * @notice Recovers the signer of a signature (for EOA)
      * @param hash the hash containing the signed mesage
-     * @param v parameter (27 or 28). This prevents maleability since the public key recovery equation has two possible solutions.
+     * @param v parameter (27 or 28). This prevents malleability since the public key recovery equation has two possible solutions.
      * @param r parameter
      * @param s parameter
      */

@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {OrderTypes} from "../libraries/OrderTypes.sol";
 
-interface ILooksRareExchange {
+interface IInfinityExchange {
     function matchAskWithTakerBidUsingETHAndWETH(
         OrderTypes.TakerOrder calldata takerBid,
         OrderTypes.MakerOrder calldata makerAsk

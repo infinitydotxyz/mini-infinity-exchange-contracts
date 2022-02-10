@@ -8,7 +8,7 @@ import {IExecutionManager} from "../interfaces/IExecutionManager.sol";
 
 /**
  * @title ExecutionManager
- * @notice It allows adding/removing execution strategies for trading on the LooksRare exchange.
+ * @notice allows adding/removing execution strategies for trading on the Infinity exchange.
  */
 contract ExecutionManager is IExecutionManager, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -19,7 +19,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
     event StrategyWhitelisted(address indexed strategy);
 
     /**
-     * @notice Add an execution strategy in the system
+     * @notice Adds an execution strategy
      * @param strategy address of the strategy to add
      */
     function addStrategy(address strategy) external override onlyOwner {
@@ -30,7 +30,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
     }
 
     /**
-     * @notice Remove an execution strategy from the system
+     * @notice Remove an execution strategy
      * @param strategy address of the strategy to remove
      */
     function removeStrategy(address strategy) external override onlyOwner {
@@ -41,7 +41,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
     }
 
     /**
-     * @notice Returns if an execution strategy is in the system
+     * @notice Returns if an execution strategy was whitelisted
      * @param strategy address of the strategy
      */
     function isStrategyWhitelisted(address strategy) external view override returns (bool) {
@@ -56,7 +56,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
     }
 
     /**
-     * @notice See whitelisted strategies in the system
+     * @notice See whitelisted strategies
      * @param cursor cursor (should start at 0 for first request)
      * @param size size of the response (e.g., 50)
      */

@@ -10,7 +10,7 @@ import {IExecutionStrategy} from "../interfaces/IExecutionStrategy.sol";
  * matched by any tokenId for the collection.
  */
 contract StrategyAnyItemFromCollectionForFixedPrice is IExecutionStrategy {
-    uint256 public immutable PROTOCOL_FEE;
+    uint256 public immutable PROTOCOL_FEE; //todo
 
     /**
      * @notice Constructor
@@ -48,7 +48,6 @@ contract StrategyAnyItemFromCollectionForFixedPrice is IExecutionStrategy {
     /**
      * @notice Check whether a taker bid order can be executed against a maker ask
      * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
-     * @dev It cannot execute but it is left for compatibility purposes with the interface.
      */
     function canExecuteTakerBid(OrderTypes.TakerOrder calldata, OrderTypes.MakerOrder calldata)
         external
