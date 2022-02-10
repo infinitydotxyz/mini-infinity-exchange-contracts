@@ -17,7 +17,7 @@ contract RoyaltyFeeManager is IRoyaltyFeeManager, Ownable {
 
   IRoyaltyEngine public royaltyEngine;
 
-  event RoyaltyEngineUpdated(address old, address newEngine);
+  event NewRoyaltyEngine(address newEngine);
 
   /**
    * @notice Constructor
@@ -51,8 +51,7 @@ contract RoyaltyFeeManager is IRoyaltyFeeManager, Ownable {
   }
 
   function updateRoyaltyEngine(address _royaltyEngine) external onlyOwner {
-    address old = address(royaltyEngine);
     royaltyEngine = IRoyaltyEngine(_royaltyEngine);
-    emit RoyaltyEngineUpdated(old, _royaltyEngine);
+    emit NewRoyaltyEngine(_royaltyEngine);
   }
 }
