@@ -438,39 +438,34 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 finalSellerAmount = amount;
 
     // 1. Protocol fee
-    {
-      uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
+    uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
 
-      // Check if the protocol fee is different than 0 for this strategy
-      if ((protocolFeeRecipient != address(0)) && (protocolFeeAmount != 0)) {
-        IERC20(currency).safeTransferFrom(from, protocolFeeRecipient, protocolFeeAmount);
-        finalSellerAmount -= protocolFeeAmount;
+    // Check if the protocol fee is different than 0 for this strategy
+    if ((protocolFeeRecipient != address(0)) && (protocolFeeAmount != 0)) {
+      IERC20(currency).safeTransferFrom(from, protocolFeeRecipient, protocolFeeAmount);
+      finalSellerAmount -= protocolFeeAmount;
+    }
+
+    // 2. Royalty fees
+    (address[] memory royaltyFeeRecipients, uint256[] memory royaltyFeeAmounts) = royaltyFeeManager
+      .calculateRoyaltyFeesAndGetRecipients(collection, tokenId, amount);
+
+    // send royalties
+    uint256 numRecipients = royaltyFeeRecipients.length;
+    for (uint256 i = 0; i < numRecipients; i++) {
+      if (royaltyFeeRecipients[i] != address(0) && royaltyFeeAmounts[i] != 0) {
+        IERC20(currency).safeTransferFrom(from, royaltyFeeRecipients[i], royaltyFeeAmounts[i]);
+        finalSellerAmount -= royaltyFeeAmounts[i];
+
+        emit RoyaltyPayment(collection, tokenId, royaltyFeeRecipients[i], currency, royaltyFeeAmounts[i]);
       }
     }
 
-    // 2. Royalty fee
-    {
-      (address royaltyFeeRecipient, uint256 royaltyFeeAmount) = royaltyFeeManager.calculateRoyaltyFeeAndGetRecipient(
-        collection,
-        tokenId,
-        amount
-      );
-
-      // Check if there is a royalty fee and that it is different to 0
-      if ((royaltyFeeRecipient != address(0)) && (royaltyFeeAmount != 0)) {
-        IERC20(currency).safeTransferFrom(from, royaltyFeeRecipient, royaltyFeeAmount);
-        finalSellerAmount -= royaltyFeeAmount;
-
-        emit RoyaltyPayment(collection, tokenId, royaltyFeeRecipient, currency, royaltyFeeAmount);
-      }
-    }
-
+    // check min ask is met
     require((finalSellerAmount * 10000) >= (minPercentageToAsk * amount), 'Fees: Higher than expected');
 
     // 3. Transfer final amount (post-fees) to seller
-    {
-      IERC20(currency).safeTransferFrom(from, to, finalSellerAmount);
-    }
+    IERC20(currency).safeTransferFrom(from, to, finalSellerAmount);
   }
 
   /**
@@ -494,39 +489,34 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 finalSellerAmount = amount;
 
     // 1. Protocol fee
-    {
-      uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
+    uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
 
-      // Check if the protocol fee is different than 0 for this strategy
-      if (protocolFeeRecipient != address(0) && protocolFeeAmount != 0) {
-        IERC20(WETH).safeTransfer(protocolFeeRecipient, protocolFeeAmount);
-        finalSellerAmount -= protocolFeeAmount;
+    // Check if the protocol fee is different than 0 for this strategy
+    if (protocolFeeRecipient != address(0) && protocolFeeAmount != 0) {
+      IERC20(WETH).safeTransfer(protocolFeeRecipient, protocolFeeAmount);
+      finalSellerAmount -= protocolFeeAmount;
+    }
+
+    // 2. Royalty fees
+    (address[] memory royaltyFeeRecipients, uint256[] memory royaltyFeeAmounts) = royaltyFeeManager
+      .calculateRoyaltyFeesAndGetRecipients(collection, tokenId, amount);
+
+    // send royalties
+    uint256 numRecipients = royaltyFeeRecipients.length;
+    for (uint256 i = 0; i < numRecipients; i++) {
+      if (royaltyFeeRecipients[i] != address(0) && royaltyFeeAmounts[i] != 0) {
+        IERC20(WETH).safeTransfer(royaltyFeeRecipients[i], royaltyFeeAmounts[i]);
+        finalSellerAmount -= royaltyFeeAmounts[i];
+
+        emit RoyaltyPayment(collection, tokenId, royaltyFeeRecipients[i], address(WETH), royaltyFeeAmounts[i]);
       }
     }
 
-    // 2. Royalty fee todo: use royalty registry
-    {
-      (address royaltyFeeRecipient, uint256 royaltyFeeAmount) = royaltyFeeManager.calculateRoyaltyFeeAndGetRecipient(
-        collection,
-        tokenId,
-        amount
-      );
-
-      // Check if there is a royalty fee and that it is different to 0
-      if (royaltyFeeRecipient != address(0) && royaltyFeeAmount != 0) {
-        IERC20(WETH).safeTransfer(royaltyFeeRecipient, royaltyFeeAmount);
-        finalSellerAmount -= royaltyFeeAmount;
-
-        emit RoyaltyPayment(collection, tokenId, royaltyFeeRecipient, address(WETH), royaltyFeeAmount);
-      }
-    }
-
+    // check min ask is met
     require((finalSellerAmount * 10000) >= (minPercentageToAsk * amount), 'Fees: Higher than expected');
 
     // 3. Transfer final amount (post-fees) to seller
-    {
-      IERC20(WETH).safeTransfer(to, finalSellerAmount);
-    }
+    IERC20(WETH).safeTransfer(to, finalSellerAmount);
   }
 
   /**

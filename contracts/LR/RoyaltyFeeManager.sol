@@ -1,50 +1,58 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC165, IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {IERC165, IERC2981} from '@openzeppelin/contracts/interfaces/IERC2981.sol';
 
-import {IRoyaltyFeeManager} from "../interfaces/IRoyaltyFeeManager.sol";
-import {IRoyaltyFeeRegistry} from "../interfaces/IRoyaltyFeeRegistry.sol";
+import {IRoyaltyFeeManager} from '../interfaces/IRoyaltyFeeManager.sol';
+import {IRoyaltyEngine} from '../interfaces/IRoyaltyEngine.sol';
 
 /**
  * @title RoyaltyFeeManager
- * @notice It handles the logic to check and transfer royalty fees (if any).
+ * @notice handles royalty fees
  */
 contract RoyaltyFeeManager is IRoyaltyFeeManager, Ownable {
-    // https://eips.ethereum.org/EIPS/eip-2981
-    bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
+  // https://eips.ethereum.org/EIPS/eip-2981
+  bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
 
-    IRoyaltyFeeRegistry public immutable royaltyFeeRegistry;
+  IRoyaltyEngine public royaltyEngine;
 
-    /**
-     * @notice Constructor
-     * @param _royaltyFeeRegistry address of the RoyaltyFeeRegistry
-     */
-    constructor(address _royaltyFeeRegistry) {
-        royaltyFeeRegistry = IRoyaltyFeeRegistry(_royaltyFeeRegistry);
+  event RoyaltyEngineUpdated(address old, address newEngine);
+
+  /**
+   * @notice Constructor
+   * @param _royaltyEngine address of the RoyaltyEngine
+   */
+  constructor(address _royaltyEngine) {
+    royaltyEngine = IRoyaltyEngine(_royaltyEngine);
+  }
+
+  /**
+   * @notice Calculate royalty fees and get recipients
+   * @param collection address of the NFT contract
+   * @param tokenId tokenId
+   * @param amount amount to transfer
+   */
+  function calculateRoyaltyFeesAndGetRecipients(
+    address collection,
+    uint256 tokenId,
+    uint256 amount
+  ) external override returns (address[] memory, uint256[] memory) {
+    address[] memory recipients;
+    uint256[] memory royaltyAmounts;
+    // check if the collection supports IERC2981
+    if (IERC165(collection).supportsInterface(INTERFACE_ID_ERC2981)) {
+      (recipients[0], royaltyAmounts[0]) = IERC2981(collection).royaltyInfo(tokenId, amount);
+    } else {
+      // lookup from royaltyregistry.eth
+      (recipients, royaltyAmounts) = royaltyEngine.getRoyalty(collection, tokenId, amount);
     }
+    return (recipients, royaltyAmounts);
+  }
 
-    /**
-     * @notice Calculate royalty fee and get recipient
-     * @param collection address of the NFT contract
-     * @param tokenId tokenId
-     * @param amount amount to transfer
-     */
-    function calculateRoyaltyFeeAndGetRecipient(
-        address collection,
-        uint256 tokenId,
-        uint256 amount
-    ) external view override returns (address, uint256) {
-        // 1. Check if there is a royalty info in the system
-        (address receiver, uint256 royaltyAmount) = royaltyFeeRegistry.royaltyInfo(collection, amount);
-
-        // 2. If the receiver is address(0), fee is null, check if it supports the ERC2981 interface
-        if ((receiver == address(0)) || (royaltyAmount == 0)) {
-            if (IERC165(collection).supportsInterface(INTERFACE_ID_ERC2981)) {
-                (receiver, royaltyAmount) = IERC2981(collection).royaltyInfo(tokenId, amount);
-            }
-        }
-        return (receiver, royaltyAmount);
-    }
+  function updateRoyaltyEngine(address _royaltyEngine) external onlyOwner {
+    address old = address(royaltyEngine);
+    royaltyEngine = IRoyaltyEngine(_royaltyEngine);
+    emit RoyaltyEngineUpdated(old, _royaltyEngine);
+  }
 }
