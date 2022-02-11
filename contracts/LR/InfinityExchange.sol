@@ -176,71 +176,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Match ask with a taker bid order
-   * @param takerBid taker bid order
-   * @param makerAsk maker ask order
-   */
-  function matchAskWithTakerBidUsingETHAndWETH(
-    OrderTypes.TakerOrder calldata takerBid,
-    OrderTypes.MakerOrder calldata makerAsk
-  ) external payable override nonReentrant {
-    require((makerAsk.isOrderAsk) && (!takerBid.isOrderAsk), 'Order: Wrong sides');
-    require(makerAsk.currency == WETH, 'Order: Currency must be WETH'); // todo: why
-    require(msg.sender == takerBid.taker, 'Order: Taker must be the sender');
-
-    // If not enough ETH to cover the price, use WETH
-    if (takerBid.price > msg.value) {
-      IERC20(WETH).safeTransferFrom(msg.sender, address(this), (takerBid.price - msg.value));
-    } else {
-      require(takerBid.price == msg.value, 'Order: excess ETH');
-    }
-
-    // Wrap ETH sent to this contract
-    IWETH(WETH).deposit{value: msg.value}();
-
-    // Check the maker ask order
-    bytes32 askHash = makerAsk.hash();
-    _validateOrder(makerAsk, askHash);
-
-    // Retrieve execution parameters
-    (bool isExecutionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(makerAsk.strategy).canExecuteTakerBid(
-      takerBid,
-      makerAsk
-    );
-
-    require(isExecutionValid, 'Strategy: Execution invalid');
-
-    // Update maker ask order status to true (prevents replay)
-    _isUserOrderNonceExecutedOrCancelled[makerAsk.signer][makerAsk.nonce] = true;
-
-    // Execution part 1/2
-    _transferFeesAndFundsWithWETH(
-      makerAsk.strategy,
-      makerAsk.collection,
-      tokenId,
-      makerAsk.signer,
-      takerBid.price,
-      makerAsk.minPercentageToAsk
-    );
-
-    // Execution part 2/2
-    _transferNonFungibleToken(makerAsk.collection, makerAsk.signer, takerBid.taker, tokenId, amount);
-
-    emit TakerBid(
-      askHash,
-      makerAsk.nonce,
-      takerBid.taker,
-      makerAsk.signer,
-      makerAsk.strategy,
-      makerAsk.currency,
-      makerAsk.collection,
-      tokenId,
-      amount,
-      takerBid.price
-    );
-  }
-
-  /**
    * @notice Match a takerBid with a matchAsk
    * @param takerBid taker bid order
    * @param makerAsk maker ask order
@@ -467,57 +402,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Transfer fees and funds to royalty recipient, protocol, and seller
-   * @param strategy address of the execution strategy
-   * @param collection non fungible token address for the transfer
-   * @param tokenId tokenId
-   * @param to seller's recipient
-   * @param amount amount being transferred (in currency)
-   * @param minPercentageToAsk minimum percentage of the gross amount that goes to ask
-   */
-  function _transferFeesAndFundsWithWETH(
-    address strategy,
-    address collection,
-    uint256 tokenId,
-    address to,
-    uint256 amount,
-    uint256 minPercentageToAsk
-  ) internal {
-    // Initialize the final amount that is transferred to seller
-    uint256 finalSellerAmount = amount;
-
-    // 1. Protocol fee
-    uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
-
-    // Check if the protocol fee is different than 0 for this strategy
-    if (protocolFeeRecipient != address(0) && protocolFeeAmount != 0) {
-      IERC20(WETH).safeTransfer(protocolFeeRecipient, protocolFeeAmount);
-      finalSellerAmount -= protocolFeeAmount;
-    }
-
-    // 2. Royalty fees
-    (address[] memory royaltyFeeRecipients, uint256[] memory royaltyFeeAmounts) = royaltyFeeManager
-      .calculateRoyaltyFeesAndGetRecipients(collection, tokenId, amount);
-
-    // send royalties
-    uint256 numRecipients = royaltyFeeRecipients.length;
-    for (uint256 i = 0; i < numRecipients; i++) {
-      if (royaltyFeeRecipients[i] != address(0) && royaltyFeeAmounts[i] != 0) {
-        IERC20(WETH).safeTransfer(royaltyFeeRecipients[i], royaltyFeeAmounts[i]);
-        finalSellerAmount -= royaltyFeeAmounts[i];
-
-        emit RoyaltyPayment(collection, tokenId, royaltyFeeRecipients[i], address(WETH), royaltyFeeAmounts[i]);
-      }
-    }
-
-    // check min ask is met
-    require((finalSellerAmount * 10000) >= (minPercentageToAsk * amount), 'Fees: Higher than expected');
-
-    // 3. Transfer final amount (post-fees) to seller
-    IERC20(WETH).safeTransfer(to, finalSellerAmount);
-  }
-
-  /**
    * @notice Transfer NFT
    * @param collection address of the token collection
    * @param from address of the sender
@@ -574,10 +458,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
     // Verify the validity of the signature
     (uint8 v, bytes32 r, bytes32 s) = abi.decode(makerOrder.sig, (uint8, bytes32, bytes32));
-    require(
-      SignatureChecker.verify(orderHash, makerOrder.signer, v, r, s, DOMAIN_SEPARATOR),
-      'Signature: Invalid'
-    );
+    require(SignatureChecker.verify(orderHash, makerOrder.signer, v, r, s, DOMAIN_SEPARATOR), 'Signature: Invalid');
 
     // Verify whether the currency is whitelisted
     require(currencyManager.isCurrencyWhitelisted(makerOrder.currency), 'Currency: Not whitelisted');
