@@ -575,8 +575,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     require(makerOrder.amount > 0, 'Order: Amount cannot be 0');
 
     // Verify the validity of the signature
+    (uint8 v, bytes32 r, bytes32 s) = abi.decode(makerOrder.sig, (uint8, bytes32, bytes32));
     require(
-      SignatureChecker.verify(orderHash, makerOrder.signer, makerOrder.v, makerOrder.r, makerOrder.s, DOMAIN_SEPARATOR),
+      SignatureChecker.verify(orderHash, makerOrder.signer, v, r, s, DOMAIN_SEPARATOR),
       'Signature: Invalid'
     );
 
