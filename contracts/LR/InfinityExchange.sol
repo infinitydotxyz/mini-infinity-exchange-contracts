@@ -175,8 +175,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     emit CancelMultipleOrders(msg.sender, orderNonces);
   }
 
-  // todo: add more currencies
-
   /**
    * @notice Match ask with a taker bid order
    * @param takerBid taker bid order
