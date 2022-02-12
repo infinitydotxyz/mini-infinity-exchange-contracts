@@ -176,33 +176,62 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Match a takerBid with a matchAsk
-   * @param takerBid taker bid order
-   * @param makerAsk maker ask order
+   * @notice Match takerBids with matchAsks
+   * @param makerAsks maker ask orders
+   * @param takerBids taker bid orders
    */
-  function matchAskWithTakerBid(OrderTypes.TakerOrder calldata takerBid, OrderTypes.MakerOrder calldata makerAsk)
-    external
-    override
-    nonReentrant
+  function matchMakerAsksWithTakerBids(
+    OrderTypes.MakerOrder[] calldata makerAsks,
+    OrderTypes.TakerOrder[] calldata takerBids
+  ) external override nonReentrant {
+    // check pre-conditions
+    require(makerAsks.length == takerBids.length, 'Order: Mismatched lengths');
+    // execute orders one by one
+    for (uint256 i = 0; i < makerAsks.length; i++) {
+      _matchMakerAskWithTakerBid(makerAsks[i], takerBids[i]);
+    }
+  }
+
+  function _matchMakerAskWithTakerBid(OrderTypes.MakerOrder calldata makerAsk, OrderTypes.TakerOrder calldata takerBid)
+    internal
   {
-    require(makerAsk.isOrderAsk && !takerBid.isOrderAsk, 'Order: Wrong sides');
-    require(msg.sender == takerBid.taker, 'Order: Taker must be the sender');
+    // check if msg sender is taker
+    bool msgSenderIsTaker = msg.sender == takerBid.taker;
+
+    // check if sides match
+    bool sidesMatch = makerAsk.isOrderAsk && !takerBid.isOrderAsk;
 
     // Check the maker ask order
     bytes32 askHash = makerAsk.hash();
-    _validateOrder(makerAsk, askHash);
+    bool orderValid = _isOrderValid(makerAsk, askHash);
 
-    (bool isExecutionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(makerAsk.strategy).canExecuteTakerBid(
+    // check if execution is valid
+    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(makerAsk.strategy).canExecuteTakerBid(
       takerBid,
       makerAsk
     );
 
-    require(isExecutionValid, 'Strategy: Execution invalid');
+    bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
+
+    // if this order is not valid, just return and continue with other orders
+    if (!shouldExecute) {
+      return;
+    }
 
     // Update maker ask order status to true (prevents replay)
     _isUserOrderNonceExecutedOrCancelled[makerAsk.signer][makerAsk.nonce] = true;
 
-    // Execution part 1/2
+    // exec transfer
+    _execTakerBid(askHash, makerAsk, takerBid, tokenId, amount);
+  }
+
+  function _execTakerBid(
+    bytes32 askHash,
+    OrderTypes.MakerOrder calldata makerAsk,
+    OrderTypes.TakerOrder calldata takerBid,
+    uint256 tokenId,
+    uint256 amount
+  ) internal {
     _transferFeesAndFunds(
       makerAsk.strategy,
       makerAsk.collection,
@@ -217,6 +246,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     // Execution part 2/2
     _transferNonFungibleToken(makerAsk.collection, makerAsk.signer, takerBid.taker, tokenId, amount);
 
+    // emit event
     emit TakerBid(
       askHash,
       makerAsk.nonce,
@@ -233,31 +263,62 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Match a takerAsk with a makerBid
-   * @param takerAsk taker ask order
-   * @param makerBid maker bid order
+   * @param makerBids maker bid order
+   * @param takerAsks taker ask order
    */
-  function matchBidWithTakerAsk(OrderTypes.TakerOrder calldata takerAsk, OrderTypes.MakerOrder calldata makerBid)
-    external
-    override
-    nonReentrant
+  function matchMakerBidsWithTakerAsks(
+    OrderTypes.MakerOrder[] calldata makerBids,
+    OrderTypes.TakerOrder[] calldata takerAsks
+  ) external override nonReentrant {
+    // check pre-conditions
+    require(makerBids.length == takerAsks.length, 'Order: Mismatched lengths');
+
+    // execute orders one by one
+    for (uint256 i = 0; i < makerBids.length; i++) {
+      _matchMakerBidWithTakerAsk(makerBids[i], takerAsks[i]);
+    }
+  }
+
+  function _matchMakerBidWithTakerAsk(OrderTypes.MakerOrder calldata makerBid, OrderTypes.TakerOrder calldata takerAsk)
+    internal
   {
-    require(!makerBid.isOrderAsk && takerAsk.isOrderAsk, 'Order: Wrong sides');
-    require(msg.sender == takerAsk.taker, 'Order: Taker must be the sender');
+    // check if msg sender is taker
+    bool msgSenderIsTaker = msg.sender == takerAsk.taker;
+
+    // check if sides match
+    bool sidesMatch = !makerBid.isOrderAsk && takerAsk.isOrderAsk;
 
     // Check the maker bid order
     bytes32 bidHash = makerBid.hash();
-    _validateOrder(makerBid, bidHash);
+    bool orderValid = _isOrderValid(makerBid, bidHash);
 
-    (bool isExecutionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(makerBid.strategy).canExecuteTakerAsk(
+    // check if execution is valid
+    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(makerBid.strategy).canExecuteTakerAsk(
       takerAsk,
       makerBid
     );
 
-    require(isExecutionValid, 'Strategy: Execution invalid');
+    bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
+
+    // if this order is not valid, just return and continue with other orders
+    if (!shouldExecute) {
+      return;
+    }
 
     // Update maker bid order status to true (prevents replay)
     _isUserOrderNonceExecutedOrCancelled[makerBid.signer][makerBid.nonce] = true;
 
+    // exec transfer
+    _execTakerAsk(bidHash, makerBid, takerAsk, tokenId, amount);
+  }
+
+  function _execTakerAsk(
+    bytes32 bidHash,
+    OrderTypes.MakerOrder calldata makerBid,
+    OrderTypes.TakerOrder calldata takerAsk,
+    uint256 tokenId,
+    uint256 amount
+  ) internal {
     // Execution part 1/2
     _transferNonFungibleToken(makerBid.collection, msg.sender, makerBid.signer, tokenId, amount);
 
@@ -268,7 +329,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       tokenId,
       makerBid.currency,
       makerBid.signer,
-      takerAsk.taker,
+      msg.sender,
       takerAsk.price,
       takerAsk.minPercentageToAsk
     );
@@ -442,28 +503,25 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param makerOrder maker order
    * @param orderHash computed hash for the order
    */
-  function _validateOrder(OrderTypes.MakerOrder calldata makerOrder, bytes32 orderHash) internal view {
+  function _isOrderValid(OrderTypes.MakerOrder calldata makerOrder, bytes32 orderHash) internal view returns (bool) {
     // Verify whether order nonce has expired
-    require(
-      (!_isUserOrderNonceExecutedOrCancelled[makerOrder.signer][makerOrder.nonce]) &&
-        (makerOrder.nonce >= userMinOrderNonce[makerOrder.signer]),
-      'Order: Matching order expired'
-    );
-
-    // Verify the signer is not address(0)
-    require(makerOrder.signer != address(0), 'Order: Invalid signer');
-
-    // Verify the amount is not 0
-    require(makerOrder.amount > 0, 'Order: Amount cannot be 0');
+    bool orderExpired = _isUserOrderNonceExecutedOrCancelled[makerOrder.signer][makerOrder.nonce] ||
+      makerOrder.nonce < userMinOrderNonce[makerOrder.signer];
 
     // Verify the validity of the signature
     (uint8 v, bytes32 r, bytes32 s) = abi.decode(makerOrder.sig, (uint8, bytes32, bytes32));
-    require(SignatureChecker.verify(orderHash, makerOrder.signer, v, r, s, DOMAIN_SEPARATOR), 'Signature: Invalid');
+    bool sigValid = SignatureChecker.verify(orderHash, makerOrder.signer, v, r, s, DOMAIN_SEPARATOR);
 
-    // Verify whether the currency is whitelisted
-    require(currencyManager.isCurrencyWhitelisted(makerOrder.currency), 'Currency: Not whitelisted');
-
-    // Verify whether strategy can be executed
-    require(executionManager.isStrategyWhitelisted(makerOrder.strategy), 'Strategy: Not whitelisted');
+    if (
+      orderExpired ||
+      !sigValid ||
+      makerOrder.signer == address(0) ||
+      makerOrder.amount == 0 ||
+      !currencyManager.isCurrencyWhitelisted(makerOrder.currency) ||
+      !executionManager.isStrategyWhitelisted(makerOrder.strategy)
+    ) {
+      return false;
+    }
+    return true;
   }
 }
