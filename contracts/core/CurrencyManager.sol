@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-
 import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
 
 /**
@@ -22,7 +21,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
    * @notice Adds a currency
    * @param currency address of the currency to add
    */
-  function addCurrency(address currency) external override onlyOwner {
+  function addCurrency(address currency) external onlyOwner {
     require(!_whitelistedCurrencies.contains(currency), 'Currency: Already whitelisted');
     _whitelistedCurrencies.add(currency);
 
@@ -33,7 +32,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
    * @notice Remove a currency from the system
    * @param currency address of the currency to remove
    */
-  function removeCurrency(address currency) external override onlyOwner {
+  function removeCurrency(address currency) external onlyOwner {
     require(_whitelistedCurrencies.contains(currency), 'Currency: Not whitelisted');
     _whitelistedCurrencies.remove(currency);
 
@@ -51,7 +50,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
   /**
    * @notice View number of whitelisted currencies
    */
-  function viewCountWhitelistedCurrencies() external view override returns (uint256) {
+  function viewCountWhitelistedCurrencies() external view returns (uint256) {
     return _whitelistedCurrencies.length();
   }
 
@@ -60,12 +59,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
    * @param cursor cursor (should start at 0 for first request)
    * @param size size of the response (e.g., 50)
    */
-  function viewWhitelistedCurrencies(uint256 cursor, uint256 size)
-    external
-    view
-    override
-    returns (address[] memory, uint256)
-  {
+  function viewWhitelistedCurrencies(uint256 cursor, uint256 size) external view returns (address[] memory, uint256) {
     uint256 length = size;
 
     if (length > _whitelistedCurrencies.length() - cursor) {

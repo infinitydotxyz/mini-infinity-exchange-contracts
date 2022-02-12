@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-
 import {IExecutionManager} from '../interfaces/IExecutionManager.sol';
 
 /**
@@ -22,7 +21,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
    * @notice Adds an execution strategy
    * @param strategy address of the strategy to add
    */
-  function addStrategy(address strategy) external override onlyOwner {
+  function addStrategy(address strategy) external onlyOwner {
     require(!_whitelistedStrategies.contains(strategy), 'Strategy: Already whitelisted');
     _whitelistedStrategies.add(strategy);
 
@@ -33,7 +32,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
    * @notice Remove an execution strategy
    * @param strategy address of the strategy to remove
    */
-  function removeStrategy(address strategy) external override onlyOwner {
+  function removeStrategy(address strategy) external onlyOwner {
     require(_whitelistedStrategies.contains(strategy), 'Strategy: Not whitelisted');
     _whitelistedStrategies.remove(strategy);
 
@@ -51,7 +50,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
   /**
    * @notice View number of whitelisted strategies
    */
-  function viewCountWhitelistedStrategies() external view override returns (uint256) {
+  function viewCountWhitelistedStrategies() external view returns (uint256) {
     return _whitelistedStrategies.length();
   }
 
@@ -63,7 +62,6 @@ contract ExecutionManager is IExecutionManager, Ownable {
   function viewWhitelistedStrategies(uint256 cursor, uint256 size)
     external
     view
-    override
     returns (address[] memory, uint256)
   {
     uint256 length = size;

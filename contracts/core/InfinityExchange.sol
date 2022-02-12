@@ -3,9 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-
-// interfaces
 import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
 import {IExecutionManager} from '../interfaces/IExecutionManager.sol';
 import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
@@ -13,9 +10,6 @@ import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
 import {ITransferManagerNFT} from '../interfaces/ITransferManagerNFT.sol';
 import {ITransferSelectorNFT} from '../interfaces/ITransferSelectorNFT.sol';
 import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
-import {IWETH} from '../interfaces/IWETH.sol';
-
-// libraries
 import {OrderTypes} from '../libraries/OrderTypes.sol';
 import {SignatureChecker} from '../libraries/SignatureChecker.sol';
 
@@ -55,7 +49,6 @@ MMMMMNOl,.                                       ..;o0WMMMMM
 
 */
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
-  using SafeERC20 for IERC20;
 
   using OrderTypes for OrderTypes.MakerOrder;
   using OrderTypes for OrderTypes.TakerOrder;
