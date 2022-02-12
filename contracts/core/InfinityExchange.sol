@@ -9,10 +9,10 @@ import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
 import {IExecutionManager} from '../interfaces/IExecutionManager.sol';
 import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
-import {IRoyaltyFeeManager} from '../interfaces/IRoyaltyFeeManager.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
 import {ITransferManagerNFT} from '../interfaces/ITransferManagerNFT.sol';
 import {ITransferSelectorNFT} from '../interfaces/ITransferSelectorNFT.sol';
+import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
 import {IWETH} from '../interfaces/IWETH.sol';
 
 // libraries
@@ -63,12 +63,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   address public immutable WETH;
   bytes32 public immutable DOMAIN_SEPARATOR;
 
-  address public protocolFeeRecipient;
-
   ICurrencyManager public currencyManager;
   IExecutionManager public executionManager;
-  IRoyaltyFeeManager public royaltyFeeManager;
   ITransferSelectorNFT public transferSelectorNFT;
+  IInfinityFeeDistributor public infinityFeeDistributor;
 
   mapping(address => uint256) public userMinOrderNonce;
   mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceExecutedOrCancelled;
@@ -77,17 +75,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
   event NewCurrencyManager(address indexed currencyManager);
   event NewExecutionManager(address indexed executionManager);
-  event NewProtocolFeeRecipient(address indexed protocolFeeRecipient);
-  event NewRoyaltyFeeManager(address indexed royaltyFeeManager);
   event NewTransferSelectorNFT(address indexed transferSelectorNFT);
-
-  event RoyaltyPayment(
-    address indexed collection,
-    uint256 indexed tokenId,
-    address indexed royaltyRecipient,
-    address currency,
-    uint256 amount
-  );
+  event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
 
   event TakerAsk(
     bytes32 orderHash, // bid hash of the maker order
@@ -119,16 +108,14 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @notice Constructor
    * @param _currencyManager currency manager address
    * @param _executionManager execution manager address
-   * @param _royaltyFeeManager royalty fee manager address
    * @param _WETH wrapped ether address (for other chains, use wrapped native asset)
-   * @param _protocolFeeRecipient protocol fee recipient
+   * @param _infinityFeeDistributor fee distributor address
    */
   constructor(
     address _currencyManager,
     address _executionManager,
-    address _royaltyFeeManager,
     address _WETH,
-    address _protocolFeeRecipient
+    address _infinityFeeDistributor
   ) {
     // Calculate the domain separator
     DOMAIN_SEPARATOR = keccak256(
@@ -143,9 +130,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
     currencyManager = ICurrencyManager(_currencyManager);
     executionManager = IExecutionManager(_executionManager);
-    royaltyFeeManager = IRoyaltyFeeManager(_royaltyFeeManager);
     WETH = _WETH;
-    protocolFeeRecipient = _protocolFeeRecipient;
+    infinityFeeDistributor = IInfinityFeeDistributor(_infinityFeeDistributor);
   }
 
   /**
@@ -232,18 +218,20 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 tokenId,
     uint256 amount
   ) internal {
-    _transferFeesAndFunds(
+
+    // distribute fees
+    infinityFeeDistributor.distributeFees(
       makerAsk.strategy,
+      takerBid.price,
       makerAsk.collection,
       tokenId,
       makerAsk.currency,
       msg.sender,
       makerAsk.signer,
-      takerBid.price,
       makerAsk.minPercentageToAsk
     );
 
-    // Execution part 2/2
+    // transfer nfts
     _transferNonFungibleToken(makerAsk.collection, makerAsk.signer, takerBid.taker, tokenId, amount);
 
     // emit event
@@ -319,18 +307,18 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 tokenId,
     uint256 amount
   ) internal {
-    // Execution part 1/2
+    // transfer nfts
     _transferNonFungibleToken(makerBid.collection, msg.sender, makerBid.signer, tokenId, amount);
 
-    // Execution part 2/2
-    _transferFeesAndFunds(
+    // distribute fees
+    infinityFeeDistributor.distributeFees(
       makerBid.strategy,
+      takerAsk.price,
       makerBid.collection,
       tokenId,
       makerBid.currency,
       makerBid.signer,
       msg.sender,
-      takerAsk.price,
       takerAsk.minPercentageToAsk
     );
 
@@ -353,7 +341,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param _currencyManager new currency manager address
    */
   function updateCurrencyManager(address _currencyManager) external onlyOwner {
-    require(_currencyManager != address(0), 'Owner: Cannot be null address');
+    require(_currencyManager != address(0), 'Owner: Cannot be 0x0');
     currencyManager = ICurrencyManager(_currencyManager);
     emit NewCurrencyManager(_currencyManager);
   }
@@ -363,28 +351,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param _executionManager new execution manager address
    */
   function updateExecutionManager(address _executionManager) external onlyOwner {
-    require(_executionManager != address(0), 'Owner: Cannot be null address');
+    require(_executionManager != address(0), 'Owner: Cannot be 0x0');
     executionManager = IExecutionManager(_executionManager);
     emit NewExecutionManager(_executionManager);
-  }
-
-  /**
-   * @notice Update protocol fee and recipient
-   * @param _protocolFeeRecipient new recipient for protocol fees
-   */
-  function updateProtocolFeeRecipient(address _protocolFeeRecipient) external onlyOwner {
-    protocolFeeRecipient = _protocolFeeRecipient;
-    emit NewProtocolFeeRecipient(_protocolFeeRecipient);
-  }
-
-  /**
-   * @notice Update royalty fee manager
-   * @param _royaltyFeeManager new fee manager address
-   */
-  function updateRoyaltyFeeManager(address _royaltyFeeManager) external onlyOwner {
-    require(_royaltyFeeManager != address(0), 'Owner: Cannot be null address');
-    royaltyFeeManager = IRoyaltyFeeManager(_royaltyFeeManager);
-    emit NewRoyaltyFeeManager(_royaltyFeeManager);
   }
 
   /**
@@ -392,10 +361,21 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param _transferSelectorNFT new transfer selector address
    */
   function updateTransferSelectorNFT(address _transferSelectorNFT) external onlyOwner {
-    require(_transferSelectorNFT != address(0), 'Owner: Cannot be null address');
+    require(_transferSelectorNFT != address(0), 'Owner: Cannot be 0x0');
     transferSelectorNFT = ITransferSelectorNFT(_transferSelectorNFT);
 
     emit NewTransferSelectorNFT(_transferSelectorNFT);
+  }
+
+  /**
+   * @notice Update fee distributor
+   * @param _infinityFeeDistributor new infinityFeeDistributor address
+   */
+  function updateInfinityFeeDistributor(address _infinityFeeDistributor) external onlyOwner {
+    require(_infinityFeeDistributor != address(0), 'Owner: Cannot be 0x0');
+    infinityFeeDistributor = IInfinityFeeDistributor(_infinityFeeDistributor);
+
+    emit NewInfinityFeeDistributor(_infinityFeeDistributor);
   }
 
   /**
@@ -405,61 +385,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    */
   function isUserOrderNonceExecutedOrCancelled(address user, uint256 orderNonce) external view returns (bool) {
     return _isUserOrderNonceExecutedOrCancelled[user][orderNonce];
-  }
-
-  /**
-   * @notice Transfer fees and funds to royalty recipient, protocol, and seller
-   * @param strategy address of the execution strategy
-   * @param collection non fungible token address for the transfer
-   * @param tokenId tokenId
-   * @param currency currency being used for the purchase (e.g., WETH/USDC)
-   * @param from sender of the funds
-   * @param to seller's recipient
-   * @param amount amount being transferred (in currency)
-   * @param minPercentageToAsk minimum percentage of the gross amount that goes to ask
-   */
-  function _transferFeesAndFunds(
-    address strategy,
-    address collection,
-    uint256 tokenId,
-    address currency,
-    address from,
-    address to,
-    uint256 amount,
-    uint256 minPercentageToAsk
-  ) internal {
-    // Initialize the final amount that is transferred to seller
-    uint256 finalSellerAmount = amount;
-
-    // 1. Protocol fee
-    uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
-
-    // Check if the protocol fee is different than 0 for this strategy
-    if ((protocolFeeRecipient != address(0)) && (protocolFeeAmount != 0)) {
-      IERC20(currency).safeTransferFrom(from, protocolFeeRecipient, protocolFeeAmount);
-      finalSellerAmount -= protocolFeeAmount;
-    }
-
-    // 2. Royalty fees
-    (address[] memory royaltyFeeRecipients, uint256[] memory royaltyFeeAmounts) = royaltyFeeManager
-      .calculateRoyaltyFeesAndGetRecipients(collection, tokenId, amount);
-
-    // send royalties
-    uint256 numRecipients = royaltyFeeRecipients.length;
-    for (uint256 i = 0; i < numRecipients; i++) {
-      if (royaltyFeeRecipients[i] != address(0) && royaltyFeeAmounts[i] != 0) {
-        IERC20(currency).safeTransferFrom(from, royaltyFeeRecipients[i], royaltyFeeAmounts[i]);
-        finalSellerAmount -= royaltyFeeAmounts[i];
-
-        emit RoyaltyPayment(collection, tokenId, royaltyFeeRecipients[i], currency, royaltyFeeAmounts[i]);
-      }
-    }
-
-    // check min ask is met
-    require((finalSellerAmount * 10000) >= (minPercentageToAsk * amount), 'Fees: Higher than expected');
-
-    // 3. Transfer final amount (post-fees) to seller
-    IERC20(currency).safeTransferFrom(from, to, finalSellerAmount);
   }
 
   /**
@@ -486,16 +411,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
     // If one is found, transfer the token
     ITransferManagerNFT(transferManager).transferNonFungibleToken(collection, from, to, tokenId, amount);
-  }
-
-  /**
-   * @notice Calculate protocol fee for an execution strategy
-   * @param executionStrategy strategy
-   * @param amount amount to transfer
-   */
-  function _calculateProtocolFee(address executionStrategy, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IExecutionStrategy(executionStrategy).viewProtocolFee();
-    return (protocolFee * amount) / 10000;
   }
 
   /**
