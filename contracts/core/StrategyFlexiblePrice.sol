@@ -11,10 +11,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * can be taken either by a bid or an ask.
  */
 contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
-  uint256 public PROTOCOL_FEE;
+  uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
-  event NewProtocolFee(uint256 protocolFee);
   event NewErrorbound(uint256 errorBound);
 
   /**
@@ -89,11 +88,6 @@ contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
    */
   function viewProtocolFee() external view override returns (uint256) {
     return PROTOCOL_FEE;
-  }
-
-  function setProtocolFee(uint256 _protocolFee) external onlyOwner {
-    PROTOCOL_FEE = _protocolFee;
-    emit NewProtocolFee(_protocolFee);
   }
 
   function setErrorBound(uint256 _errorBound) external onlyOwner {

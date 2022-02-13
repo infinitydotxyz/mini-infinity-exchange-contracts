@@ -57,7 +57,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     remainingAmount -= _disburseFeesToProtocol(strategy, amount, collection, tokenId, currency, from);
 
     // other party fees
-    remainingAmount -= _disburseFeesToParties(amount, collection, tokenId, currency, from);
+    remainingAmount -= _disburseFeesToParties(strategy, amount, collection, tokenId, currency, from);
 
     // check min ask is met
     require((remainingAmount * 10000) >= (minPercentageToAsk * amount), 'Fees: Higher than expected');
@@ -85,6 +85,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
 
   // disburses fees to parties like collectors, creators, curators et and returns the disbursed amount
   function _disburseFeesToParties(
+    address strategy,
     uint256 amount,
     address collection,
     uint256 tokenId,
@@ -94,14 +95,32 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     uint256 partyFees = 0;
     // for each party
     for (uint256 i = 0; i < _feeManagers.length(); i++) {
-      IFeeManager feeManager = IFeeManager(_feeManagers.at(i));
-      (string memory partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
-        .calculateFeesAndGetRecipients(collection, tokenId, amount);
-
-      // disburse and get amount disubrsed
-      partyFees += _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from);
+      partyFees += _disburseFeesViaFeeManager(
+        _feeManagers.at(i),
+        strategy,
+        collection,
+        tokenId,
+        amount,
+        currency,
+        from
+      );
     }
     return partyFees;
+  }
+
+  function _disburseFeesViaFeeManager(
+    address feeManagerAddress,
+    address strategy,
+    address collection,
+    uint256 tokenId,
+    uint256 amount,
+    address currency,
+    address from
+  ) internal returns (uint256) {
+    IFeeManager feeManager = IFeeManager(feeManagerAddress);
+    (string memory partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
+      .calculateFeesAndGetRecipients(strategy, collection, tokenId, amount);
+    return _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from);
   }
 
   // disburses fees to a party like collectors and returns the disbursed amount

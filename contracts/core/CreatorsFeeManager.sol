@@ -8,10 +8,10 @@ import {IFeeManager} from '../interfaces/IFeeManager.sol';
 import {IRoyaltyEngine} from '../interfaces/IRoyaltyEngine.sol';
 
 /**
- * @title RoyaltyFeeManager
- * @notice handles royalty fees
+ * @title CreatorsFeeManager
+ * @notice handles creator fees aka royalties
  */
-contract RoyaltyFeeManager is IFeeManager, Ownable {
+contract CreatorsFeeManager is IFeeManager, Ownable {
   // https://eips.ethereum.org/EIPS/eip-2981
   bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
   string public PARTY_NAME = 'creators'; 
@@ -35,6 +35,7 @@ contract RoyaltyFeeManager is IFeeManager, Ownable {
    * @param amount amount to transfer
    */
   function calculateFeesAndGetRecipients(
+    address,
     address collection,
     uint256 tokenId,
     uint256 amount
