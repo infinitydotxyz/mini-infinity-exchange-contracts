@@ -49,7 +49,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     address currency,
     address from,
     address to,
-    uint256 minPercentageToAsk
+    uint256 minBpsToSeller
   ) external override {
     uint256 remainingAmount = amount;
 
@@ -59,8 +59,8 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     // other party fees
     remainingAmount -= _disburseFeesToParties(strategy, amount, collection, tokenId, currency, from);
 
-    // check min ask is met
-    require((remainingAmount * 10000) >= (minPercentageToAsk * amount), 'Fees: Higher than expected');
+    // check min sell is met
+    require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
 
     // transfer final amount (post-fees) to seller
     IERC20(currency).safeTransferFrom(from, to, remainingAmount);

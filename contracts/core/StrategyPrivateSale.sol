@@ -27,10 +27,10 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker ask order can be executed against a maker bid
+   * @notice Check whether a taker sell order can be executed against a maker buy
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerAsk(OrderTypes.TakerOrder calldata, OrderTypes.MakerOrder calldata)
+  function canExecuteTakerSell(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
     external
     pure
     override
@@ -44,12 +44,12 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker bid order can be executed against a maker ask
-   * @param takerBid taker bid order
-   * @param makerAsk maker ask order
+   * @notice Check whether a taker buy order can be executed against a maker sell
+   * @param takerBuy taker buy order
+   * @param makerSell maker sell order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerBid(OrderTypes.TakerOrder calldata takerBid, OrderTypes.MakerOrder calldata makerAsk)
+  function canExecuteTakerBuy(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
     external
     view
     override
@@ -60,17 +60,18 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
     )
   {
     // Retrieve target buyer
-    address targetBuyer = abi.decode(makerAsk.params, (address));
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerAsk);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerAsk.startAndEndTimes, (uint256, uint256));
+    address targetBuyer = abi.decode(makerSell.params, (address));
+    uint256 currentPrice = Utils.calculateCurrentPrice(makerSell);
+    (uint256 startTime, uint256 endTime) = abi.decode(makerSell.startAndEndTimes, (uint256, uint256));
+    (uint256 tokenId, uint256 amount) = abi.decode(makerSell.tokenInfo, (uint256, uint256));
     return (
-      (targetBuyer == takerBid.taker &&
-        Utils.arePricesWithinErrorBound(currentPrice, takerBid.price, ERROR_BOUND) &&
-        makerAsk.tokenId == takerBid.tokenId &&
+      (targetBuyer == takerBuy.taker &&
+        Utils.arePricesWithinErrorBound(currentPrice, takerBuy.price, ERROR_BOUND) &&
+        tokenId == takerBuy.tokenId &&
         startTime <= block.timestamp &&
         endTime >= block.timestamp),
-      makerAsk.tokenId,
-      makerAsk.amount
+      tokenId,
+      amount
     );
   }
 

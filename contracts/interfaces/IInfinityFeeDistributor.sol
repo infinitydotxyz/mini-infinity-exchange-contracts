@@ -10,6 +10,6 @@ interface IInfinityFeeDistributor {
     address currency,
     address from,
     address to,
-    uint256 minPercentageToAsk
+    uint256 minBpsToSeller
   ) external;
 }

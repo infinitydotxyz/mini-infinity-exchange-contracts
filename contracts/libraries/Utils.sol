@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import {OrderTypes} from '../libraries/OrderTypes.sol';
 
 library Utils {
-  function calculateCurrentPrice(OrderTypes.MakerOrder calldata makerOrder) public view returns (uint256) {
+  function calculateCurrentPrice(OrderTypes.Maker calldata makerOrder) public view returns (uint256) {
     (uint256 startTime, uint256 endTime) = abi.decode(makerOrder.startAndEndTimes, (uint256, uint256));
-    (uint256 startPrice, uint256 endPrice) = abi.decode(makerOrder.prices, (uint256, uint256));
+    (uint256 startPrice, uint256 endPrice, ) = abi.decode(makerOrder.prices, (uint256, uint256, uint256));
     uint256 duration = endTime - startTime;
     uint256 priceDiff = startPrice - endPrice;
     if (priceDiff == 0 || duration == 0) {

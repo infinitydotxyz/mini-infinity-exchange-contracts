@@ -27,12 +27,12 @@ contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker ask order can be executed against a maker bid
-   * @param takerAsk taker ask order
-   * @param makerBid maker bid order
+   * @notice Check whether a taker sell order can be executed against a maker buy
+   * @param takerSell taker sell order
+   * @param makerBuy maker buy order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerAsk(OrderTypes.TakerOrder calldata takerAsk, OrderTypes.MakerOrder calldata makerBid)
+  function canExecuteTakerSell(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
     external
     view
     override
@@ -42,22 +42,23 @@ contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
       uint256
     )
   {
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerBid);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerBid.startAndEndTimes, (uint256, uint256));
+    uint256 currentPrice = Utils.calculateCurrentPrice(makerBuy);
+    (uint256 startTime, uint256 endTime) = abi.decode(makerBuy.startAndEndTimes, (uint256, uint256));
+    (, uint256 amount) = abi.decode(makerBuy.tokenInfo, (uint256, uint256));
     return (
-      (Utils.arePricesWithinErrorBound(currentPrice, takerAsk.price, ERROR_BOUND) &&
+      (Utils.arePricesWithinErrorBound(currentPrice, takerSell.price, ERROR_BOUND) &&
         startTime <= block.timestamp &&
         endTime >= block.timestamp),
-      takerAsk.tokenId,
-      makerBid.amount
+      takerSell.tokenId,
+      amount
     );
   }
 
   /**
-   * @notice Check whether a taker bid order can be executed against a maker ask
+   * @notice Check whether a taker buy order can be executed against a maker sell
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerBid(OrderTypes.TakerOrder calldata, OrderTypes.MakerOrder calldata)
+  function canExecuteTakerBuy(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
     external
     pure
     override

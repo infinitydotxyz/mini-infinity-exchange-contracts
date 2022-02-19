@@ -8,7 +8,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 /**
  * @title StrategyFlexiblePrice
  * @notice Strategy that executes an order at a increasing/decreasing price that
- * can be taken either by a bid or an ask.
+ * can be taken either by a buy or an sell.
  */
 contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
   uint256 public immutable PROTOCOL_FEE;
@@ -27,12 +27,12 @@ contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker ask order can be executed against a maker bid
-   * @param takerAsk taker ask order
-   * @param makerBid maker bid order
+   * @notice Check whether a taker sell order can be executed against a maker buy
+   * @param takerSell taker sell order
+   * @param makerBuy maker buy order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerAsk(OrderTypes.TakerOrder calldata takerAsk, OrderTypes.MakerOrder calldata makerBid)
+  function canExecuteTakerSell(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
     external
     view
     override
@@ -42,25 +42,26 @@ contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
       uint256
     )
   {
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerBid);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerBid.startAndEndTimes, (uint256, uint256));
+    uint256 currentPrice = Utils.calculateCurrentPrice(makerBuy);
+    (uint256 startTime, uint256 endTime) = abi.decode(makerBuy.startAndEndTimes, (uint256, uint256));
+    (uint256 tokenId, uint256 amount) = abi.decode(makerBuy.tokenInfo, (uint256, uint256));
     return (
-      (Utils.arePricesWithinErrorBound(currentPrice, takerAsk.price, ERROR_BOUND) &&
-        (makerBid.tokenId == takerAsk.tokenId) &&
+      (Utils.arePricesWithinErrorBound(currentPrice, takerSell.price, ERROR_BOUND) &&
+        (tokenId == takerSell.tokenId) &&
         (startTime <= block.timestamp) &&
         (endTime >= block.timestamp)),
-      makerBid.tokenId,
-      makerBid.amount
+      tokenId,
+      amount
     );
   }
 
   /**
-   * @notice Check whether a taker bid order can be executed against a maker ask
-   * @param takerBid taker bid order
-   * @param makerAsk maker ask order
+   * @notice Check whether a taker buy order can be executed against a maker sell
+   * @param takerBuy taker buy order
+   * @param makerSell maker sell order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerBid(OrderTypes.TakerOrder calldata takerBid, OrderTypes.MakerOrder calldata makerAsk)
+  function canExecuteTakerBuy(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
     external
     view
     override
@@ -70,15 +71,16 @@ contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
       uint256
     )
   {
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerAsk);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerAsk.startAndEndTimes, (uint256, uint256));
+    uint256 currentPrice = Utils.calculateCurrentPrice(makerSell);
+    (uint256 startTime, uint256 endTime) = abi.decode(makerSell.startAndEndTimes, (uint256, uint256));
+    (uint256 tokenId, uint256 amount) = abi.decode(makerSell.tokenInfo, (uint256, uint256));
     return (
-      (Utils.arePricesWithinErrorBound(currentPrice, takerBid.price, ERROR_BOUND) &&
-        (makerAsk.tokenId == takerBid.tokenId) &&
+      (Utils.arePricesWithinErrorBound(currentPrice, takerBuy.price, ERROR_BOUND) &&
+        (tokenId == takerBuy.tokenId) &&
         (startTime <= block.timestamp) &&
         (endTime >= block.timestamp)),
-      makerAsk.tokenId,
-      makerAsk.amount
+      tokenId,
+      amount
     );
   }
 
