@@ -63,24 +63,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event NewNFTTransferSelector(address indexed nftTransferSelector);
   event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
 
-  event TakerSell(
+  event OrderFulfilled(
+    string orderType,
     bytes32 orderHash, // buy hash of the maker order
     uint256 orderNonce, // user order nonce
     address indexed taker, // sender address for the taker sell order
     address indexed maker, // maker address of the initial buy order
-    address indexed strategy, // strategy that defines the execution
-    address currency, // currency address
-    address collection, // collection address
-    uint256 tokenId, // tokenId transferred
-    uint256 amount, // amount of tokens transferred
-    uint256 price // final transacted price
-  );
-
-  event TakerBuy(
-    bytes32 orderHash, // sell hash of the maker order
-    uint256 orderNonce, // user order nonce
-    address indexed taker, // sender address for the taker buy order
-    address indexed maker, // maker address of the initial sell order
     address indexed strategy, // strategy that defines the execution
     address currency, // currency address
     address collection, // collection address
@@ -216,7 +204,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     _transferFeesAndNFTs(false, makerSell, takerBuy, tokenId, amount);
 
     // emit event
-    emit TakerBuy(
+    emit OrderFulfilled(
+      'Listing',
       sellHash,
       nonce,
       takerBuy.taker,
@@ -300,7 +289,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
     _transferFeesAndNFTs(true, makerBuy, takerSell, tokenId, amount);
 
-    emit TakerSell(
+    emit OrderFulfilled(
+      'Offer',
       buyHash,
       nonce,
       takerSell.taker,
