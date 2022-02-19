@@ -15,37 +15,31 @@ import {SignatureChecker} from '../libraries/SignatureChecker.sol';
 
 /**
  * @title InfinityExchange
- * @notice Core exchange contract
 
-MMMWXkl,..                                        .';oONMMMM
-MWKl'                                                 .,xXMM
-Nx'                                                      ;OW
-d.                                                        'O
-.                                                          :
-                                                           .
-                                                           .
-                                                           .
-                                                           .
-              .,coodooc,.          .;coddol:'.             .
-            ,dKNWMMMMMWN0o'      ;xKWWMMMMMWNOl.           .
-          .dXMMMMMMMMMMMMWKc.  .dNMMMMMMMMMMMMWKc.         .
-         .xWMMMMMMMMMMMMMMMXl':xWMMMMMMMMMMMMMMMXl         .
-         :XMMMMMMMMMMMMMMMMMK0XWMMMMMMMMMMMMMMMMMO.        .
-         cXMMMMMMMMMMMMMMMMMNNWMMMMMMMMMMMMMMMMMMO'        .
-         ,OMMMMMMMMMMMMMMMMWxld0MMMMMMMMMMMMMMMMWd.        .
-          :0WMMMMMMMMMMMMMWx. .;0WMMMMMMMMMMMMMNx'         .
-           'oKWMMMMMMMMMW0c.    'dXWMMMMMMMMMNOc.          .
-             .:ok0KXK0ko:.        'cdO0KKK0xl;.            .
-                 .....                .....                .
-                                                           .
-                                                           .
-                                                           .
-.                                                          ,
-;                                                         .o
-0;                                                       .lX
-MXo.                                                    ,xNM
-MMWKd;.                                              .:kXMMM
-MMMMMNOl,.                                       ..;o0WMMMMM
+NFTNFTNFT                                           NFTNFTNFT
+NFTNFT                                                 NFTNFT
+NFT                                                       NFT
+.                                                           .
+.                                                           .
+.                                                           .
+.                                                           .
+.               NFTNFTNFT            NFTNFTNFT              .
+.            NFTNFTNFTNFTNFT      NFTNFTNFTNFTNFT           .
+.           NFTNFTNFTNFTNFTNFT   NFTNFTNFTNFTNFTNFT         .
+.          FTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFT        .
+.         NFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFT        .
+.         NFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFT        .
+.         NFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFTNFT        .
+.          NFTNFTNFTNFTNFTNFTN   NFTNFTNFTNFTNFTNFT         .
+.            NFTNFTNFTNFTNFT      NFTNFTNFTNFTNFT           .
+.               NFTNFTNFT            NFTNFTNFT              .
+.                                                           .
+.                                                           .
+.                                                           .
+.                                                           .
+NFT                                                       NFT
+NFTNFT                                                 NFTNFT
+NFTNFTNFT                                           NFTNFTNFT 
 
 */
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
