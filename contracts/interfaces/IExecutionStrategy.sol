@@ -22,5 +22,5 @@ interface IExecutionStrategy {
       uint256
     );
 
-  function viewProtocolFee() external view returns (uint256);
+  function getProtocolFee() external view returns (uint256);
 }

@@ -38,7 +38,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
    * @param collection address of the NFT contract
    * @param amount sale price
    */
-  function calculateFeesAndGetRecipients(
+  function calcFeesAndGetRecipients(
     address strategy,
     address collection,
     uint256,
@@ -123,7 +123,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
    * @param amount amount to transfer
    */
   function _calculateProtocolFee(address executionStrategy, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IExecutionStrategy(executionStrategy).viewProtocolFee();
+    uint256 protocolFee = IExecutionStrategy(executionStrategy).getProtocolFee();
     return (protocolFee * amount) / 10000;
   }
 

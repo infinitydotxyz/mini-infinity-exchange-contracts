@@ -7,8 +7,8 @@ import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
 import {IExecutionManager} from '../interfaces/IExecutionManager.sol';
 import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
-import {ITransferManagerNFT} from '../interfaces/ITransferManagerNFT.sol';
-import {ITransferSelectorNFT} from '../interfaces/ITransferSelectorNFT.sol';
+import {INFTTransferManager} from '../interfaces/INFTTransferManager.sol';
+import {INFTTransferSelector} from '../interfaces/INFTTransferSelector.sol';
 import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
 import {OrderTypes} from '../libraries/OrderTypes.sol';
 import {SignatureChecker} from '../libraries/SignatureChecker.sol';
@@ -57,7 +57,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   ICurrencyManager public currencyManager;
   IExecutionManager public executionManager;
-  ITransferSelectorNFT public transferSelectorNFT;
+  INFTTransferSelector public nftTransferSelector;
   IInfinityFeeDistributor public infinityFeeDistributor;
 
   mapping(address => uint256) public userMinOrderNonce;
@@ -67,7 +67,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
   event NewCurrencyManager(address indexed currencyManager);
   event NewExecutionManager(address indexed executionManager);
-  event NewTransferSelectorNFT(address indexed transferSelectorNFT);
+  event NewNFTTransferSelector(address indexed nftTransferSelector);
   event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
 
   event TakerSell(
@@ -333,7 +333,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
     if (isSell) {
       // transfer nfts
-      _transferNonFungibleToken(maker.collection, msg.sender, maker.signer, tokenId, amount);
+      _transferNFT(maker.collection, msg.sender, maker.signer, tokenId, amount);
 
       // distribute fees
       infinityFeeDistributor.distributeFees(
@@ -360,7 +360,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       );
 
       // transfer nfts
-      _transferNonFungibleToken(maker.collection, maker.signer, taker.taker, tokenId, amount);
+      _transferNFT(maker.collection, maker.signer, taker.taker, tokenId, amount);
     }
   }
 
@@ -386,13 +386,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Update transfer selector NFT
-   * @param _transferSelectorNFT new transfer selector address
+   * @param _nftTransferSelector new transfer selector address
    */
-  function updateTransferSelectorNFT(address _transferSelectorNFT) external onlyOwner {
-    require(_transferSelectorNFT != address(0), 'Owner: Cannot be 0x0');
-    transferSelectorNFT = ITransferSelectorNFT(_transferSelectorNFT);
+  function updateNFTTransferSelector(address _nftTransferSelector) external onlyOwner {
+    require(_nftTransferSelector != address(0), 'Owner: Cannot be 0x0');
+    nftTransferSelector = INFTTransferSelector(_nftTransferSelector);
 
-    emit NewTransferSelectorNFT(_transferSelectorNFT);
+    emit NewNFTTransferSelector(_nftTransferSelector);
   }
 
   /**
@@ -424,7 +424,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param amount amount of tokens (1 for ERC721, 1+ for ERC1155)
    * @dev For ERC721, amount is not used
    */
-  function _transferNonFungibleToken(
+  function _transferNFT(
     address collection,
     address from,
     address to,
@@ -432,13 +432,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount
   ) internal {
     // Retrieve the transfer manager address
-    address transferManager = transferSelectorNFT.checkTransferManagerForToken(collection);
+    address transferManager = nftTransferSelector.getTransferManager(collection);
 
     // If no transfer manager found, it returns address(0)
     require(transferManager != address(0), 'Transfer: No NFT transfer manager available');
 
     // If one is found, transfer the token
-    ITransferManagerNFT(transferManager).transferNonFungibleToken(collection, from, to, tokenId, amount);
+    INFTTransferManager(transferManager).transferNFT(collection, from, to, tokenId, amount);
   }
 
   /**

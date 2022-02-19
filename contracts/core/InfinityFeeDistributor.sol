@@ -119,7 +119,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   ) internal returns (uint256) {
     IFeeManager feeManager = IFeeManager(feeManagerAddress);
     (string memory partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
-      .calculateFeesAndGetRecipients(strategy, collection, tokenId, amount);
+      .calcFeesAndGetRecipients(strategy, collection, tokenId, amount);
     return _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from);
   }
 
@@ -152,7 +152,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
    * @param amount amount to transfer
    */
   function _calculateProtocolFee(address executionStrategy, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IExecutionStrategy(executionStrategy).viewProtocolFee();
+    uint256 protocolFee = IExecutionStrategy(executionStrategy).getProtocolFee();
     return (protocolFee * amount) / 10000;
   }
 

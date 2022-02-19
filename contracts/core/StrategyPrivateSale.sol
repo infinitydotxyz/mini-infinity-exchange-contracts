@@ -79,7 +79,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
    * @notice Return protocol fee for this strategy
    * @return protocol fee
    */
-  function viewProtocolFee() external view override returns (uint256) {
+  function getProtocolFee() external view override returns (uint256) {
     return PROTOCOL_FEE;
   }
 

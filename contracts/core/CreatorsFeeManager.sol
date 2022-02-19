@@ -14,7 +14,7 @@ import {IRoyaltyEngine} from '../interfaces/IRoyaltyEngine.sol';
 contract CreatorsFeeManager is IFeeManager, Ownable {
   // https://eips.ethereum.org/EIPS/eip-2981
   bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
-  string public PARTY_NAME = 'creators'; 
+  string public PARTY_NAME = 'creators';
 
   IRoyaltyEngine public royaltyEngine;
 
@@ -34,12 +34,20 @@ contract CreatorsFeeManager is IFeeManager, Ownable {
    * @param tokenId tokenId
    * @param amount amount to transfer
    */
-  function calculateFeesAndGetRecipients(
+  function calcFeesAndGetRecipients(
     address,
     address collection,
     uint256 tokenId,
     uint256 amount
-  ) external override returns (string memory, address[] memory, uint256[] memory) {
+  )
+    external
+    override
+    returns (
+      string memory,
+      address[] memory,
+      uint256[] memory
+    )
+  {
     address[] memory recipients;
     uint256[] memory royaltyAmounts;
     // check if the collection supports IERC2981
