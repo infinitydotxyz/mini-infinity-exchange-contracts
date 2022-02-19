@@ -3,13 +3,13 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-import {IExecutionManager} from '../interfaces/IExecutionManager.sol';
+import {IExecutionStrategyRegistry} from '../interfaces/IExecutionStrategyRegistry.sol';
 
 /**
- * @title ExecutionManager
- * @notice allows adding/removing execution strategies for trading on the Infinity exchange.
+ * @title ExecutionStrategyRegistry
+ * @notice allows adding/removing execution strategies for trading on the Infinity exchange
  */
-contract ExecutionManager is IExecutionManager, Ownable {
+contract ExecutionStrategyRegistry is IExecutionStrategyRegistry, Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   EnumerableSet.AddressSet private _whitelistedStrategies;
@@ -50,7 +50,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
   /**
    * @notice View number of whitelisted strategies
    */
-  function viewCountWhitelistedStrategies() external view returns (uint256) {
+  function numWhitelistedStrategies() external view returns (uint256) {
     return _whitelistedStrategies.length();
   }
 
@@ -59,11 +59,7 @@ contract ExecutionManager is IExecutionManager, Ownable {
    * @param cursor cursor (should start at 0 for first request)
    * @param size size of the response (e.g., 50)
    */
-  function viewWhitelistedStrategies(uint256 cursor, uint256 size)
-    external
-    view
-    returns (address[] memory, uint256)
-  {
+  function getWhitelistedStrategies(uint256 cursor, uint256 size) external view returns (address[] memory, uint256) {
     uint256 length = size;
 
     if (length > _whitelistedStrategies.length() - cursor) {

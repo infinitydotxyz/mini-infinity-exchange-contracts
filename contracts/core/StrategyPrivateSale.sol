@@ -30,7 +30,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
    * @notice Check whether a taker sell order can be executed against a maker buy
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerSell(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
+  function canExecuteOffer(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
     external
     pure
     override
@@ -49,7 +49,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
    * @param makerSell maker sell order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerBuy(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
+  function canExecuteListing(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
     external
     view
     override

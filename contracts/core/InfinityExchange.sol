@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
-import {IExecutionManager} from '../interfaces/IExecutionManager.sol';
+import {IExecutionStrategyRegistry} from '../interfaces/IExecutionStrategyRegistry.sol';
 import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
 import {INFTTransferManager} from '../interfaces/INFTTransferManager.sol';
@@ -49,7 +49,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   bytes32 public immutable DOMAIN_SEPARATOR;
 
   ICurrencyManager public currencyManager;
-  IExecutionManager public executionManager;
+  IExecutionStrategyRegistry public executionStrategyRegistry;
   INFTTransferSelector public nftTransferSelector;
   IInfinityFeeDistributor public infinityFeeDistributor;
 
@@ -59,7 +59,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event CancelAllOrders(address indexed user, uint256 newMinNonce);
   event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
   event NewCurrencyManager(address indexed currencyManager);
-  event NewExecutionManager(address indexed executionManager);
+  event NewExecutionStrategyRegistry(address indexed executionStrategyRegistry);
   event NewNFTTransferSelector(address indexed nftTransferSelector);
   event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
 
@@ -80,15 +80,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   /**
    * @notice Constructor
    * @param _currencyManager currency manager address
-   * @param _executionManager execution manager address
+   * @param _executionStrategyRegistry execution manager address
    * @param _WETH wrapped ether address (for other chains, use wrapped native asset)
-   * @param _infinityFeeDistributor fee distributor address
    */
   constructor(
     address _currencyManager,
-    address _executionManager,
-    address _WETH,
-    address _infinityFeeDistributor
+    address _executionStrategyRegistry,
+    address _WETH
   ) {
     // Calculate the domain separator
     DOMAIN_SEPARATOR = keccak256(
@@ -102,9 +100,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     );
 
     currencyManager = ICurrencyManager(_currencyManager);
-    executionManager = IExecutionManager(_executionManager);
+    executionStrategyRegistry = IExecutionStrategyRegistry(_executionStrategyRegistry);
     WETH = _WETH;
-    infinityFeeDistributor = IInfinityFeeDistributor(_infinityFeeDistributor);
   }
 
   /**
@@ -113,7 +110,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    */
   function cancelAllOrdersForSender(uint256 minNonce) external {
     require(minNonce > userMinOrderNonce[msg.sender], 'Cancel: Nonce too low');
-    require(minNonce < userMinOrderNonce[msg.sender] + 500000, 'Cancel: Too many');
+    require(minNonce < userMinOrderNonce[msg.sender] + 1000000, 'Cancel: Too many');
     userMinOrderNonce[msg.sender] = minNonce;
 
     emit CancelAllOrders(msg.sender, minNonce);
@@ -135,214 +132,203 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Match takerBuys with matchSells
-   * @param makerSells maker sell orders
-   * @param takerBuys taker buy orders
+   * @notice Match listings with buy orders
+   * @param listings maker listings
+   * @param buys taker buy orders
    */
-  function matchMakerSellsWithTakerBuys(OrderTypes.Maker[] calldata makerSells, OrderTypes.Taker[] calldata takerBuys)
+  function matchListingsWithBuys(OrderTypes.Maker[] calldata listings, OrderTypes.Taker[] calldata buys)
     external
     override
     nonReentrant
   {
     // check pre-conditions
-    require(makerSells.length == takerBuys.length, 'Order: Mismatched lengths');
+    require(listings.length == buys.length, 'Order: Mismatched lengths');
     // execute orders one by one
-    for (uint256 i = 0; i < makerSells.length; i++) {
-      _matchMakerSellWithTakerBuy(makerSells[i], takerBuys[i]);
+    for (uint256 i = 0; i < listings.length; i++) {
+      _matchListingWithBuy(listings[i], buys[i]);
     }
   }
 
-  function _matchMakerSellWithTakerBuy(OrderTypes.Maker calldata makerSell, OrderTypes.Taker calldata takerBuy)
-    internal
-  {
-    (bool isSellOrder, address strategy, , uint256 nonce) = abi.decode(
-      makerSell.execInfo,
+  function _matchListingWithBuy(OrderTypes.Maker calldata listing, OrderTypes.Taker calldata buy) internal {
+    (bool isListing, address strategy, , uint256 nonce) = abi.decode(
+      listing.execInfo,
       (bool, address, address, uint256)
     );
     // check if msg sender is taker
-    bool msgSenderIsTaker = msg.sender == takerBuy.taker;
+    bool msgSenderIsTaker = msg.sender == buy.taker;
 
     // check if sides match
-    bool sidesMatch = isSellOrder && !takerBuy.isSellOrder;
+    bool sidesMatch = isListing && !buy.isSellOrder;
 
-    // Check the maker sell order
-    bytes32 sellHash = makerSell.hash();
-    bool orderValid = _isOrderValid(makerSell, sellHash);
+    // check if listing is valid
+    bytes32 listingHash = listing.hash();
+    bool orderValid = _isOrderValid(listing, listingHash);
 
     // check if execution is valid
-    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(strategy).canExecuteTakerBuy(
-      takerBuy,
-      makerSell
+    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(strategy).canExecuteListing(
+      buy,
+      listing
     );
 
     bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
 
-    // if this order is not valid, just return and continue with other orders
+    // if this listing is not valid, just return and continue with other listings
     if (!shouldExecute) {
       return;
     }
 
-    // Update maker sell order status to true (prevents replay)
-    _isUserOrderNonceExecutedOrCancelled[makerSell.signer][nonce] = true;
+    // Update listing execution status to true (prevents replay)
+    _isUserOrderNonceExecutedOrCancelled[listing.signer][nonce] = true;
 
-    // exec transfer
-    _execTakerBuy(sellHash, makerSell, takerBuy, tokenId, amount);
+    // exec listing
+    _execListing(listingHash, listing, buy, tokenId, amount);
   }
 
-  function _execTakerBuy(
-    bytes32 sellHash,
-    OrderTypes.Maker calldata makerSell,
-    OrderTypes.Taker calldata takerBuy,
+  function _execListing(
+    bytes32 listingHash,
+    OrderTypes.Maker calldata listing,
+    OrderTypes.Taker calldata buy,
     uint256 tokenId,
     uint256 amount
   ) internal {
     (, address strategy, address currency, uint256 nonce) = abi.decode(
-      makerSell.execInfo,
+      listing.execInfo,
       (bool, address, address, uint256)
     );
 
-    _transferFeesAndNFTs(false, makerSell, takerBuy, tokenId, amount);
+    _transferFeesAndNFTs(false, listing, buy, tokenId, amount);
 
     // emit event
     emit OrderFulfilled(
       'Listing',
-      sellHash,
+      listingHash,
       nonce,
-      takerBuy.taker,
-      makerSell.signer,
+      buy.taker,
+      listing.signer,
       strategy,
       currency,
-      makerSell.collection,
+      listing.collection,
       tokenId,
       amount,
-      takerBuy.price
+      buy.price
     );
   }
 
   /**
-   * @notice Match a takerSell with a makerBuy
-   * @param makerBuys maker buy order
-   * @param takerSells taker sell order
+   * @notice Match a offers with accepts
+   * @param offers maker offers
+   * @param accepts taker accepts
    */
-  function matchMakerBuysWithTakerSells(OrderTypes.Maker[] calldata makerBuys, OrderTypes.Taker[] calldata takerSells)
+  function matchOffersWithAccepts(OrderTypes.Maker[] calldata offers, OrderTypes.Taker[] calldata accepts)
     external
     override
     nonReentrant
   {
     // check pre-conditions
-    require(makerBuys.length == takerSells.length, 'Order: Mismatched lengths');
+    require(offers.length == accepts.length, 'Order: Mismatched lengths');
 
     // execute orders one by one
-    for (uint256 i = 0; i < makerBuys.length; i++) {
-      _matchMakerBuyWithTakerSell(makerBuys[i], takerSells[i]);
+    for (uint256 i = 0; i < offers.length; i++) {
+      _matchOfferWithAccept(offers[i], accepts[i]);
     }
   }
 
-  function _matchMakerBuyWithTakerSell(OrderTypes.Maker calldata makerBuy, OrderTypes.Taker calldata takerSell)
-    internal
-  {
-    (bool isSellOrder, address strategy, , uint256 nonce) = abi.decode(
-      makerBuy.execInfo,
-      (bool, address, address, uint256)
-    );
+  function _matchOfferWithAccept(OrderTypes.Maker calldata offer, OrderTypes.Taker calldata accept) internal {
+    (bool isListing, address strategy, , uint256 nonce) = abi.decode(offer.execInfo, (bool, address, address, uint256));
     // check if msg sender is taker
-    bool msgSenderIsTaker = msg.sender == takerSell.taker;
+    bool msgSenderIsTaker = msg.sender == accept.taker;
 
     // check if sides match
-    bool sidesMatch = !isSellOrder && takerSell.isSellOrder;
+    bool sidesMatch = !isListing && accept.isSellOrder;
 
-    // Check the maker buy order
-    bytes32 buyHash = makerBuy.hash();
-    bool orderValid = _isOrderValid(makerBuy, buyHash);
+    // Check if offer is valid
+    bytes32 offerHash = offer.hash();
+    bool orderValid = _isOrderValid(offer, offerHash);
 
     // check if execution is valid
-    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(strategy).canExecuteTakerSell(
-      takerSell,
-      makerBuy
+    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(strategy).canExecuteOffer(
+      accept,
+      offer
     );
 
     bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
 
-    // if this order is not valid, just return and continue with other orders
+    // if this offer is not valid, just return and continue with other offers
     if (!shouldExecute) {
       return;
     }
 
     // Update maker buy order status to true (prevents replay)
-    _isUserOrderNonceExecutedOrCancelled[makerBuy.signer][nonce] = true;
+    _isUserOrderNonceExecutedOrCancelled[offer.signer][nonce] = true;
 
-    // exec transfer
-    _execTakerSell(buyHash, makerBuy, takerSell, tokenId, amount);
+    // exec offer
+    _execOffer(offerHash, offer, accept, tokenId, amount);
   }
 
-  function _execTakerSell(
-    bytes32 buyHash,
-    OrderTypes.Maker calldata makerBuy,
-    OrderTypes.Taker calldata takerSell,
+  function _execOffer(
+    bytes32 offerHash,
+    OrderTypes.Maker calldata offer,
+    OrderTypes.Taker calldata accept,
     uint256 tokenId,
     uint256 amount
   ) internal {
     (, address strategy, address currency, uint256 nonce) = abi.decode(
-      makerBuy.execInfo,
+      offer.execInfo,
       (bool, address, address, uint256)
     );
 
-    _transferFeesAndNFTs(true, makerBuy, takerSell, tokenId, amount);
+    _transferFeesAndNFTs(true, offer, accept, tokenId, amount);
 
     emit OrderFulfilled(
       'Offer',
-      buyHash,
+      offerHash,
       nonce,
-      takerSell.taker,
-      makerBuy.signer,
+      accept.taker,
+      offer.signer,
       strategy,
       currency,
-      makerBuy.collection,
+      offer.collection,
       tokenId,
       amount,
-      takerSell.price
+      accept.price
     );
   }
 
   function _transferFeesAndNFTs(
-    bool isSell,
+    bool isAcceptOffer,
     OrderTypes.Maker calldata maker,
     OrderTypes.Taker calldata taker,
     uint256 tokenId,
     uint256 amount
   ) internal {
-    (, address strategy, address currency, ) = abi.decode(maker.execInfo, (bool, address, address, uint256));
+    (, address execStrategy, address currency, ) = abi.decode(maker.execInfo, (bool, address, address, uint256));
     (, , uint256 minBpsToSeller) = abi.decode(maker.prices, (uint256, uint256, uint256));
 
-    if (isSell) {
-      // transfer nfts
+    if (isAcceptOffer) {
       _transferNFT(maker.collection, msg.sender, maker.signer, tokenId, amount);
 
-      // distribute fees
       infinityFeeDistributor.distributeFees(
-        strategy,
         taker.price,
-        maker.collection,
-        tokenId,
         currency,
         maker.signer,
         msg.sender,
-        taker.minBpsToSeller
+        taker.minBpsToSeller,
+        execStrategy,
+        maker.collection,
+        tokenId
       );
     } else {
-      // distribute fees
       infinityFeeDistributor.distributeFees(
-        strategy,
         taker.price,
-        maker.collection,
-        tokenId,
         currency,
         msg.sender,
         maker.signer,
-        minBpsToSeller
+        minBpsToSeller,
+        execStrategy,
+        maker.collection,
+        tokenId
       );
 
-      // transfer nfts
       _transferNFT(maker.collection, maker.signer, taker.taker, tokenId, amount);
     }
   }
@@ -359,12 +345,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Update execution manager
-   * @param _executionManager new execution manager address
+   * @param _executionStrategyRegistry new execution manager address
    */
-  function updateExecutionManager(address _executionManager) external onlyOwner {
-    require(_executionManager != address(0), 'Owner: Cannot be 0x0');
-    executionManager = IExecutionManager(_executionManager);
-    emit NewExecutionManager(_executionManager);
+  function updateExecutionStrategyRegistry(address _executionStrategyRegistry) external onlyOwner {
+    require(_executionStrategyRegistry != address(0), 'Owner: Cannot be 0x0');
+    executionStrategyRegistry = IExecutionStrategyRegistry(_executionStrategyRegistry);
+    emit NewExecutionStrategyRegistry(_executionStrategyRegistry);
   }
 
   /**
@@ -374,7 +360,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function updateNFTTransferSelector(address _nftTransferSelector) external onlyOwner {
     require(_nftTransferSelector != address(0), 'Owner: Cannot be 0x0');
     nftTransferSelector = INFTTransferSelector(_nftTransferSelector);
-
     emit NewNFTTransferSelector(_nftTransferSelector);
   }
 
@@ -385,7 +370,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function updateInfinityFeeDistributor(address _infinityFeeDistributor) external onlyOwner {
     require(_infinityFeeDistributor != address(0), 'Owner: Cannot be 0x0');
     infinityFeeDistributor = IInfinityFeeDistributor(_infinityFeeDistributor);
-
     emit NewInfinityFeeDistributor(_infinityFeeDistributor);
   }
 
@@ -450,7 +434,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       makerOrder.signer == address(0) ||
       amount == 0 ||
       !currencyManager.isCurrencyWhitelisted(currency) ||
-      !executionManager.isStrategyWhitelisted(strategy)
+      !executionStrategyRegistry.isStrategyWhitelisted(strategy)
     ) {
       return false;
     }

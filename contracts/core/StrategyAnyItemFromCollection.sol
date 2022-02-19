@@ -32,7 +32,7 @@ contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
    * @param makerBuy maker buy order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerSell(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
+  function canExecuteOffer(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
     external
     view
     override
@@ -58,7 +58,7 @@ contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
    * @notice Check whether a taker buy order can be executed against a maker sell
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerBuy(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
+  function canExecuteListing(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
     external
     pure
     override

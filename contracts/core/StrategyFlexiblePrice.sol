@@ -32,7 +32,7 @@ contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
    * @param makerBuy maker buy order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerSell(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
+  function canExecuteOffer(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
     external
     view
     override
@@ -61,7 +61,7 @@ contract StrategyFlexiblePrice is IExecutionStrategy, Ownable {
    * @param makerSell maker sell order
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteTakerBuy(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
+  function canExecuteListing(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
     external
     view
     override

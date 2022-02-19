@@ -6,6 +6,7 @@ import {IFeeRegistry} from '../interfaces/IFeeRegistry.sol';
 
 /**
  * @title CollectorsFeeRegistry
+ * @notice owned by CollectorsFeeManager; serves as a data registry
  */
 contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
   struct FeeInfo {
@@ -27,7 +28,7 @@ contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
    * @notice Update collectors fee for collection
    * @param collection address of the NFT contract
    * @param setter address that sets the receiver
-   * @param destination receiver for the royalty fee
+   * @param destination receiver for the fee
    * @param bps fee (500 = 5%, 1,000 = 10%)
    */
   function registerFeeDestination(

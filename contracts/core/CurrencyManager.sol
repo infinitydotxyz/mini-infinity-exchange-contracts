@@ -50,7 +50,7 @@ contract CurrencyManager is ICurrencyManager, Ownable {
   /**
    * @notice View number of whitelisted currencies
    */
-  function viewCountWhitelistedCurrencies() external view returns (uint256) {
+  function numWhitelistedCurrencies() external view returns (uint256) {
     return _whitelistedCurrencies.length();
   }
 

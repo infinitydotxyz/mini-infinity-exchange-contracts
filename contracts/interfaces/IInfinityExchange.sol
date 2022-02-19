@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 import {OrderTypes} from '../libraries/OrderTypes.sol';
 
 interface IInfinityExchange {
-  function matchMakerSellsWithTakerBuys(OrderTypes.Maker[] calldata makerSells, OrderTypes.Taker[] calldata takerBuys)
+  function matchListingsWithBuys(OrderTypes.Maker[] calldata listings, OrderTypes.Taker[] calldata buys)
     external;
 
-  function matchMakerBuysWithTakerSells(OrderTypes.Maker[] calldata makerBuys, OrderTypes.Taker[] calldata takerSells)
+  function matchOffersWithAccepts(OrderTypes.Maker[] calldata offers, OrderTypes.Taker[] calldata accepts)
     external;
 }

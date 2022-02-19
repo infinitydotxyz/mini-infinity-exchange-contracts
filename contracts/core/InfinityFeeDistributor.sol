@@ -18,6 +18,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
 
   EnumerableSet.AddressSet private _feeManagers;
   address public protocolFeeRecipient;
+  address public INFINITY_EXCHANGE;
   string public PARTY_NAME = 'protocol';
 
   event FeeManagerAdded(address indexed managerAddress);
@@ -36,46 +37,48 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   /**
    * @notice Constructor
    * @param _protocolFeeRecipient protocol fee recipient
+   * @param _infinityExchange infinity exchange address
    */
-  constructor(address _protocolFeeRecipient) {
+  constructor(address _protocolFeeRecipient, address _infinityExchange) {
     protocolFeeRecipient = _protocolFeeRecipient;
+    INFINITY_EXCHANGE = _infinityExchange;
   }
 
   function distributeFees(
-    address strategy,
     uint256 amount,
-    address collection,
-    uint256 tokenId,
     address currency,
     address from,
     address to,
-    uint256 minBpsToSeller
+    uint256 minBpsToSeller,
+    address execStrategy,
+    address collection,
+    uint256 tokenId
+    
   ) external override {
+    require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     uint256 remainingAmount = amount;
-
     // protocol fee
-    remainingAmount -= _disburseFeesToProtocol(strategy, amount, collection, tokenId, currency, from);
-
+    remainingAmount -= _disburseFeesToProtocol(execStrategy, amount, collection, tokenId, currency, from);
     // other party fees
-    remainingAmount -= _disburseFeesToParties(strategy, amount, collection, tokenId, currency, from);
-
-    // check min sell is met
+    remainingAmount -= _disburseFeesToParties(execStrategy, amount, collection, tokenId, currency, from);
+    // check min bps to seller is met
     require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
-
     // transfer final amount (post-fees) to seller
     IERC20(currency).safeTransferFrom(from, to, remainingAmount);
   }
 
-  // returns protocol fees
+  /**
+   * @notice sends protocol fees to protocol fee recipient and returns amount sent
+   */
   function _disburseFeesToProtocol(
-    address strategy,
+    address execStrategy,
     uint256 amount,
     address collection,
     uint256 tokenId,
     address currency,
     address from
   ) internal returns (uint256) {
-    uint256 protocolFeeAmount = _calculateProtocolFee(strategy, amount);
+    uint256 protocolFeeAmount = _calculateProtocolFee(execStrategy, amount);
     if (protocolFeeRecipient != address(0) && protocolFeeAmount != 0) {
       IERC20(currency).safeTransferFrom(from, protocolFeeRecipient, protocolFeeAmount);
       emit FeeDistributed(PARTY_NAME, collection, tokenId, protocolFeeRecipient, currency, protocolFeeAmount);
@@ -83,9 +86,11 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     return protocolFeeAmount;
   }
 
-  // disburses fees to parties like collectors, creators, curators et and returns the disbursed amount
+  /**
+   * @notice disburses fees to parties like collectors, creators, curators etc and returns the disbursed amount
+   */
   function _disburseFeesToParties(
-    address strategy,
+    address execStrategy,
     uint256 amount,
     address collection,
     uint256 tokenId,
@@ -97,7 +102,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     for (uint256 i = 0; i < _feeManagers.length(); i++) {
       partyFees += _disburseFeesViaFeeManager(
         _feeManagers.at(i),
-        strategy,
+        execStrategy,
         collection,
         tokenId,
         amount,
@@ -110,7 +115,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
 
   function _disburseFeesViaFeeManager(
     address feeManagerAddress,
-    address strategy,
+    address execStrategy,
     address collection,
     uint256 tokenId,
     uint256 amount,
@@ -119,11 +124,13 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   ) internal returns (uint256) {
     IFeeManager feeManager = IFeeManager(feeManagerAddress);
     (string memory partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
-      .calcFeesAndGetRecipients(strategy, collection, tokenId, amount);
+      .calcFeesAndGetRecipients(execStrategy, collection, tokenId, amount);
     return _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from);
   }
 
-  // disburses fees to a party like collectors and returns the disbursed amount
+  /**
+   * @notice disburses fees to a party like collectors and returns the disbursed amount
+   */
   function _disburseFeesToParty(
     string memory partyName,
     address collection,
@@ -148,11 +155,11 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
 
   /**
    * @notice Calculate protocol fee for an execution strategy
-   * @param executionStrategy strategy
+   * @param execStrategy strategy
    * @param amount amount to transfer
    */
-  function _calculateProtocolFee(address executionStrategy, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IExecutionStrategy(executionStrategy).getProtocolFee();
+  function _calculateProtocolFee(address execStrategy, uint256 amount) internal view returns (uint256) {
+    uint256 protocolFee = IExecutionStrategy(execStrategy).getProtocolFee();
     return (protocolFee * amount) / 10000;
   }
 

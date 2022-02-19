@@ -14,13 +14,13 @@ library OrderTypes {
     bytes prices; // uint256 startPrice, uint256 endPrice, uint256 minBpsToSeller (9000 --> 90% of the final price must return to sell)
     bytes startAndEndTimes; // uint256 startTime and uint256 endTime in block.timestamp
     bytes tokenInfo; // uint256 id of the token and uint256 amount of tokens to sell/purchase (must be 1 for ERC721, 1+ for ERC1155)
-    bytes execInfo; // bool isSellOrder, address of strategy for trade execution (e.g., FlexiblePrice, PrivateSale), address of the currency (e.g., WETH) and uint256 nonce of the order (must be unique unless new maker order is meant to override existing one e.g., lower sell price)
+    bytes execInfo; // bool isListing, address of strategy for trade execution (e.g., FlexiblePrice, PrivateSale), address of the currency (e.g., WETH) and uint256 nonce of the order (must be unique unless new maker order is meant to override existing one e.g., lower sell price)
     bytes params; // additional parameters
     bytes sig; // uint8 v: parameter (27 or 28), bytes32 r, bytes32 s
   }
 
   struct Taker {
-    bool isSellOrder; // true --> sell / false --> buy
+    bool isSellOrder;
     address taker; // msg.sender
     uint256 price; // final price
     uint256 tokenId;
