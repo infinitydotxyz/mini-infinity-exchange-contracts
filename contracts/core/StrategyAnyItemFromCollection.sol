@@ -7,8 +7,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
  * @title StrategyAnyItemFromCollection
- * @notice Strategy to send an order at a flexible price that can be
- * matched by any tokenId for the collection.
+ * @notice Strategy to send an order at a flexible price that can be matched by any tokenId for the collection.
  */
 contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
   uint256 public immutable PROTOCOL_FEE;
@@ -27,12 +26,12 @@ contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker sell order can be executed against a maker buy
-   * @param takerSell taker sell order
-   * @param makerBuy maker buy order
+   * @notice Check whether a taker accept order can be executed against a maker offer
+   * @param accept taker accept order
+   * @param offer maker offer
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteOffer(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
+  function canExecuteOffer(OrderTypes.Taker calldata accept, OrderTypes.Maker calldata offer)
     external
     view
     override
@@ -42,20 +41,20 @@ contract StrategyAnyItemFromCollection is IExecutionStrategy, Ownable {
       uint256
     )
   {
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerBuy);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerBuy.startAndEndTimes, (uint256, uint256));
-    (, uint256 amount) = abi.decode(makerBuy.tokenInfo, (uint256, uint256));
+    uint256 currentPrice = Utils.calculateCurrentPrice(offer);
+    (uint256 startTime, uint256 endTime) = abi.decode(offer.startAndEndTimes, (uint256, uint256));
+    (, uint256 amount) = abi.decode(offer.tokenInfo, (uint256, uint256));
     return (
-      (Utils.arePricesWithinErrorBound(currentPrice, takerSell.price, ERROR_BOUND) &&
+      (Utils.arePricesWithinErrorBound(currentPrice, accept.price, ERROR_BOUND) &&
         startTime <= block.timestamp &&
         endTime >= block.timestamp),
-      takerSell.tokenId,
+      accept.tokenId,
       amount
     );
   }
 
   /**
-   * @notice Check whether a taker buy order can be executed against a maker sell
+   * @notice Check whether a taker buy order can be executed against a maker listing
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
   function canExecuteListing(OrderTypes.Taker calldata, OrderTypes.Maker calldata)

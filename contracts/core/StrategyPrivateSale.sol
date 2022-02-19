@@ -7,8 +7,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
  * @title StrategyPrivateSale
- * @notice Strategy to set up an order that can only be executed by
- * a specific address.
+ * @notice Strategy to set up an order that can only be executed by a specific address
  */
 contract StrategyPrivateSale is IExecutionStrategy, Ownable {
   uint256 public immutable PROTOCOL_FEE;
@@ -27,7 +26,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker sell order can be executed against a maker buy
+   * @notice Check whether a taker accept order can be executed against an offer
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
   function canExecuteOffer(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
@@ -44,12 +43,12 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Check whether a taker buy order can be executed against a maker sell
-   * @param takerBuy taker buy order
-   * @param makerSell maker sell order
+   * @notice Check whether a taker buy order can be executed against a maker listing
+   * @param buy taker buy order
+   * @param listing maker listing
    * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteListing(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
+  function canExecuteListing(OrderTypes.Taker calldata buy, OrderTypes.Maker calldata listing)
     external
     view
     override
@@ -60,14 +59,14 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
     )
   {
     // Retrieve target buyer
-    address targetBuyer = abi.decode(makerSell.params, (address));
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerSell);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerSell.startAndEndTimes, (uint256, uint256));
-    (uint256 tokenId, uint256 amount) = abi.decode(makerSell.tokenInfo, (uint256, uint256));
+    address targetBuyer = abi.decode(listing.params, (address));
+    uint256 currentPrice = Utils.calculateCurrentPrice(listing);
+    (uint256 startTime, uint256 endTime) = abi.decode(listing.startAndEndTimes, (uint256, uint256));
+    (uint256 tokenId, uint256 amount) = abi.decode(listing.tokenInfo, (uint256, uint256));
     return (
-      (targetBuyer == takerBuy.taker &&
-        Utils.arePricesWithinErrorBound(currentPrice, takerBuy.price, ERROR_BOUND) &&
-        tokenId == takerBuy.tokenId &&
+      (targetBuyer == buy.taker &&
+        Utils.arePricesWithinErrorBound(currentPrice, buy.price, ERROR_BOUND) &&
+        tokenId == buy.tokenId &&
         startTime <= block.timestamp &&
         endTime >= block.timestamp),
       tokenId,

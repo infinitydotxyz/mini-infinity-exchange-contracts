@@ -25,9 +25,9 @@ library Utils {
   ) public pure returns (bool) {
     if (price1 == price2) {
       return true;
-    } else if (price1 > price2 && price1 - price2 < errorBound) {
+    } else if (price1 > price2 && price1 - price2 <= errorBound) {
       return true;
-    } else if (price2 > price1 && price2 - price1 < errorBound) {
+    } else if (price2 > price1 && price2 - price1 <= errorBound) {
       return true;
     } else {
       return false;

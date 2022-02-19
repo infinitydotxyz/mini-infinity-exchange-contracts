@@ -67,8 +67,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     string orderType,
     bytes32 orderHash, // buy hash of the maker order
     uint256 orderNonce, // user order nonce
-    address indexed taker, // sender address for the taker sell order
-    address indexed maker, // maker address of the initial buy order
+    address indexed taker, // address of the taker of the order
+    address indexed maker, // address of the maker of the order
     address indexed strategy, // strategy that defines the execution
     address currency, // currency address
     address collection, // collection address
