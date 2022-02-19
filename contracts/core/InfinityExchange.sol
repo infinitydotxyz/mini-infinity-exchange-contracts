@@ -16,7 +16,7 @@ import {SignatureChecker} from '../libraries/SignatureChecker.sol';
 /**
  * @title InfinityExchange
 
-NFTNFTNFT                                           NFTNFTNFT
+NFTNFTNFT...........................................NFTNFTNFT
 NFTNFT                                                 NFTNFT
 NFT                                                       NFT
 .                                                           .
@@ -38,7 +38,7 @@ NFT                                                       NFT
 .                                                           .
 NFT                                                       NFT
 NFTNFT                                                 NFTNFT
-NFTNFTNFT                                           NFTNFTNFT 
+NFTNFTNFT...........................................NFTNFTNFT 
 
 */
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
