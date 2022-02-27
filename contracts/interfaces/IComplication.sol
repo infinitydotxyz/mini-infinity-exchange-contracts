@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {OrderTypes} from '../libraries/OrderTypes.sol';
 
-interface IExecutionStrategy {
+interface IComplication {
   function canExecuteOffer(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
     external
     view

@@ -8,7 +8,7 @@ interface IInfinityFeeDistributor {
     address from,
     address to,
     uint256 minBpsToSeller,
-    address execStrategy, 
+    address execComplication,
     address collection,
     uint256 tokenId
   ) external;

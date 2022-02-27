@@ -6,7 +6,7 @@ import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IFeeManager} from '../interfaces/IFeeManager.sol';
-import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
+import {IComplication} from '../interfaces/IComplication.sol';
 
 /**
  * @title InfinityFeeDistributor
@@ -50,17 +50,16 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     address from,
     address to,
     uint256 minBpsToSeller,
-    address execStrategy,
+    address execComplication,
     address collection,
     uint256 tokenId
-    
   ) external override {
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     uint256 remainingAmount = amount;
     // protocol fee
-    remainingAmount -= _disburseFeesToProtocol(execStrategy, amount, collection, tokenId, currency, from);
+    remainingAmount -= _disburseFeesToProtocol(execComplication, amount, collection, tokenId, currency, from);
     // other party fees
-    remainingAmount -= _disburseFeesToParties(execStrategy, amount, collection, tokenId, currency, from);
+    remainingAmount -= _disburseFeesToParties(execComplication, amount, collection, tokenId, currency, from);
     // check min bps to seller is met
     require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
     // transfer final amount (post-fees) to seller
@@ -71,14 +70,14 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
    * @notice sends protocol fees to protocol fee recipient and returns amount sent
    */
   function _disburseFeesToProtocol(
-    address execStrategy,
+    address execComplication,
     uint256 amount,
     address collection,
     uint256 tokenId,
     address currency,
     address from
   ) internal returns (uint256) {
-    uint256 protocolFeeAmount = _calculateProtocolFee(execStrategy, amount);
+    uint256 protocolFeeAmount = _calculateProtocolFee(execComplication, amount);
     if (protocolFeeRecipient != address(0) && protocolFeeAmount != 0) {
       IERC20(currency).safeTransferFrom(from, protocolFeeRecipient, protocolFeeAmount);
       emit FeeDistributed(PARTY_NAME, collection, tokenId, protocolFeeRecipient, currency, protocolFeeAmount);
@@ -90,7 +89,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
    * @notice disburses fees to parties like collectors, creators, curators etc and returns the disbursed amount
    */
   function _disburseFeesToParties(
-    address execStrategy,
+    address execComplication,
     uint256 amount,
     address collection,
     uint256 tokenId,
@@ -102,7 +101,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     for (uint256 i = 0; i < _feeManagers.length(); i++) {
       partyFees += _disburseFeesViaFeeManager(
         _feeManagers.at(i),
-        execStrategy,
+        execComplication,
         collection,
         tokenId,
         amount,
@@ -115,7 +114,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
 
   function _disburseFeesViaFeeManager(
     address feeManagerAddress,
-    address execStrategy,
+    address execComplication,
     address collection,
     uint256 tokenId,
     uint256 amount,
@@ -124,7 +123,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   ) internal returns (uint256) {
     IFeeManager feeManager = IFeeManager(feeManagerAddress);
     (string memory partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
-      .calcFeesAndGetRecipients(execStrategy, collection, tokenId, amount);
+      .calcFeesAndGetRecipients(execComplication, collection, tokenId, amount);
     return _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from);
   }
 
@@ -154,12 +153,12 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   }
 
   /**
-   * @notice Calculate protocol fee for an execution strategy
-   * @param execStrategy strategy
+   * @notice Calculate protocol fee for an execution complication
+   * @param execComplication complication
    * @param amount amount to transfer
    */
-  function _calculateProtocolFee(address execStrategy, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IExecutionStrategy(execStrategy).getProtocolFee();
+  function _calculateProtocolFee(address execComplication, uint256 amount) internal view returns (uint256) {
+    uint256 protocolFee = IComplication(execComplication).getProtocolFee();
     return (protocolFee * amount) / 10000;
   }
 

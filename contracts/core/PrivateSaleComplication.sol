@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 import {OrderTypes, Utils} from '../libraries/Utils.sol';
-import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
+import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
- * @title StrategyPrivateSale
- * @notice Strategy to set up an order that can only be executed by a specific address
+ * @title PrivateSaleComplication
+ * @notice Complication that specifies an order that can only be executed by a specific address
  */
-contract StrategyPrivateSale is IExecutionStrategy, Ownable {
+contract PrivateSaleComplication is IComplication, Ownable {
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -27,7 +27,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
 
   /**
    * @notice Check whether a taker accept order can be executed against an offer
-   * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
+   * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
    */
   function canExecuteOffer(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
     external
@@ -46,7 +46,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
    * @notice Check whether a taker buy order can be executed against a maker listing
    * @param buy taker buy order
    * @param listing maker listing
-   * @return (whether strategy can be executed, tokenId to execute, amount of tokens to execute)
+   * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
    */
   function canExecuteListing(OrderTypes.Taker calldata buy, OrderTypes.Maker calldata listing)
     external
@@ -75,7 +75,7 @@ contract StrategyPrivateSale is IExecutionStrategy, Ownable {
   }
 
   /**
-   * @notice Return protocol fee for this strategy
+   * @notice Return protocol fee for this complication
    * @return protocol fee
    */
   function getProtocolFee() external view override returns (uint256) {

@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
-import {IExecutionStrategyRegistry} from '../interfaces/IExecutionStrategyRegistry.sol';
-import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
+import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
+import {IComplication} from '../interfaces/IComplication.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
 import {INFTTransferManager} from '../interfaces/INFTTransferManager.sol';
 import {INFTTransferSelector} from '../interfaces/INFTTransferSelector.sol';
@@ -49,7 +49,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   bytes32 public immutable DOMAIN_SEPARATOR;
 
   ICurrencyManager public currencyManager;
-  IExecutionStrategyRegistry public executionStrategyRegistry;
+  IComplicationRegistry public complicationRegistry;
   INFTTransferSelector public nftTransferSelector;
   IInfinityFeeDistributor public infinityFeeDistributor;
 
@@ -59,7 +59,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event CancelAllOrders(address indexed user, uint256 newMinNonce);
   event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
   event NewCurrencyManager(address indexed currencyManager);
-  event NewExecutionStrategyRegistry(address indexed executionStrategyRegistry);
+  event NewComplicationRegistry(address indexed complicationRegistry);
   event NewNFTTransferSelector(address indexed nftTransferSelector);
   event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
 
@@ -69,7 +69,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 orderNonce, // user order nonce
     address indexed taker, // address of the taker of the order
     address indexed maker, // address of the maker of the order
-    address indexed strategy, // strategy that defines the execution
+    address indexed complication, // complication that defines the execution
     address currency, // currency address
     address collection, // collection address
     uint256 tokenId, // tokenId transferred
@@ -80,12 +80,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   /**
    * @notice Constructor
    * @param _currencyManager currency manager address
-   * @param _executionStrategyRegistry execution manager address
+   * @param _complicationRegistry execution manager address
    * @param _WETH wrapped ether address (for other chains, use wrapped native asset)
    */
   constructor(
     address _currencyManager,
-    address _executionStrategyRegistry,
+    address _complicationRegistry,
     address _WETH
   ) {
     // Calculate the domain separator
@@ -100,7 +100,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     );
 
     currencyManager = ICurrencyManager(_currencyManager);
-    executionStrategyRegistry = IExecutionStrategyRegistry(_executionStrategyRegistry);
+    complicationRegistry = IComplicationRegistry(_complicationRegistry);
     WETH = _WETH;
   }
 
@@ -150,7 +150,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   function _matchListingWithBuy(OrderTypes.Maker calldata listing, OrderTypes.Taker calldata buy) internal {
-    (bool isListing, address strategy, , uint256 nonce) = abi.decode(
+    (bool isListing, address complication, , uint256 nonce) = abi.decode(
       listing.execInfo,
       (bool, address, address, uint256)
     );
@@ -165,7 +165,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool orderValid = _isOrderValid(listing, listingHash);
 
     // check if execution is valid
-    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(strategy).canExecuteListing(
+    (bool executionValid, uint256 tokenId, uint256 amount) = IComplication(complication).canExecuteListing(
       buy,
       listing
     );
@@ -191,7 +191,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 tokenId,
     uint256 amount
   ) internal {
-    (, address strategy, address currency, uint256 nonce) = abi.decode(
+    (, address complication, address currency, uint256 nonce) = abi.decode(
       listing.execInfo,
       (bool, address, address, uint256)
     );
@@ -205,7 +205,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       nonce,
       buy.taker,
       listing.signer,
-      strategy,
+      complication,
       currency,
       listing.collection,
       tokenId,
@@ -234,7 +234,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   function _matchOfferWithAccept(OrderTypes.Maker calldata offer, OrderTypes.Taker calldata accept) internal {
-    (bool isListing, address strategy, , uint256 nonce) = abi.decode(offer.execInfo, (bool, address, address, uint256));
+    (bool isListing, address complication, , uint256 nonce) = abi.decode(
+      offer.execInfo,
+      (bool, address, address, uint256)
+    );
     // check if msg sender is taker
     bool msgSenderIsTaker = msg.sender == accept.taker;
 
@@ -246,10 +249,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool orderValid = _isOrderValid(offer, offerHash);
 
     // check if execution is valid
-    (bool executionValid, uint256 tokenId, uint256 amount) = IExecutionStrategy(strategy).canExecuteOffer(
-      accept,
-      offer
-    );
+    (bool executionValid, uint256 tokenId, uint256 amount) = IComplication(complication).canExecuteOffer(accept, offer);
 
     bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
 
@@ -272,7 +272,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 tokenId,
     uint256 amount
   ) internal {
-    (, address strategy, address currency, uint256 nonce) = abi.decode(
+    (, address complication, address currency, uint256 nonce) = abi.decode(
       offer.execInfo,
       (bool, address, address, uint256)
     );
@@ -285,7 +285,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       nonce,
       accept.taker,
       offer.signer,
-      strategy,
+      complication,
       currency,
       offer.collection,
       tokenId,
@@ -301,7 +301,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 tokenId,
     uint256 amount
   ) internal {
-    (, address execStrategy, address currency, ) = abi.decode(maker.execInfo, (bool, address, address, uint256));
+    (, address execComplication, address currency, ) = abi.decode(maker.execInfo, (bool, address, address, uint256));
     (, , uint256 minBpsToSeller) = abi.decode(maker.prices, (uint256, uint256, uint256));
 
     if (isAcceptOffer) {
@@ -313,7 +313,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         maker.signer,
         msg.sender,
         taker.minBpsToSeller,
-        execStrategy,
+        execComplication,
         maker.collection,
         tokenId
       );
@@ -324,7 +324,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         msg.sender,
         maker.signer,
         minBpsToSeller,
-        execStrategy,
+        execComplication,
         maker.collection,
         tokenId
       );
@@ -345,12 +345,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Update execution manager
-   * @param _executionStrategyRegistry new execution manager address
+   * @param _complicationRegistry new execution manager address
    */
-  function updateExecutionStrategyRegistry(address _executionStrategyRegistry) external onlyOwner {
-    require(_executionStrategyRegistry != address(0), 'Owner: Cannot be 0x0');
-    executionStrategyRegistry = IExecutionStrategyRegistry(_executionStrategyRegistry);
-    emit NewExecutionStrategyRegistry(_executionStrategyRegistry);
+  function updateComplicationRegistry(address _complicationRegistry) external onlyOwner {
+    require(_complicationRegistry != address(0), 'Owner: Cannot be 0x0');
+    complicationRegistry = IComplicationRegistry(_complicationRegistry);
+    emit NewComplicationRegistry(_complicationRegistry);
   }
 
   /**
@@ -415,7 +415,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    */
   function _isOrderValid(OrderTypes.Maker calldata makerOrder, bytes32 orderHash) internal view returns (bool) {
     // Verify whether order nonce has expired
-    (, address strategy, address currency, uint256 nonce) = abi.decode(
+    (, address complication, address currency, uint256 nonce) = abi.decode(
       makerOrder.execInfo,
       (bool, address, address, uint256)
     );
@@ -434,7 +434,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       makerOrder.signer == address(0) ||
       amount == 0 ||
       !currencyManager.isCurrencyWhitelisted(currency) ||
-      !executionStrategyRegistry.isStrategyWhitelisted(strategy)
+      !complicationRegistry.isComplicationWhitelisted(complication)
     ) {
       return false;
     }

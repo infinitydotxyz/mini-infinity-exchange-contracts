@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 interface IFeeManager {
   function calcFeesAndGetRecipients(
-    address strategy,
+    address complication,
     address collection,
     uint256 tokenId,
     uint256 amount

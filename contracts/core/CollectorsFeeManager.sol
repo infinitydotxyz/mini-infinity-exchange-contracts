@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165, IERC2981} from '@openzeppelin/contracts/interfaces/IERC2981.sol';
 import {IFeeManager} from '../interfaces/IFeeManager.sol';
-import {IExecutionStrategy} from '../interfaces/IExecutionStrategy.sol';
+import {IComplication} from '../interfaces/IComplication.sol';
 import {IOwnable} from '../interfaces/IOwnable.sol';
 import {IFeeRegistry} from '../interfaces/IFeeRegistry.sol';
 
@@ -34,12 +34,12 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
 
   /**
    * @notice Calculate collectors fees and get recipients
-   * @param strategy address of the execution strategy
+   * @param complication address of the execution complication
    * @param collection address of the NFT contract
    * @param amount sale price
    */
   function calcFeesAndGetRecipients(
-    address strategy,
+    address complication,
     address collection,
     uint256,
     uint256 amount
@@ -57,7 +57,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
     uint256[] memory amounts;
 
     // check if collection is setup for fee share
-    (, recipients[0], , amounts[0]) = getCollectorsFeeInfo(strategy, collection, amount);
+    (, recipients[0], , amounts[0]) = getCollectorsFeeInfo(complication, collection, amount);
 
     return (PARTY_NAME, recipients, amounts);
   }
@@ -118,12 +118,12 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
   }
 
   /**
-   * @notice Calculate protocol fee for an execution strategy
-   * @param executionStrategy strategy
+   * @notice Calculate protocol fee for an execution complication
+   * @param complication complication
    * @param amount amount to transfer
    */
-  function _calculateProtocolFee(address executionStrategy, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IExecutionStrategy(executionStrategy).getProtocolFee();
+  function _calculateProtocolFee(address complication, uint256 amount) internal view returns (uint256) {
+    uint256 protocolFee = IComplication(complication).getProtocolFee();
     return (protocolFee * amount) / 10000;
   }
 
@@ -134,7 +134,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
    * @return setter, destination, bps and amount in this order
    */
   function getCollectorsFeeInfo(
-    address strategy,
+    address complication,
     address collection,
     uint256 amount
   )
@@ -148,7 +148,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
     )
   {
     (address setter, address destination, uint32 bps) = IFeeRegistry(collectorsFeeRegistry).getFeeInfo(collection);
-    uint256 protocolFee = _calculateProtocolFee(strategy, amount);
+    uint256 protocolFee = _calculateProtocolFee(complication, amount);
     uint256 collectorsFee = (bps * protocolFee) / 10000;
     return (setter, destination, bps, collectorsFee);
   }

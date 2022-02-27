@@ -3,48 +3,48 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-import {IExecutionStrategyRegistry} from '../interfaces/IExecutionStrategyRegistry.sol';
+import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
 
 /**
- * @title ExecutionStrategyRegistry
+ * @title ComplicationRegistry
  * @notice allows adding/removing execution strategies for trading on the Infinity exchange
  */
-contract ExecutionStrategyRegistry is IExecutionStrategyRegistry, Ownable {
+contract ComplicationRegistry is IComplicationRegistry, Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   EnumerableSet.AddressSet private _whitelistedStrategies;
 
-  event StrategyRemoved(address indexed strategy);
-  event StrategyWhitelisted(address indexed strategy);
+  event ComplicationRemoved(address indexed complication);
+  event ComplicationWhitelisted(address indexed complication);
 
   /**
-   * @notice Adds an execution strategy
-   * @param strategy address of the strategy to add
+   * @notice Adds an execution complication
+   * @param complication address of the complication to add
    */
-  function addStrategy(address strategy) external onlyOwner {
-    require(!_whitelistedStrategies.contains(strategy), 'Strategy: Already whitelisted');
-    _whitelistedStrategies.add(strategy);
+  function addComplication(address complication) external onlyOwner {
+    require(!_whitelistedStrategies.contains(complication), 'Complication: Already whitelisted');
+    _whitelistedStrategies.add(complication);
 
-    emit StrategyWhitelisted(strategy);
+    emit ComplicationWhitelisted(complication);
   }
 
   /**
-   * @notice Remove an execution strategy
-   * @param strategy address of the strategy to remove
+   * @notice Remove an execution complication
+   * @param complication address of the complication to remove
    */
-  function removeStrategy(address strategy) external onlyOwner {
-    require(_whitelistedStrategies.contains(strategy), 'Strategy: Not whitelisted');
-    _whitelistedStrategies.remove(strategy);
+  function removeComplication(address complication) external onlyOwner {
+    require(_whitelistedStrategies.contains(complication), 'Complication: Not whitelisted');
+    _whitelistedStrategies.remove(complication);
 
-    emit StrategyRemoved(strategy);
+    emit ComplicationRemoved(complication);
   }
 
   /**
-   * @notice Returns if an execution strategy was whitelisted
-   * @param strategy address of the strategy
+   * @notice Returns if an execution complication was whitelisted
+   * @param complication address of the complication
    */
-  function isStrategyWhitelisted(address strategy) external view override returns (bool) {
-    return _whitelistedStrategies.contains(strategy);
+  function isComplicationWhitelisted(address complication) external view override returns (bool) {
+    return _whitelistedStrategies.contains(complication);
   }
 
   /**
