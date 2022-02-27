@@ -7,12 +7,12 @@ import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
 
 /**
  * @title ComplicationRegistry
- * @notice allows adding/removing execution strategies for trading on the Infinity exchange
+ * @notice allows adding/removing complications for trading on the Infinity exchange
  */
 contract ComplicationRegistry is IComplicationRegistry, Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
 
-  EnumerableSet.AddressSet private _whitelistedStrategies;
+  EnumerableSet.AddressSet private _whitelistedComplications;
 
   event ComplicationRemoved(address indexed complication);
   event ComplicationWhitelisted(address indexed complication);
@@ -22,8 +22,8 @@ contract ComplicationRegistry is IComplicationRegistry, Ownable {
    * @param complication address of the complication to add
    */
   function addComplication(address complication) external onlyOwner {
-    require(!_whitelistedStrategies.contains(complication), 'Complication: Already whitelisted');
-    _whitelistedStrategies.add(complication);
+    require(!_whitelistedComplications.contains(complication), 'Complication: Already whitelisted');
+    _whitelistedComplications.add(complication);
 
     emit ComplicationWhitelisted(complication);
   }
@@ -33,8 +33,8 @@ contract ComplicationRegistry is IComplicationRegistry, Ownable {
    * @param complication address of the complication to remove
    */
   function removeComplication(address complication) external onlyOwner {
-    require(_whitelistedStrategies.contains(complication), 'Complication: Not whitelisted');
-    _whitelistedStrategies.remove(complication);
+    require(_whitelistedComplications.contains(complication), 'Complication: Not whitelisted');
+    _whitelistedComplications.remove(complication);
 
     emit ComplicationRemoved(complication);
   }
@@ -44,34 +44,34 @@ contract ComplicationRegistry is IComplicationRegistry, Ownable {
    * @param complication address of the complication
    */
   function isComplicationWhitelisted(address complication) external view override returns (bool) {
-    return _whitelistedStrategies.contains(complication);
+    return _whitelistedComplications.contains(complication);
   }
 
   /**
-   * @notice View number of whitelisted strategies
+   * @notice View number of whitelisted complications
    */
-  function numWhitelistedStrategies() external view returns (uint256) {
-    return _whitelistedStrategies.length();
+  function numWhitelistedComplications() external view returns (uint256) {
+    return _whitelistedComplications.length();
   }
 
   /**
-   * @notice See whitelisted strategies
+   * @notice See whitelisted complications
    * @param cursor cursor (should start at 0 for first request)
    * @param size size of the response (e.g., 50)
    */
-  function getWhitelistedStrategies(uint256 cursor, uint256 size) external view returns (address[] memory, uint256) {
+  function getWhitelistedComplications(uint256 cursor, uint256 size) external view returns (address[] memory, uint256) {
     uint256 length = size;
 
-    if (length > _whitelistedStrategies.length() - cursor) {
-      length = _whitelistedStrategies.length() - cursor;
+    if (length > _whitelistedComplications.length() - cursor) {
+      length = _whitelistedComplications.length() - cursor;
     }
 
-    address[] memory whitelistedStrategies = new address[](length);
+    address[] memory whitelistedComplications = new address[](length);
 
     for (uint256 i = 0; i < length; i++) {
-      whitelistedStrategies[i] = _whitelistedStrategies.at(cursor + i);
+      whitelistedComplications[i] = _whitelistedComplications.at(cursor + i);
     }
 
-    return (whitelistedStrategies, cursor + length);
+    return (whitelistedComplications, cursor + length);
   }
 }
