@@ -44,6 +44,7 @@ NFTNFTNFT...........................................NFTNFTNFT
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   using OrderTypes for OrderTypes.Maker;
   using OrderTypes for OrderTypes.Taker;
+  using OrderTypes for OrderTypes.OrderBook;
 
   address public immutable WETH;
   bytes32 public immutable DOMAIN_SEPARATOR;
@@ -64,17 +65,28 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
 
   event OrderFulfilled(
-    string orderType,
-    bytes32 orderHash, // buy hash of the maker order
-    uint256 orderNonce, // user order nonce
-    address indexed taker, // address of the taker of the order
-    address indexed maker, // address of the maker of the order
+    string orderType, // Listing or Offer
+    bytes32 orderHash, // hash of the maker order
+    address indexed maker, // address of the taker of the order
+    address indexed taker, // address of the maker of the order
     address indexed complication, // complication that defines the execution
     address currency, // currency address
     address collection, // collection address
     uint256 tokenId, // tokenId transferred
-    uint256 amount, // amount of tokens transferred
+    uint256 amount, // number of tokens transferred
     uint256 price // final transacted price
+  );
+
+  event OBOrderFulfilled(
+    bytes32 sellOrderHash, // hash of the sell order
+    bytes32 buyOrderHash, // hash of the sell order
+    address indexed seller,
+    address indexed buyer,
+    address indexed complication, // address of the complication that defines the execution
+    address currency, // token address of the transacting currency
+    address[] collections, // collections
+    uint256[] tokenIds, // tokenIds
+    uint256 amount // amount spent on the order
   );
 
   /**
@@ -105,10 +117,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Cancel all pending orders for a sender
+   * @notice Cancel all pending orders
    * @param minNonce minimum user nonce
    */
-  function cancelAllOrdersForSender(uint256 minNonce) external {
+  function cancelAllOrders(uint256 minNonce) external {
     require(minNonce > userMinOrderNonce[msg.sender], 'Cancel: Nonce too low');
     require(minNonce < userMinOrderNonce[msg.sender] + 1000000, 'Cancel: Too many');
     userMinOrderNonce[msg.sender] = minNonce;
@@ -132,170 +144,363 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Match listings with buy orders
-   * @param listings maker listings
-   * @param buys taker buy orders
+   * @notice executes orders
+   * @param makerOrders maker orders
+   * @param takerOrders taker orders
    */
-  function matchListingsWithBuys(OrderTypes.Maker[] calldata listings, OrderTypes.Taker[] calldata buys)
+  function execOrders(OrderTypes.Maker[] calldata makerOrders, OrderTypes.Taker[] calldata takerOrders)
     external
     override
     nonReentrant
   {
     // check pre-conditions
-    require(listings.length == buys.length, 'Order: Mismatched lengths');
+    require(makerOrders.length == takerOrders.length, 'Order: Mismatched lengths');
     // execute orders one by one
-    for (uint256 i = 0; i < listings.length; i++) {
-      _matchListingWithBuy(listings[i], buys[i]);
+    for (uint256 i = 0; i < makerOrders.length; ) {
+      _verifyAndExecOrder(makerOrders[i], takerOrders[i]);
+      unchecked {
+        ++i;
+      }
     }
   }
 
-  function _matchListingWithBuy(OrderTypes.Maker calldata listing, OrderTypes.Taker calldata buy) internal {
-    (bool isListing, address complication, , uint256 nonce) = abi.decode(
-      listing.execInfo,
+  function _verifyAndExecOrder(OrderTypes.Maker calldata makerOrder, OrderTypes.Taker calldata takerOrder) internal {
+    (bool isSellOrder, address complication, , uint256 nonce) = abi.decode(
+      makerOrder.execInfo,
       (bool, address, address, uint256)
     );
     // check if msg sender is taker
-    bool msgSenderIsTaker = msg.sender == buy.taker;
+    bool msgSenderIsTaker = msg.sender == takerOrder.taker;
 
     // check if sides match
-    bool sidesMatch = isListing && !buy.isSellOrder;
+    bool sidesMatch = isSellOrder && !takerOrder.isSellOrder;
 
-    // check if listing is valid
-    bytes32 listingHash = listing.hash();
-    bool orderValid = _isOrderValid(listing, listingHash);
+    // check if maker order is valid
+    bytes32 makerOrderHash = makerOrder.hash();
+    bool orderValid = _isOrderValid(makerOrder, makerOrderHash);
 
     // check if execution is valid
-    (bool executionValid, uint256 tokenId, uint256 amount) = IComplication(complication).canExecuteListing(
-      buy,
-      listing
+    (bool executionValid, uint256 tokenId, uint256 amount) = IComplication(complication).canExecOrder(
+      makerOrder,
+      takerOrder
     );
 
     bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
 
-    // if this listing is not valid, just return and continue with other listings
+    // if this order is not valid, just return and continue with other orders
     if (!shouldExecute) {
       return;
     }
 
-    // Update listing execution status to true (prevents replay)
-    _isUserOrderNonceExecutedOrCancelled[listing.signer][nonce] = true;
+    // Update order execution status to true (prevents replay)
+    _isUserOrderNonceExecutedOrCancelled[makerOrder.signer][nonce] = true;
 
-    // exec listing
-    _execListing(listingHash, listing, buy, tokenId, amount);
+    // exec order
+    _execOrder(makerOrderHash, makerOrder, takerOrder, tokenId, amount);
   }
 
-  function _execListing(
-    bytes32 listingHash,
-    OrderTypes.Maker calldata listing,
-    OrderTypes.Taker calldata buy,
+  function _execOrder(
+    bytes32 makerOrderHash,
+    OrderTypes.Maker calldata makerOrder,
+    OrderTypes.Taker calldata takerOrder,
     uint256 tokenId,
     uint256 amount
   ) internal {
-    (, address complication, address currency, uint256 nonce) = abi.decode(
-      listing.execInfo,
+    (bool isSellOrder, address complication, address currency,) = abi.decode(
+      makerOrder.execInfo,
       (bool, address, address, uint256)
     );
+    _transferFeesAndNFTs(isSellOrder, makerOrder, takerOrder, tokenId, amount);
+    _emitOrderFulfilled(isSellOrder, makerOrderHash, makerOrder.signer, takerOrder.taker, complication, currency, makerOrder.collection, tokenId, amount, takerOrder.price);
+  }
 
-    _transferFeesAndNFTs(false, listing, buy, tokenId, amount);
-
+  function _emitOrderFulfilled(
+    bool isSellOrder,
+    bytes32 makerOrderHash,
+    address maker,
+    address taker,
+    address complication,
+    address currency,
+    address collection,
+    uint256 tokenId,
+    uint256 amount,
+    uint256 price
+  ) internal {
+    
+    string memory orderType = isSellOrder ? 'Listing' : 'Offer'; // todo: use constants
     // emit event
     emit OrderFulfilled(
-      'Listing',
-      listingHash,
-      nonce,
-      buy.taker,
-      listing.signer,
+      orderType,
+      makerOrderHash,
+      maker,
+      taker,
       complication,
       currency,
-      listing.collection,
+      collection,
       tokenId,
       amount,
-      buy.price
+      price
     );
   }
 
   /**
-   * @notice Match a offers with accepts
-   * @param offers maker offers
-   * @param accepts taker accepts
+   * @notice Matches order book orders
+   * @param sells sell orders
+   * @param buys buy orders
    */
-  function matchOffersWithAccepts(OrderTypes.Maker[] calldata offers, OrderTypes.Taker[] calldata accepts)
+  function matchOBOrders(
+    OrderTypes.OrderBook[] calldata sells,
+    OrderTypes.OrderBook[] calldata buys,
+    OrderTypes.OrderBook[] calldata constructs
+  ) external override nonReentrant {
+    // check pre-conditions
+    require(sells.length == buys.length, 'Order: Mismatched lengths');
+    require(sells.length == constructs.length, 'Order: Mismatched lengths');
+    // execute orders one by one
+    for (uint256 i = 0; i < sells.length; ) {
+      _matchOBOrders(sells[i], buys[i], constructs[i]);
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _matchOBOrders(
+    OrderTypes.OrderBook calldata sell,
+    OrderTypes.OrderBook calldata buy,
+    OrderTypes.OrderBook calldata constructed
+  ) internal {
+    bytes32 sellOrderHash = sell.OBHash();
+    bytes32 buyOrderHash = buy.OBHash();
+    // if this order is not valid, just return and continue with other orders
+    if (!_verifyOBOrders(sellOrderHash, buyOrderHash, sell, buy, constructed)) {
+      return;
+    }
+
+    // exec order
+    _execOBOrder(sellOrderHash, buyOrderHash, sell, buy, constructed);
+  }
+
+  function _verifyOBOrders(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.OrderBook calldata sell,
+    OrderTypes.OrderBook calldata buy,
+    OrderTypes.OrderBook calldata constructed
+  ) internal view returns (bool) {
+    (bool isSell, address complication, , , ) = abi.decode(sell.execInfo, (bool, address, address, uint256, uint256));
+    (bool isBuy, , , , ) = abi.decode(buy.execInfo, (bool, address, address, uint256, uint256));
+    // check if sides match
+    bool sidesMatch = isSell && isBuy;
+    // check if sell order is valid
+    bool sellOrderValid = _isOBOrderValid(sell, sellOrderHash);
+    // check if buy order is valid
+    bool buyOrderValid = _isOBOrderValid(buy, buyOrderHash);
+
+    // check if execution is valid
+    bool executionValid = IComplication(complication).canExecOBOrder(sell, buy, constructed);
+
+    return sidesMatch && sellOrderValid && buyOrderValid && executionValid;
+  }
+
+  function _execOBOrder(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.OrderBook calldata sell,
+    OrderTypes.OrderBook calldata buy,
+    OrderTypes.OrderBook calldata constructed
+  ) internal {
+    (, address complication, address currency, uint256 sellNonce, uint256 minBpsToSeller) = abi.decode(
+      sell.execInfo,
+      (bool, address, address, uint256, uint256)
+    );
+    (, , , uint256 buyNonce, ) = abi.decode(buy.execInfo, (bool, address, address, uint256, uint256));
+    (address[] memory collections, uint256[] memory tokenIds) = abi.decode(constructed.params, (address[], uint256[]));
+
+    // Update order execution status to true (prevents replay)
+    _isUserOrderNonceExecutedOrCancelled[sell.signer][sellNonce] = true;
+    _isUserOrderNonceExecutedOrCancelled[buy.signer][buyNonce] = true;
+
+    _transferNFTsAndFees(
+      sell.signer,
+      buy.signer,
+      collections,
+      tokenIds,
+      constructed.amount,
+      currency,
+      minBpsToSeller,
+      complication
+    );
+
+    _emitMatchOBOrderFulfilled(sellOrderHash, buyOrderHash, sell, buy, constructed);
+  }
+
+  function _emitMatchOBOrderFulfilled(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.OrderBook calldata sell,
+    OrderTypes.OrderBook calldata buy,
+    OrderTypes.OrderBook calldata constructed
+  ) internal {
+    (, address complication, address currency, , ) = abi.decode(
+      sell.execInfo,
+      (bool, address, address, uint256, uint256)
+    );
+    (address[] memory collections, uint256[] memory tokenIds) = abi.decode(constructed.params, (address[], uint256[]));
+    // emit event
+    emit OBOrderFulfilled(
+      sellOrderHash,
+      buyOrderHash,
+      sell.signer,
+      buy.signer,
+      complication,
+      currency,
+      collections,
+      tokenIds,
+      constructed.amount
+    );
+  }
+
+  /**
+   * @notice Takes OB orders
+   * @param makerOrders maker orders
+   * @param takerOrders taker orders
+   */
+  function takeOBOrders(OrderTypes.OrderBook[] calldata makerOrders, OrderTypes.OrderBook[] calldata takerOrders)
     external
     override
     nonReentrant
   {
     // check pre-conditions
-    require(offers.length == accepts.length, 'Order: Mismatched lengths');
-
+    require(makerOrders.length == takerOrders.length, 'Order: Mismatched lengths');
     // execute orders one by one
-    for (uint256 i = 0; i < offers.length; i++) {
-      _matchOfferWithAccept(offers[i], accepts[i]);
+    for (uint256 i = 0; i < makerOrders.length; ) {
+      _takeOBOrder(makerOrders[i], takerOrders[i]);
+      unchecked {
+        ++i;
+      }
     }
   }
 
-  function _matchOfferWithAccept(OrderTypes.Maker calldata offer, OrderTypes.Taker calldata accept) internal {
-    (bool isListing, address complication, , uint256 nonce) = abi.decode(
-      offer.execInfo,
-      (bool, address, address, uint256)
+  function _takeOBOrder(OrderTypes.OrderBook calldata makerOrder, OrderTypes.OrderBook calldata takerOrder) internal {
+    (bool isSell, address complication, , uint256 makerNonce, ) = abi.decode(
+      makerOrder.execInfo,
+      (bool, address, address, uint256, uint256)
     );
-    // check if msg sender is taker
-    bool msgSenderIsTaker = msg.sender == accept.taker;
-
+    (bool isBuy, , , , ) = abi.decode(takerOrder.execInfo, (bool, address, address, uint256, uint256));
     // check if sides match
-    bool sidesMatch = !isListing && accept.isSellOrder;
+    bool sidesMatch = isSell && isBuy;
 
-    // Check if offer is valid
-    bytes32 offerHash = offer.hash();
-    bool orderValid = _isOrderValid(offer, offerHash);
+    // check if msg sender is taker
+    bool msgSenderIsTaker = msg.sender == takerOrder.signer;
+
+    // check if maker order is valid
+    bytes32 makerOrderHash = makerOrder.OBHash();
+    bool orderValid = _isOBOrderValid(makerOrder, makerOrderHash);
 
     // check if execution is valid
-    (bool executionValid, uint256 tokenId, uint256 amount) = IComplication(complication).canExecuteOffer(accept, offer);
+    bool executionValid = IComplication(complication).canExecTakeOBOrder(takerOrder, makerOrder);
 
     bool shouldExecute = msgSenderIsTaker && sidesMatch && orderValid && executionValid;
 
-    // if this offer is not valid, just return and continue with other offers
+    // if this order is not valid, just return and continue with other orders
     if (!shouldExecute) {
       return;
     }
 
-    // Update maker buy order status to true (prevents replay)
-    _isUserOrderNonceExecutedOrCancelled[offer.signer][nonce] = true;
+    // Update order execution status to true (prevents replay)
+    _isUserOrderNonceExecutedOrCancelled[makerOrder.signer][makerNonce] = true;
 
-    // exec offer
-    _execOffer(offerHash, offer, accept, tokenId, amount);
+    // exec order
+    _execTakeOBOrder(makerOrderHash, takerOrder.OBHash(), makerOrder, takerOrder);
   }
 
-  function _execOffer(
-    bytes32 offerHash,
-    OrderTypes.Maker calldata offer,
-    OrderTypes.Taker calldata accept,
-    uint256 tokenId,
-    uint256 amount
+  function _execTakeOBOrder(
+    bytes32 makerOrderHash,
+    bytes32 takerOrderHash,
+    OrderTypes.OrderBook calldata makerOrder,
+    OrderTypes.OrderBook calldata takerOrder
   ) internal {
-    (, address complication, address currency, uint256 nonce) = abi.decode(
-      offer.execInfo,
-      (bool, address, address, uint256)
+    (, address complication, address currency, , uint256 minBpsToSeller) = abi.decode(
+      makerOrder.execInfo,
+      (bool, address, address, uint256, uint256)
+    );
+    (address[] memory collections, uint256[] memory tokenIds) = abi.decode(takerOrder.params, (address[], uint256[]));
+
+    _transferNFTsAndFees(
+      makerOrder.signer,
+      takerOrder.signer,
+      collections,
+      tokenIds,
+      takerOrder.amount,
+      currency,
+      minBpsToSeller,
+      complication
     );
 
-    _transferFeesAndNFTs(true, offer, accept, tokenId, amount);
-
-    emit OrderFulfilled(
-      'Offer',
-      offerHash,
-      nonce,
-      accept.taker,
-      offer.signer,
+    _emitTakeOBOrderFulfilled(
+      makerOrderHash,
+      takerOrderHash,
+      makerOrder.signer,
+      takerOrder.signer,
       complication,
       currency,
-      offer.collection,
-      tokenId,
-      amount,
-      accept.price
+      collections,
+      tokenIds,
+      takerOrder.amount
     );
+  }
+
+  function _emitTakeOBOrderFulfilled(
+    bytes32 makerOrderHash,
+    bytes32 takerOrderHash,
+    address maker,
+    address taker,
+    address complication,
+    address currency,
+    address[] memory collections,
+    uint256[] memory tokenIds,
+    uint256 amount
+  ) internal {
+    emit OBOrderFulfilled(
+      makerOrderHash,
+      takerOrderHash,
+      maker,
+      taker,
+      complication,
+      currency,
+      collections,
+      tokenIds,
+      amount
+    );
+  }
+
+  function _transferNFTsAndFees(
+    address seller,
+    address buyer,
+    address[] memory collections,
+    uint256[] memory tokenIds,
+    uint256 amount,
+    address currency,
+    uint256 minBpsToSeller,
+    address complication
+  ) internal {
+    for (uint256 i = 0; i < collections.length; ) {
+      address collection = collections[i];
+      uint256 tokenId = tokenIds[i];
+      uint256 numTokensToTransfer = 1; // assuming only ERC721
+      // transfer NFT
+      _transferNFT(collection, seller, buyer, tokenId, numTokensToTransfer);
+      // transfer fees
+      _transferFees(seller, buyer, collections, tokenIds, amount, currency, minBpsToSeller, complication);
+      unchecked {
+        ++i;
+      }
+    }
   }
 
   function _transferFeesAndNFTs(
-    bool isAcceptOffer,
+    bool isSellOrder,
     OrderTypes.Maker calldata maker,
     OrderTypes.Taker calldata taker,
     uint256 tokenId,
@@ -304,20 +509,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     (, address execComplication, address currency, ) = abi.decode(maker.execInfo, (bool, address, address, uint256));
     (, , uint256 minBpsToSeller) = abi.decode(maker.prices, (uint256, uint256, uint256));
 
-    if (isAcceptOffer) {
-      _transferNFT(maker.collection, msg.sender, maker.signer, tokenId, amount);
-
-      infinityFeeDistributor.distributeFees(
-        taker.price,
-        currency,
-        maker.signer,
-        msg.sender,
-        taker.minBpsToSeller,
-        execComplication,
-        maker.collection,
-        tokenId
-      );
-    } else {
+    if (isSellOrder) {
       infinityFeeDistributor.distributeFees(
         taker.price,
         currency,
@@ -330,6 +522,49 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       );
 
       _transferNFT(maker.collection, maker.signer, taker.taker, tokenId, amount);
+    } else {
+      _transferNFT(maker.collection, msg.sender, maker.signer, tokenId, amount);
+
+      infinityFeeDistributor.distributeFees(
+        taker.price,
+        currency,
+        maker.signer,
+        msg.sender,
+        taker.minBpsToSeller,
+        execComplication,
+        maker.collection,
+        tokenId
+      );
+    }
+  }
+
+  function _transferFees(
+    address seller,
+    address buyer,
+    address[] memory collections,
+    uint256[] memory tokenIds,
+    uint256 amount,
+    address currency,
+    uint256 minBpsToSeller,
+    address complication
+  ) internal {
+    for (uint256 i = 0; i < collections.length; ) {
+      address collection = collections[i];
+      uint256 tokenId = tokenIds[i];
+      // transfer fees
+      infinityFeeDistributor.distributeFees(
+        amount,
+        currency,
+        buyer,
+        seller,
+        minBpsToSeller,
+        complication,
+        collection,
+        tokenId
+      );
+      unchecked {
+        ++i;
+      }
     }
   }
 
@@ -409,30 +644,54 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   /**
-   * @notice Verify the validity of the maker order
+   * @notice Verifies the validity of the maker order
    * @param makerOrder maker order
    * @param orderHash computed hash for the order
    */
   function _isOrderValid(OrderTypes.Maker calldata makerOrder, bytes32 orderHash) internal view returns (bool) {
-    // Verify whether order nonce has expired
+    (, uint256 amount) = abi.decode(makerOrder.tokenInfo, (uint256, uint256));
+
+    if (amount == 0) {
+      return false;
+    }
     (, address complication, address currency, uint256 nonce) = abi.decode(
       makerOrder.execInfo,
       (bool, address, address, uint256)
     );
-    (, uint256 amount) = abi.decode(makerOrder.tokenInfo, (uint256, uint256));
+    return _orderValidity(makerOrder.signer, makerOrder.sig, orderHash, complication, currency, nonce);
+  }
 
-    bool orderExpired = _isUserOrderNonceExecutedOrCancelled[makerOrder.signer][nonce] ||
-      nonce < userMinOrderNonce[makerOrder.signer];
+  /**
+   * @notice Verifies the validity of the orderbook order
+   * @param order the OB order
+   * @param orderHash computed hash for the order
+   */
+  function _isOBOrderValid(OrderTypes.OrderBook calldata order, bytes32 orderHash) internal view returns (bool) {
+    (, address complication, address currency, uint256 nonce) = abi.decode(
+      order.execInfo,
+      (bool, address, address, uint256)
+    );
 
+    return _orderValidity(order.signer, order.sig, orderHash, complication, currency, nonce);
+  }
+
+  function _orderValidity(
+    address signer,
+    bytes calldata sig,
+    bytes32 orderHash,
+    address complication,
+    address currency,
+    uint256 nonce
+  ) internal view returns (bool) {
+    bool orderExpired = _isUserOrderNonceExecutedOrCancelled[signer][nonce] || nonce < userMinOrderNonce[signer];
     // Verify the validity of the signature
-    (uint8 v, bytes32 r, bytes32 s) = abi.decode(makerOrder.sig, (uint8, bytes32, bytes32));
-    bool sigValid = SignatureChecker.verify(orderHash, makerOrder.signer, v, r, s, DOMAIN_SEPARATOR);
+    (uint8 v, bytes32 r, bytes32 s) = abi.decode(sig, (uint8, bytes32, bytes32));
+    bool sigValid = SignatureChecker.verify(orderHash, signer, v, r, s, DOMAIN_SEPARATOR);
 
     if (
       orderExpired ||
       !sigValid ||
-      makerOrder.signer == address(0) ||
-      amount == 0 ||
+      signer == address(0) ||
       !currencyManager.isCurrencyWhitelisted(currency) ||
       !complicationRegistry.isComplicationWhitelisted(complication)
     ) {

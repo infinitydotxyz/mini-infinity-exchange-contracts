@@ -9,7 +9,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @title PrivateSaleComplication
  * @notice Complication that specifies an order that can only be executed by a specific address
  */
-contract PrivateSaleComplication is IComplication, Ownable {
+abstract contract PrivateSaleComplication is IComplication, Ownable {
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -26,29 +26,12 @@ contract PrivateSaleComplication is IComplication, Ownable {
   }
 
   /**
-   * @notice Check whether a taker accept order can be executed against an offer
+   * @notice Check whether order can be executed
+   * @param makerOrder maker order
+   * @param takerOrder taker order
    * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteOffer(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
-    external
-    pure
-    override
-    returns (
-      bool,
-      uint256,
-      uint256
-    )
-  {
-    return (false, 0, 0);
-  }
-
-  /**
-   * @notice Check whether a taker buy order can be executed against a maker listing
-   * @param buy taker buy order
-   * @param listing maker listing
-   * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
-   */
-  function canExecuteListing(OrderTypes.Taker calldata buy, OrderTypes.Maker calldata listing)
+  function canExecOrder(OrderTypes.Maker calldata makerOrder, OrderTypes.Taker calldata takerOrder)
     external
     view
     override
@@ -59,14 +42,15 @@ contract PrivateSaleComplication is IComplication, Ownable {
     )
   {
     // Retrieve target buyer
-    address targetBuyer = abi.decode(listing.params, (address));
-    uint256 currentPrice = Utils.calculateCurrentPrice(listing);
-    (uint256 startTime, uint256 endTime) = abi.decode(listing.startAndEndTimes, (uint256, uint256));
-    (uint256 tokenId, uint256 amount) = abi.decode(listing.tokenInfo, (uint256, uint256));
+    address targetBuyer = abi.decode(makerOrder.params, (address));
+    uint256 currentPrice = Utils.calculateCurrentPrice(makerOrder);
+    (uint256 startTime, uint256 endTime) = abi.decode(makerOrder.startAndEndTimes, (uint256, uint256));
+    (uint256 tokenId, uint256 amount) = abi.decode(makerOrder.tokenInfo, (uint256, uint256));
+    (bool isSellOrder, , , ) = abi.decode(makerOrder.execInfo, (bool, address, address, uint256));
     return (
-      (targetBuyer == buy.taker &&
-        Utils.arePricesWithinErrorBound(currentPrice, buy.price, ERROR_BOUND) &&
-        tokenId == buy.tokenId &&
+      (isSellOrder && targetBuyer == takerOrder.taker &&
+        Utils.arePricesWithinErrorBound(currentPrice, takerOrder.price, ERROR_BOUND) &&
+        tokenId == takerOrder.tokenId &&
         startTime <= block.timestamp &&
         endTime >= block.timestamp),
       tokenId,

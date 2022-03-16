@@ -9,7 +9,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @title CollectionSetComplication
  * @notice Complication to send an order at a flexible price that can be matched by any tokenId from the given collection set
  */
-contract CollectionSetComplication is IComplication, Ownable {
+abstract contract CollectionSetComplication is IComplication, Ownable {
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -26,12 +26,12 @@ contract CollectionSetComplication is IComplication, Ownable {
   }
 
   /**
-   * @notice Check whether a taker accept order can be executed against a maker offer
-   * @param accept taker accept order
-   * @param offer maker offer
+   * @notice Check whether order can be executed
+   * @param makerOrder maker  order
+   * @param takerOrder taker order
    * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
    */
-  function canExecuteOffer(OrderTypes.Taker calldata accept, OrderTypes.Maker calldata offer)
+  function canExecOrder(OrderTypes.Maker calldata makerOrder, OrderTypes.Taker calldata takerOrder)
     external
     view
     override
@@ -41,33 +41,18 @@ contract CollectionSetComplication is IComplication, Ownable {
       uint256
     )
   {
-    uint256 currentPrice = Utils.calculateCurrentPrice(offer);
-    (uint256 startTime, uint256 endTime) = abi.decode(offer.startAndEndTimes, (uint256, uint256));
-    (, uint256 amount) = abi.decode(offer.tokenInfo, (uint256, uint256));
+    uint256 currentPrice = Utils.calculateCurrentPrice(makerOrder);
+    (uint256 startTime, uint256 endTime) = abi.decode(makerOrder.startAndEndTimes, (uint256, uint256));
+    (, uint256 amount) = abi.decode(makerOrder.tokenInfo, (uint256, uint256));
+    (bool isSellOrder, , , ) = abi.decode(makerOrder.execInfo, (bool, address, address, uint256));
     return (
-      (Utils.arePricesWithinErrorBound(currentPrice, accept.price, ERROR_BOUND) &&
+      (!isSellOrder &&
+        Utils.arePricesWithinErrorBound(currentPrice, takerOrder.price, ERROR_BOUND) &&
         startTime <= block.timestamp &&
         endTime >= block.timestamp),
-      accept.tokenId,
+      takerOrder.tokenId,
       amount
     );
-  }
-
-  /**
-   * @notice Check whether a taker buy order can be executed against a maker listing
-   * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
-   */
-  function canExecuteListing(OrderTypes.Taker calldata, OrderTypes.Maker calldata)
-    external
-    pure
-    override
-    returns (
-      bool,
-      uint256,
-      uint256
-    )
-  {
-    return (false, 0, 0);
   }
 
   /**

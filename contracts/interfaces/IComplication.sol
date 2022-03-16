@@ -4,16 +4,18 @@ pragma solidity ^0.8.0;
 import {OrderTypes} from '../libraries/OrderTypes.sol';
 
 interface IComplication {
-  function canExecuteOffer(OrderTypes.Taker calldata takerSell, OrderTypes.Maker calldata makerBuy)
+  function canExecOBOrder(
+    OrderTypes.OrderBook calldata sell,
+    OrderTypes.OrderBook calldata buy,
+    OrderTypes.OrderBook calldata constructed
+  ) external view returns (bool);
+
+  function canExecTakeOBOrder(OrderTypes.OrderBook calldata makerOrder, OrderTypes.OrderBook calldata takerOrder)
     external
     view
-    returns (
-      bool,
-      uint256,
-      uint256
-    );
+    returns (bool);
 
-  function canExecuteListing(OrderTypes.Taker calldata takerBuy, OrderTypes.Maker calldata makerSell)
+  function canExecOrder(OrderTypes.Maker calldata makerOrder, OrderTypes.Taker calldata takerOrder)
     external
     view
     returns (
