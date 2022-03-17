@@ -206,12 +206,23 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 tokenId,
     uint256 amount
   ) internal {
-    (bool isSellOrder, address complication, address currency,) = abi.decode(
+    (bool isSellOrder, address complication, address currency, ) = abi.decode(
       makerOrder.execInfo,
       (bool, address, address, uint256)
     );
     _transferFeesAndNFTs(isSellOrder, makerOrder, takerOrder, tokenId, amount);
-    _emitOrderFulfilled(isSellOrder, makerOrderHash, makerOrder.signer, takerOrder.taker, complication, currency, makerOrder.collection, tokenId, amount, takerOrder.price);
+    _emitOrderFulfilled(
+      isSellOrder,
+      makerOrderHash,
+      makerOrder.signer,
+      takerOrder.taker,
+      complication,
+      currency,
+      makerOrder.collection,
+      tokenId,
+      amount,
+      takerOrder.price
+    );
   }
 
   function _emitOrderFulfilled(
@@ -226,7 +237,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount,
     uint256 price
   ) internal {
-    
     string memory orderType = isSellOrder ? 'Listing' : 'Offer'; // todo: use constants
     // emit event
     emit OrderFulfilled(
@@ -698,5 +708,16 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       return false;
     }
     return true;
+  }
+
+  function verifySig(
+    address signer,
+    bytes calldata sig,
+    bytes32 orderHash
+  ) external view returns (bool) {
+    // Verify the validity of the signature
+    (uint8 v, bytes32 r, bytes32 s) = abi.decode(sig, (uint8, bytes32, bytes32));
+    bool sigValid = SignatureChecker.verify(orderHash, signer, v, r, s, DOMAIN_SEPARATOR);
+    return sigValid;
   }
 }

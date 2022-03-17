@@ -40,7 +40,7 @@ library SignatureChecker {
 
   /**
    * @notice Returns whether the signer matches the signed message
-   * @param hash the hash containing the signed mesage
+   * @param hash the hash containing the signed message
    * @param signer the signer address to confirm message validity
    * @param v parameter (27 or 28)
    * @param r parameter
