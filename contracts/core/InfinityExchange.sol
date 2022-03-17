@@ -629,14 +629,11 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   function verifyOrderSig(
-    OrderTypes.OrderBook calldata order,
-    address signer,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
+    OrderTypes.OrderBook calldata order
   ) external view returns (bool) {
     // Verify the validity of the signature
-    return SignatureChecker.verify(order.OBHash(), signer, v, r, s, DOMAIN_SEPARATOR);
+    (uint8 v, bytes32 r, bytes32 s) = abi.decode(order.sig, (uint8, bytes32, bytes32));
+    return SignatureChecker.verify(order.OBHash(), order.signer, v, r, s, DOMAIN_SEPARATOR);
   }
 
   /**
