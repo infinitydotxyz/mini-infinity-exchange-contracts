@@ -3,13 +3,13 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
+import {ICurrencyRegistry} from '../interfaces/ICurrencyRegistry.sol';
 
 /**
- * @title CurrencyManager
+ * @title CurrencyRegistry
  * @notice allows adding/removing currencies for trading on the Infinity exchange.
  */
-contract CurrencyManager is ICurrencyManager, Ownable {
+contract CurrencyRegistry is ICurrencyRegistry, Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   EnumerableSet.AddressSet private _whitelistedCurrencies;

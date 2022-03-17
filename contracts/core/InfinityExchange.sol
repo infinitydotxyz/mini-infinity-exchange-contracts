@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import {ICurrencyManager} from '../interfaces/ICurrencyManager.sol';
+import {ICurrencyRegistry} from '../interfaces/ICurrencyRegistry.sol';
 import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
@@ -49,7 +49,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   address public immutable WETH;
   bytes32 public immutable DOMAIN_SEPARATOR;
 
-  ICurrencyManager public currencyManager;
+  ICurrencyRegistry public currencyRegistry;
   IComplicationRegistry public complicationRegistry;
   INFTTransferSelector public nftTransferSelector;
   IInfinityFeeDistributor public infinityFeeDistributor;
@@ -59,7 +59,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   event CancelAllOrders(address indexed user, uint256 newMinNonce);
   event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
-  event NewCurrencyManager(address indexed currencyManager);
+  event NewCurrencyRegistry(address indexed currencyRegistry);
   event NewComplicationRegistry(address indexed complicationRegistry);
   event NewNFTTransferSelector(address indexed nftTransferSelector);
   event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
@@ -91,12 +91,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Constructor
-   * @param _currencyManager currency manager address
+   * @param _currencyRegistry currency manager address
    * @param _complicationRegistry execution manager address
    * @param _WETH wrapped ether address (for other chains, use wrapped native asset)
    */
   constructor(
-    address _currencyManager,
+    address _currencyRegistry,
     address _complicationRegistry,
     address _WETH
   ) {
@@ -111,7 +111,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       )
     );
 
-    currencyManager = ICurrencyManager(_currencyManager);
+    currencyRegistry = ICurrencyRegistry(_currencyRegistry);
     complicationRegistry = IComplicationRegistry(_complicationRegistry);
     WETH = _WETH;
   }
@@ -580,12 +580,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Update currency manager
-   * @param _currencyManager new currency manager address
+   * @param _currencyRegistry new currency manager address
    */
-  function updateCurrencyManager(address _currencyManager) external onlyOwner {
-    require(_currencyManager != address(0), 'Owner: Cannot be 0x0');
-    currencyManager = ICurrencyManager(_currencyManager);
-    emit NewCurrencyManager(_currencyManager);
+  function updateCurrencyRegistry(address _currencyRegistry) external onlyOwner {
+    require(_currencyRegistry != address(0), 'Owner: Cannot be 0x0');
+    currencyRegistry = ICurrencyRegistry(_currencyRegistry);
+    emit NewCurrencyRegistry(_currencyRegistry);
   }
 
   /**
@@ -702,7 +702,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       orderExpired ||
       !sigValid ||
       signer == address(0) ||
-      !currencyManager.isCurrencyWhitelisted(currency) ||
+      !currencyRegistry.isCurrencyWhitelisted(currency) ||
       !complicationRegistry.isComplicationWhitelisted(complication)
     ) {
       return false;
