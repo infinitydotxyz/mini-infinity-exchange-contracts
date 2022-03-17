@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {OrderTypes} from '../libraries/OrderTypes.sol';
+import {OrderTypes} from '../libs/OrderTypes.sol';
 
 library Utils {
   function calculateCurrentPrice(OrderTypes.Maker calldata makerOrder) public view returns (uint256) {

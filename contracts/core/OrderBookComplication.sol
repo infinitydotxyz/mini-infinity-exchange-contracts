@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {OrderTypes, Utils} from '../libraries/Utils.sol';
+import {OrderTypes} from '../libs/OrderTypes.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
@@ -9,7 +9,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @title OrderBookComplication
  * @notice Complication to execute orderbook orders
  */
-abstract contract OrderBookComplication is IComplication, Ownable {
+contract OrderBookComplication is IComplication, Ownable {
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -25,13 +25,11 @@ abstract contract OrderBookComplication is IComplication, Ownable {
     ERROR_BOUND = _errorBound;
   }
 
-  function canExecOBOrder(OrderTypes.OrderBook calldata sell, OrderTypes.OrderBook calldata buy, OrderTypes.OrderBook calldata constructed)
-    external
-    view
-    returns (
-      bool
-    )
-  { 
+  function canExecOBOrder(
+    OrderTypes.OrderBook calldata sell,
+    OrderTypes.OrderBook calldata buy,
+    OrderTypes.OrderBook calldata constructed
+  ) external view returns (bool) {
     // check timestamps
     (uint256 sellStartTime, uint256 sellEndTime) = abi.decode(sell.startAndEndTimes, (uint256, uint256));
     (uint256 buyStartTime, uint256 buyEndTime) = abi.decode(buy.startAndEndTimes, (uint256, uint256));
@@ -42,6 +40,26 @@ abstract contract OrderBookComplication is IComplication, Ownable {
     bool isAmountValid = constructed.amount <= buy.amount && buy.amount >= sell.amount;
     bool numItemsValid = constructed.numItems >= buy.numItems && buy.numItems <= sell.numItems;
     return isTimeValid && isAmountValid && numItemsValid;
+  }
+
+  function canExecTakeOBOrder(OrderTypes.OrderBook calldata, OrderTypes.OrderBook calldata)
+    external
+    pure
+    returns (bool)
+  {
+    return false;
+  }
+
+  function canExecOrder(OrderTypes.Maker calldata, OrderTypes.Taker calldata)
+    external
+    pure
+    returns (
+      bool,
+      uint256,
+      uint256
+    )
+  {
+    return (false, 0, 0);
   }
 
   /**

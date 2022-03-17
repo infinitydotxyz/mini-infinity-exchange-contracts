@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {OrderTypes, Utils} from '../libraries/Utils.sol';
+import {OrderTypes, Utils} from '../libs/Utils.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
@@ -9,7 +9,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @title CollectionSetComplication
  * @notice Complication to send an order at a flexible price that can be matched by any tokenId from the given collection set
  */
-abstract contract CollectionSetComplication is IComplication, Ownable {
+contract CollectionSetComplication is IComplication, Ownable {
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -53,6 +53,22 @@ abstract contract CollectionSetComplication is IComplication, Ownable {
       takerOrder.tokenId,
       amount
     );
+  }
+
+  function canExecOBOrder(
+    OrderTypes.OrderBook calldata,
+    OrderTypes.OrderBook calldata,
+    OrderTypes.OrderBook calldata
+  ) external pure returns (bool) {
+    return false;
+  }
+
+  function canExecTakeOBOrder(OrderTypes.OrderBook calldata, OrderTypes.OrderBook calldata)
+    external
+    pure
+    returns (bool)
+  {
+    return false;
   }
 
   /**

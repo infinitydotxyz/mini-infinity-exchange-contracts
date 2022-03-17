@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx hardhat compile --force"
+    "build": "rimraf artifacts && rimraf cache && npx hardhat compile --force"
   },
   "repository": {
     "type": "git",
@@ -28,7 +28,8 @@
     "@uniswap/lib": "^4.0.1-alpha",
     "dotenv": "^16.0.0",
     "hardhat": "^2.8.3",
-    "hardhat-contract-sizer": "^2.4.0"
+    "hardhat-contract-sizer": "^2.4.0",
+    "rimraf": "^3.0.2"
   },
   "devDependencies": {
     "chai": "^4.3.6",

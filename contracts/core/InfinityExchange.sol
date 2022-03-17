@@ -10,8 +10,9 @@ import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
 import {INFTTransferManager} from '../interfaces/INFTTransferManager.sol';
 import {INFTTransferSelector} from '../interfaces/INFTTransferSelector.sol';
 import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
-import {OrderTypes} from '../libraries/OrderTypes.sol';
-import {SignatureChecker} from '../libraries/SignatureChecker.sol';
+import {OrderTypes} from '../libs/OrderTypes.sol';
+import {SignatureChecker} from '../libs/SignatureChecker.sol';
+import 'hardhat/console.sol'; // todo: remove this
 
 /**
  * @title InfinityExchange
@@ -627,6 +628,17 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     return _isUserOrderNonceExecutedOrCancelled[user][orderNonce];
   }
 
+  function verifyOrderSig(
+    OrderTypes.OrderBook calldata order,
+    address signer,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external view returns (bool) {
+    // Verify the validity of the signature
+    return SignatureChecker.verify(order.OBHash(), signer, v, r, s, DOMAIN_SEPARATOR);
+  }
+
   /**
    * @notice Transfer NFT
    * @param collection address of the token collection
@@ -708,16 +720,5 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       return false;
     }
     return true;
-  }
-
-  function verifySig(
-    address signer,
-    bytes calldata sig,
-    bytes32 orderHash
-  ) external view returns (bool) {
-    // Verify the validity of the signature
-    (uint8 v, bytes32 r, bytes32 s) = abi.decode(sig, (uint8, bytes32, bytes32));
-    bool sigValid = SignatureChecker.verify(orderHash, signer, v, r, s, DOMAIN_SEPARATOR);
-    return sigValid;
   }
 }

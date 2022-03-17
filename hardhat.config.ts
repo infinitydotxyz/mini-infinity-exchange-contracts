@@ -2,7 +2,8 @@ import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-waffle';
 
-import './tasks/default';
+import './tasks/deploy';
+import './tasks/interactions';
 
 import { HardhatUserConfig } from 'hardhat/config';
 import { parseUnits } from 'ethers/lib/utils';

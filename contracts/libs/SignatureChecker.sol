@@ -11,13 +11,13 @@ import {IERC1271} from '@openzeppelin/contracts/interfaces/IERC1271.sol';
 library SignatureChecker {
   /**
    * @notice Recovers the signer of a signature (for EOA)
-   * @param hash the hash containing the signed mesage
+   * @param hashed the hash containing the signed mesage
    * @param v parameter (27 or 28). This prevents malleability since the public key recovery equation has two possible solutions.
    * @param r parameter
    * @param s parameter
    */
   function recover(
-    bytes32 hash,
+    bytes32 hashed,
     uint8 v,
     bytes32 r,
     bytes32 s
@@ -32,7 +32,7 @@ library SignatureChecker {
     require(v == 27 || v == 28, 'Signature: Invalid v parameter');
 
     // If the signature is valid (and not malleable), return the signer address
-    address signer = ecrecover(hash, v, r, s);
+    address signer = ecrecover(hashed, v, r, s);
     require(signer != address(0), 'Signature: Invalid signer');
 
     return signer;
@@ -40,7 +40,7 @@ library SignatureChecker {
 
   /**
    * @notice Returns whether the signer matches the signed message
-   * @param hash the hash containing the signed message
+   * @param orderHash the hash containing the signed message
    * @param signer the signer address to confirm message validity
    * @param v parameter (27 or 28)
    * @param r parameter
@@ -49,7 +49,7 @@ library SignatureChecker {
    * @return true --> if valid // false --> if invalid
    */
   function verify(
-    bytes32 hash,
+    bytes32 orderHash,
     address signer,
     uint8 v,
     bytes32 r,
@@ -58,7 +58,7 @@ library SignatureChecker {
   ) internal view returns (bool) {
     // \x19\x01 is the standardized encoding prefix
     // https://eips.ethereum.org/EIPS/eip-712#specification
-    bytes32 digest = keccak256(abi.encodePacked('\x19\x01', domainSeparator, hash));
+    bytes32 digest = keccak256(abi.encodePacked('\x19\x01', domainSeparator, orderHash));
     if (Address.isContract(signer)) {
       // 0x1626ba7e is the interfaceId for signature contracts (see IERC1271)
       return IERC1271(signer).isValidSignature(digest, abi.encodePacked(r, s, v)) == 0x1626ba7e;

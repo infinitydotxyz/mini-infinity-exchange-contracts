@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {OrderTypes, Utils} from '../libraries/Utils.sol';
+import {OrderTypes, Utils} from '../libs/Utils.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
@@ -9,7 +9,7 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @title PrivateSaleComplication
  * @notice Complication that specifies an order that can only be executed by a specific address
  */
-abstract contract PrivateSaleComplication is IComplication, Ownable {
+contract PrivateSaleComplication is IComplication, Ownable {
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -48,7 +48,8 @@ abstract contract PrivateSaleComplication is IComplication, Ownable {
     (uint256 tokenId, uint256 amount) = abi.decode(makerOrder.tokenInfo, (uint256, uint256));
     (bool isSellOrder, , , ) = abi.decode(makerOrder.execInfo, (bool, address, address, uint256));
     return (
-      (isSellOrder && targetBuyer == takerOrder.taker &&
+      (isSellOrder &&
+        targetBuyer == takerOrder.taker &&
         Utils.arePricesWithinErrorBound(currentPrice, takerOrder.price, ERROR_BOUND) &&
         tokenId == takerOrder.tokenId &&
         startTime <= block.timestamp &&
@@ -56,6 +57,22 @@ abstract contract PrivateSaleComplication is IComplication, Ownable {
       tokenId,
       amount
     );
+  }
+
+  function canExecOBOrder(
+    OrderTypes.OrderBook calldata,
+    OrderTypes.OrderBook calldata,
+    OrderTypes.OrderBook calldata
+  ) external pure returns (bool) {
+    return false;
+  }
+
+  function canExecTakeOBOrder(OrderTypes.OrderBook calldata, OrderTypes.OrderBook calldata)
+    external
+    pure
+    returns (bool)
+  {
+    return false;
   }
 
   /**

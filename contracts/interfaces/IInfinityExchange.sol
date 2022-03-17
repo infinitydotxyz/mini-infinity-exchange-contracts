@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {OrderTypes} from '../libraries/OrderTypes.sol';
+import {OrderTypes} from '../libs/OrderTypes.sol';
 
 interface IInfinityExchange {
-  function takeOBOrders(
-    OrderTypes.OrderBook[] calldata makerOrders,
-    OrderTypes.OrderBook[] calldata takerOrders
-  ) external;
+  function takeOBOrders(OrderTypes.OrderBook[] calldata makerOrders, OrderTypes.OrderBook[] calldata takerOrders)
+    external;
 
   function matchOBOrders(
     OrderTypes.OrderBook[] calldata sells,

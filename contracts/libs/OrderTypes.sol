@@ -7,9 +7,10 @@ pragma solidity ^0.8.0;
 library OrderTypes {
   // keccak256("Maker(address signer,address collection,bytes prices,bytes startAndEndTimes,bytes tokenInfo,bytes execInfo,bytes params)")
   bytes32 internal constant MAKER_ORDER_HASH = 0x23eb33010eff990b48001f1b215dca65dd1b266e3cf1712ed9814d12c0fc1803;
-  
+
   // keccak256("OBOrder(address signer,uint256 numItems,uint256 amount,bytes startAndEndTimes,bytes execInfo,bytes params)")
   bytes32 internal constant OB_ORDER_HASH = 0xa3a5f07081083fb7946fff7d08befc3dcf87b843a21b8e8b961d00d0afa67a25;
+
   struct OrderBook {
     address signer; // signer of the order
     uint256 numItems; // min/max number of items in the order
