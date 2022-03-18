@@ -25,7 +25,7 @@ contract OrderBookComplication is IComplication, Ownable {
     ERROR_BOUND = _errorBound;
   }
 
-  function canExecOBOrder(
+  function canExecOrder(
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
@@ -44,7 +44,7 @@ contract OrderBookComplication is IComplication, Ownable {
     return isTimeValid && isAmountValid && numItemsValid;
   }
 
-  function canExecTakeOBOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder) external view returns (bool) {
+  function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder) external view returns (bool) {
     // check timestamps
     (uint256 startTime, uint256 endTime) = (makerOrder.constraints[3], makerOrder.constraints[4]);
     bool isTimeValid = startTime <= block.timestamp && endTime >= block.timestamp;
@@ -53,18 +53,6 @@ contract OrderBookComplication is IComplication, Ownable {
     bool isAmountValid = Utils.arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice, ERROR_BOUND);
     bool numItemsValid = makerOrder.constraints[0] == takerOrder.constraints[0];
     return isTimeValid && isAmountValid && numItemsValid;
-  }
-
-  function canExecOrder(OrderTypes.Maker calldata, OrderTypes.Taker calldata)
-    external
-    pure
-    returns (
-      bool,
-      uint256,
-      uint256
-    )
-  {
-    return (false, 0, 0);
   }
 
   /**

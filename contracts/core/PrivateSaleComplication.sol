@@ -25,41 +25,7 @@ contract PrivateSaleComplication is IComplication, Ownable {
     ERROR_BOUND = _errorBound;
   }
 
-  /**
-   * @notice Check whether order can be executed
-   * @param makerOrder maker order
-   * @param takerOrder taker order
-   * @return (whether complication can be executed, tokenId to execute, amount of tokens to execute)
-   */
-  function canExecOrder(OrderTypes.Maker calldata makerOrder, OrderTypes.Taker calldata takerOrder)
-    external
-    view
-    override
-    returns (
-      bool,
-      uint256,
-      uint256
-    )
-  {
-    // Retrieve target buyer
-    address targetBuyer = abi.decode(makerOrder.params, (address));
-    uint256 currentPrice = Utils.calculateCurrentPrice(makerOrder);
-    (uint256 startTime, uint256 endTime) = abi.decode(makerOrder.startAndEndTimes, (uint256, uint256));
-    (uint256 tokenId, uint256 amount) = abi.decode(makerOrder.tokenInfo, (uint256, uint256));
-    (bool isSellOrder, , , ) = abi.decode(makerOrder.execInfo, (bool, address, address, uint256));
-    return (
-      (isSellOrder &&
-        targetBuyer == takerOrder.taker &&
-        Utils.arePricesWithinErrorBound(currentPrice, takerOrder.price, ERROR_BOUND) &&
-        tokenId == takerOrder.tokenId &&
-        startTime <= block.timestamp &&
-        endTime >= block.timestamp),
-      tokenId,
-      amount
-    );
-  }
-
-  function canExecOBOrder(
+  function canExecOrder(
     OrderTypes.Order calldata,
     OrderTypes.Order calldata,
     OrderTypes.Order calldata
@@ -67,8 +33,22 @@ contract PrivateSaleComplication is IComplication, Ownable {
     return false;
   }
 
-  function canExecTakeOBOrder(OrderTypes.Order calldata, OrderTypes.Order calldata) external pure returns (bool) {
-    return false;
+  function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
+    external
+    view
+    returns (bool)
+  {
+    address targetBuyer = abi.decode(makerOrder.extraParams, (address));
+    (uint256 makerCurrentPrice, uint256 takerCurrentPrice) = (
+      Utils.getCurrentPrice(makerOrder),
+      Utils.getCurrentPrice(takerOrder)
+    );
+    (uint256 startTime, uint256 endTime) = (makerOrder.constraints[3], makerOrder.constraints[4]);
+    bool numItemsValid = makerOrder.constraints[0] == takerOrder.constraints[0];
+    return ((targetBuyer == takerOrder.signer &&
+      Utils.arePricesWithinErrorBound(makerCurrentPrice, takerCurrentPrice, ERROR_BOUND) &&
+      startTime <= block.timestamp &&
+      endTime >= block.timestamp) && numItemsValid);
   }
 
   /**
