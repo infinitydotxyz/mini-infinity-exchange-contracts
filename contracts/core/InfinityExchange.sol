@@ -71,8 +71,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     address indexed buyer,
     address indexed complication, // address of the complication that defines the execution
     address currency, // token address of the transacting currency
-    address[] collections, // collections
-    uint256[] tokenIds, // tokenIds
+    OrderTypes.Item[] items, // items sold; todo: check actual output
     uint256 amount // amount spent on the order
   );
 
@@ -352,18 +351,16 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       constructed.execParams[0]
     );
 
-    // _emitMatchOrderFulfilled(sellOrderHash, buyOrderHash, sell, buy, constructed);
-    // emit OrderFulfilled(
-    //   sellOrderHash,
-    //   buyOrderHash,
-    //   seller,
-    //   buyer,
-    //   constructed.execParams[0],
-    //   constructed.execParams[1],
-    //   collections,
-    //   tokenIds,
-    //   constructed.amount
-    // );
+    emit OrderFulfilled(
+      sellOrderHash,
+      buyOrderHash,
+      seller,
+      buyer,
+      constructed.execParams[0],
+      constructed.execParams[1],
+      constructed.nfts,
+      amount
+    );
   }
 
   function _transferNFTsAndFees(
@@ -450,32 +447,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       }
     }
   }
-
-  // function _emitMatchOrderFulfilled(
-  //   bytes32 sellOrderHash,
-  //   bytes32 buyOrderHash,
-  //   OrderTypes.Order calldata sell,
-  //   OrderTypes.Order calldata buy,
-  //   OrderTypes.Order calldata constructed
-  // ) internal {
-  //   (, address complication, address currency, , ) = abi.decode(
-  //     sell.execInfo,
-  //     (bool, address, address, uint256, uint256)
-  //   );
-  //   (address[] memory collections, uint256[] memory tokenIds) = abi.decode(constructed.params, (address[], uint256[]));
-  //   // emit event
-  //   emit OrderFulfilled(
-  //     sellOrderHash,
-  //     buyOrderHash,
-  //     sell.signer,
-  //     buy.signer,
-  //     complication,
-  //     currency,
-  //     collections,
-  //     tokenIds,
-  //     constructed.amount
-  //   );
-  // }
 
   // ====================================================== ADMIN FUNCTIONS ======================================================
 
