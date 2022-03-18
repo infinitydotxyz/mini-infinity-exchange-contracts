@@ -8,17 +8,34 @@ library OrderTypes {
   // keccak256("Maker(address signer,address collection,bytes prices,bytes startAndEndTimes,bytes tokenInfo,bytes execInfo,bytes params)")
   bytes32 internal constant MAKER_ORDER_HASH = 0x23eb33010eff990b48001f1b215dca65dd1b266e3cf1712ed9814d12c0fc1803;
 
-  // keccak256("OBOrder(address signer,uint256 numItems,uint256 amount,bytes startAndEndTimes,bytes execInfo,bytes params)")
-  bytes32 internal constant OB_ORDER_HASH = 0xa3a5f07081083fb7946fff7d08befc3dcf87b843a21b8e8b961d00d0afa67a25;
+  // keccak256("Order(bool isSellOrder,address signer,uint256[] constraints,Items[] nfts,address[] execParams,bytes extraParams)")
+  bytes32 internal constant ORDER_HASH = 0x496b168c8870e3f5cf5105d5234e56421655698f1d0a04554c8863382442881a;
 
-  struct OrderBook {
-    address signer; // signer of the order
-    uint256 numItems; // min/max number of items in the order
-    uint256 amount; // min/max total amount of the order
-    bytes startAndEndTimes; // uint256 startTime and uint256 endTime in block.timestamp
-    bytes execInfo; // bool isSellOrder, address of complication for trade execution (e.g., FlexiblePrice, PrivateSale), address of the currency (e.g., WETH), uint256 nonce of the order (must be unique unless new maker order is meant to override existing one e.g., lower sell price), uint256 minBpsToSeller
-    bytes params; // additional parameters like collections, tokenIds, rarity, etc.
-    bytes sig; // uint8 v: parameter (27 or 28), bytes32 r, bytes32 s
+  struct Item {
+    address collection;
+    uint256[] tokenIds;
+  }
+
+  struct Order {
+    // is order sell or buy
+    bool isSellOrder;
+    address signer;
+    // total length: 7
+    // in order:
+    // numItems - min/max number of items in the order
+    // start and end prices in wei
+    // start and end times in block.timestamp
+    // minBpsToSeller
+    // nonce
+    uint256[] constraints;
+    // collections and tokenIds constraints
+    Item[] nfts;
+    // address of complication for trade execution (e.g., FlexiblePrice, OrderBook), address of the currency (e.g., WETH)
+    address[] execParams;
+    // additional parameters like rarities
+    bytes extraParams;
+    // uint8 v: parameter (27 or 28), bytes32 r, bytes32 s
+    bytes sig;
   }
   struct Maker {
     address signer; // signer of the order
@@ -56,17 +73,17 @@ library OrderTypes {
       );
   }
 
-  function OBHash(OrderBook memory order) internal pure returns (bytes32) {
+  function OBHash(Order memory order) internal pure returns (bytes32) {
     return
       keccak256(
         abi.encode(
-          OB_ORDER_HASH,
+          ORDER_HASH,
+          order.isSellOrder,
           order.signer,
-          order.numItems,
-          order.amount,
-          keccak256(order.startAndEndTimes),
-          keccak256(order.execInfo),
-          keccak256(order.params)
+          order.constraints,
+          order.nfts,
+          order.execParams,
+          keccak256(order.extraParams)
         )
       );
   }

@@ -56,18 +56,14 @@ contract CollectionSetComplication is IComplication, Ownable {
   }
 
   function canExecOBOrder(
-    OrderTypes.OrderBook calldata,
-    OrderTypes.OrderBook calldata,
-    OrderTypes.OrderBook calldata
+    OrderTypes.Order calldata,
+    OrderTypes.Order calldata,
+    OrderTypes.Order calldata
   ) external pure returns (bool) {
     return false;
   }
 
-  function canExecTakeOBOrder(OrderTypes.OrderBook calldata, OrderTypes.OrderBook calldata)
-    external
-    pure
-    returns (bool)
-  {
+  function canExecTakeOBOrder(OrderTypes.Order calldata, OrderTypes.Order calldata) external pure returns (bool) {
     return false;
   }
 

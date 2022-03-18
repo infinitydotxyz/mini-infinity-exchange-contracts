@@ -5,12 +5,12 @@ import {OrderTypes} from '../libs/OrderTypes.sol';
 
 interface IComplication {
   function canExecOBOrder(
-    OrderTypes.OrderBook calldata sell,
-    OrderTypes.OrderBook calldata buy,
-    OrderTypes.OrderBook calldata constructed
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
   ) external view returns (bool);
 
-  function canExecTakeOBOrder(OrderTypes.OrderBook calldata makerOrder, OrderTypes.OrderBook calldata takerOrder)
+  function canExecTakeOBOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     external
     view
     returns (bool);
