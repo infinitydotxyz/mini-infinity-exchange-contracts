@@ -30,22 +30,36 @@ contract OrderBookComplication is IComplication, Ownable {
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
   ) external view returns (bool) {
-    // check timestamps
+    bool isTimeValid = _isTimeValid(sell, buy);
+    bool isAmountValid = _isAmountValid(sell, buy, constructed);
+    bool numItemsValid = constructed.constraints[0] >= buy.constraints[0] && buy.constraints[0] <= sell.constraints[0];
+    bool itemsIntersect = Utils.checkItemsIntersect(sell, constructed) && Utils.checkItemsIntersect(buy, constructed);
+
+    return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
+  }
+
+  function _isTimeValid(OrderTypes.Order calldata sell, OrderTypes.Order calldata buy) internal view returns (bool) {
     (uint256 sellStartTime, uint256 sellEndTime) = (sell.constraints[3], sell.constraints[4]);
     (uint256 buyStartTime, uint256 buyEndTime) = (buy.constraints[3], buy.constraints[4]);
     bool isSellTimeValid = sellStartTime <= block.timestamp && sellEndTime >= block.timestamp;
     bool isBuyTimeValid = buyStartTime <= block.timestamp && buyEndTime >= block.timestamp;
-    bool isTimeValid = isSellTimeValid && isBuyTimeValid;
 
+    return isSellTimeValid && isBuyTimeValid;
+  }
+
+  function _isAmountValid(
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
+  ) internal view returns (bool) {
     (uint256 currentSellPrice, uint256 currentBuyPrice, uint256 currentConstructedPrice) = (
       Utils.getCurrentPrice(sell),
       Utils.getCurrentPrice(buy),
       Utils.getCurrentPrice(constructed)
     );
-    bool isAmountValid = Utils.arePricesWithinErrorBound(currentConstructedPrice, currentBuyPrice, ERROR_BOUND) &&
+    return
+      Utils.arePricesWithinErrorBound(currentConstructedPrice, currentBuyPrice, ERROR_BOUND) &&
       Utils.arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
-    bool numItemsValid = constructed.constraints[0] >= buy.constraints[0] && buy.constraints[0] <= sell.constraints[0];
-    return isTimeValid && isAmountValid && numItemsValid;
   }
 
   function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
@@ -63,7 +77,9 @@ contract OrderBookComplication is IComplication, Ownable {
     );
     bool isAmountValid = Utils.arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice, ERROR_BOUND);
     bool numItemsValid = makerOrder.constraints[0] == takerOrder.constraints[0];
-    return isTimeValid && isAmountValid && numItemsValid;
+    bool itemsIntersect = Utils.checkItemsIntersect(makerOrder, takerOrder);
+
+    return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
   }
 
   /**

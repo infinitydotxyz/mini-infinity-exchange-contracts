@@ -39,16 +39,20 @@ contract PrivateSaleComplication is IComplication, Ownable {
     returns (bool)
   {
     address targetBuyer = abi.decode(makerOrder.extraParams, (address));
-    (uint256 makerCurrentPrice, uint256 takerCurrentPrice) = (
+    bool isBuyerValid = targetBuyer == takerOrder.signer;
+
+    (uint256 startTime, uint256 endTime) = (makerOrder.constraints[3], makerOrder.constraints[4]);
+    bool isTimeValid = startTime <= block.timestamp && endTime >= block.timestamp;
+
+    (uint256 currentMakerPrice, uint256 currentTakerPrice) = (
       Utils.getCurrentPrice(makerOrder),
       Utils.getCurrentPrice(takerOrder)
     );
-    (uint256 startTime, uint256 endTime) = (makerOrder.constraints[3], makerOrder.constraints[4]);
+    bool isAmountValid = Utils.arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice, ERROR_BOUND);
     bool numItemsValid = makerOrder.constraints[0] == takerOrder.constraints[0];
-    return ((targetBuyer == takerOrder.signer &&
-      Utils.arePricesWithinErrorBound(makerCurrentPrice, takerCurrentPrice, ERROR_BOUND) &&
-      startTime <= block.timestamp &&
-      endTime >= block.timestamp) && numItemsValid);
+    bool itemsIntersect = Utils.checkItemsIntersect(makerOrder, takerOrder);
+
+    return isBuyerValid && isAmountValid && isTimeValid && numItemsValid && itemsIntersect;
   }
 
   /**
