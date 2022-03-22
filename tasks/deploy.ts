@@ -20,30 +20,18 @@ task('deployAll', 'Deploy all contracts')
       verify: args.verify,
       currencyregistry: currencyRegistry.address,
       complicationregistry: complicationRegistry.address,
-      wethaddress: WETH_ADDRESS ?? mock20.address
+      wethaddress: WETH_ADDRESS ?? mock20.address,
+      utilslib: utilsLib.address
     });
 
     const obComplication = await run('deployOBComplication', {
       verify: args.verify,
       protocolfee: '200',
-      errorbound: '1000000000'
+      errorbound: '1000000000',
+      utilslib: utilsLib.address
     });
 
     const privateSaleComplication = await run('deployPrivateSaleComplication', {
-      verify: args.verify,
-      protocolfee: '200',
-      errorbound: '1000000000',
-      utilslib: utilsLib.address
-    });
-
-    const collectionSetComplication = await run('deployCollectionSetComplication', {
-      verify: args.verify,
-      protocolfee: '200',
-      errorbound: '1000000000',
-      utilslib: utilsLib.address
-    });
-
-    const flexiblePriceComplication = await run('deployFlexiblePriceComplication', {
       verify: args.verify,
       protocolfee: '200',
       errorbound: '1000000000',
@@ -159,12 +147,17 @@ task('deployExchange', 'Deploy')
   .addParam('currencyregistry', 'currency registry address')
   .addParam('complicationregistry', 'complication registry address')
   .addParam('wethaddress', 'weth address')
+  .addParam('utilslib', 'utils lib address')
   .setAction(async (args, { ethers, run, network }) => {
     // get signer
     const signer = (await ethers.getSigners())[0];
     const infinityExchange = await deployContract(
       'InfinityExchange',
-      await ethers.getContractFactory('InfinityExchange'),
+      await ethers.getContractFactory('InfinityExchange', {
+        libraries: {
+          Utils: args.utilslib
+        }
+      }),
       signer,
       [args.currencyregistry, args.complicationregistry, args.wethaddress]
     );
@@ -186,12 +179,17 @@ task('deployOBComplication', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .addParam('protocolfee', 'protocol fee')
   .addParam('errorbound', 'error bound')
+  .addParam('utilslib', 'utils lib address')
   .setAction(async (args, { ethers, run, network }) => {
     // get signer
     const signer = (await ethers.getSigners())[0];
     const obComplication = await deployContract(
       'OrderBookComplication',
-      await ethers.getContractFactory('OrderBookComplication'),
+      await ethers.getContractFactory('OrderBookComplication', {
+        libraries: {
+          Utils: args.utilslib
+        }
+      }),
       signer,
       [args.protocolfee, args.errorbound]
     );
@@ -239,68 +237,4 @@ task('deployPrivateSaleComplication', 'Deploy')
       });
     }
     return privateSaleComplication;
-  });
-
-task('deployCollectionSetComplication', 'Deploy')
-  .addFlag('verify', 'verify contracts on etherscan')
-  .addParam('protocolfee', 'protocol fee')
-  .addParam('errorbound', 'error bound')
-  .addParam('utilslib', 'utils lib address')
-  .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
-    const collectionSetComplication = await deployContract(
-      'CollectionSetComplication',
-      await ethers.getContractFactory('CollectionSetComplication', {
-        libraries: {
-          Utils: args.utilslib
-        }
-      }),
-      signer,
-      [args.protocolfee, args.errorbound]
-    );
-
-    // verify source
-    if (args.verify) {
-      console.log('Verifying source on etherscan');
-      await collectionSetComplication.deployTransaction.wait(5);
-      await run('verify:verify', {
-        address: collectionSetComplication.address,
-        contract: 'contracts/core/CollectionSetComplication.sol:CollectionSetComplication',
-        constructorArguments: [args.protocolfee, args.errorbound]
-      });
-    }
-    return collectionSetComplication;
-  });
-
-task('deployFlexiblePriceComplication', 'Deploy')
-  .addFlag('verify', 'verify contracts on etherscan')
-  .addParam('protocolfee', 'protocol fee')
-  .addParam('errorbound', 'error bound')
-  .addParam('utilslib', 'utils lib address')
-  .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
-    const flexiblePriceComplication = await deployContract(
-      'FlexiblePriceComplication',
-      await ethers.getContractFactory('FlexiblePriceComplication', {
-        libraries: {
-          Utils: args.utilslib
-        }
-      }),
-      signer,
-      [args.protocolfee, args.errorbound]
-    );
-
-    // verify source
-    if (args.verify) {
-      console.log('Verifying source on etherscan');
-      await flexiblePriceComplication.deployTransaction.wait(5);
-      await run('verify:verify', {
-        address: flexiblePriceComplication.address,
-        contract: 'contracts/core/FlexiblePriceComplication.sol:FlexiblePriceComplication',
-        constructorArguments: [args.protocolfee, args.errorbound]
-      });
-    }
-    return flexiblePriceComplication;
   });

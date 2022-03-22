@@ -187,8 +187,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   function verifyOrderSig(OrderTypes.Order calldata order) external view returns (bool) {
     // Verify the validity of the signature
-    (uint8 v, bytes32 r, bytes32 s) = abi.decode(order.sig, (uint8, bytes32, bytes32));
-    return SignatureChecker.verify(order.hash(), order.signer, v, r, s, DOMAIN_SEPARATOR);
+    (bytes32 r, bytes32 s, uint8 v) = abi.decode(order.sig, (bytes32, bytes32, uint8));
+    return SignatureChecker.verify(order.hash(), order.signer, r, s, v, DOMAIN_SEPARATOR);
   }
 
   // ====================================================== INTERNAL FUNCTIONS ================================================
@@ -312,7 +312,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool orderExpired = _isUserOrderNonceExecutedOrCancelled[signer][nonce] || nonce < userMinOrderNonce[signer];
     // Verify the validity of the signature
     (uint8 v, bytes32 r, bytes32 s) = abi.decode(sig, (uint8, bytes32, bytes32));
-    bool sigValid = SignatureChecker.verify(orderHash, signer, v, r, s, DOMAIN_SEPARATOR);
+    bool sigValid = SignatureChecker.verify(orderHash, signer, r, s, v, DOMAIN_SEPARATOR);
 
     if (
       orderExpired ||

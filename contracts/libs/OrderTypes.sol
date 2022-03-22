@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
  * @title OrderTypes
  */
 library OrderTypes {
-  // keccak256("Order(bool isSellOrder,address signer,uint256[] constraints,Items[] nfts,address[] execParams,bytes extraParams)")
-  bytes32 internal constant ORDER_HASH = 0x496b168c8870e3f5cf5105d5234e56421655698f1d0a04554c8863382442881a;
+  // keccak256("Order(bool isSellOrder,address signer,bytes32 dataHash,bytes extraParams)")
+  bytes32 internal constant ORDER_HASH = 0x1bb57a2a1a64ebe03163e0964007805cfa2a9b6c0ee67005d6dcdd1bc46265dc;
 
   struct Item {
     address collection;
@@ -17,6 +17,7 @@ library OrderTypes {
     // is order sell or buy
     bool isSellOrder;
     address signer;
+    bytes32 dataHash;
     // total length: 7
     // in order:
     // numItems - min/max number of items in the order
@@ -25,7 +26,7 @@ library OrderTypes {
     // minBpsToSeller
     // nonce
     uint256[] constraints;
-    // collections and tokenIds constraints
+    // collections and tokenIds
     Item[] nfts;
     // address of complication for trade execution (e.g. OrderBook), address of the currency (e.g., WETH)
     address[] execParams;
@@ -42,9 +43,7 @@ library OrderTypes {
           ORDER_HASH,
           order.isSellOrder,
           order.signer,
-          order.constraints,
-          order.nfts,
-          order.execParams,
+          order.dataHash,
           keccak256(order.extraParams)
         )
       );
