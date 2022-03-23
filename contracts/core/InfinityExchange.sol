@@ -179,10 +179,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   /**
    * @notice Check whether user order nonce is executed or cancelled
    * @param user address of user
-   * @param orderNonce nonce of the order
+   * @param nonce nonce of the order
    */
-  function isUserOrderNonceExecutedOrCancelled(address user, uint256 orderNonce) external view returns (bool) {
-    return _isUserOrderNonceExecutedOrCancelled[user][orderNonce];
+  function isNonceValid(address user, uint256 nonce) external view returns (bool) {
+    return _isUserOrderNonceExecutedOrCancelled[user][nonce] || nonce < userMinOrderNonce[user];
   }
 
   function verifyOrderSig(OrderTypes.Order calldata order) external view returns (bool) {
