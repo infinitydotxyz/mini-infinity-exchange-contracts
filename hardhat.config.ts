@@ -4,6 +4,7 @@ import '@nomiclabs/hardhat-waffle';
 
 import './tasks/deploy';
 import './tasks/interactions';
+import './tasks/gen';
 
 import { HardhatUserConfig } from 'hardhat/config';
 import { parseUnits } from 'ethers/lib/utils';

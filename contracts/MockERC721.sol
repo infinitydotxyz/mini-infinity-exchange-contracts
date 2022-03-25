@@ -4,5 +4,11 @@ import {ERC721URIStorage} from '@openzeppelin/contracts/token/ERC721/extensions/
 import {ERC721} from '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 
 contract MockERC721 is ERC721URIStorage {
-  constructor() ERC721('MockERC721', 'MCK721') {}
+  uint256 numMints = 0;
+
+  constructor(string memory name, string memory symbol) ERC721(name, symbol) {
+    for (uint256 i = 0; i < 50; i++) {
+      _safeMint(msg.sender, numMints++);
+    }
+  }
 }
