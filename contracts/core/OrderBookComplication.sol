@@ -10,6 +10,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @notice Complication to execute orderbook orders
  */
 contract OrderBookComplication is IComplication, Ownable {
+  using OrderTypes for OrderTypes.Order;
+  using OrderTypes for OrderTypes.OrderItem;
+
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 
@@ -36,30 +39,6 @@ contract OrderBookComplication is IComplication, Ownable {
     bool itemsIntersect = Utils.checkItemsIntersect(sell, constructed) && Utils.checkItemsIntersect(buy, constructed);
 
     return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
-  }
-
-  function _isTimeValid(OrderTypes.Order calldata sell, OrderTypes.Order calldata buy) internal view returns (bool) {
-    (uint256 sellStartTime, uint256 sellEndTime) = (sell.constraints[3], sell.constraints[4]);
-    (uint256 buyStartTime, uint256 buyEndTime) = (buy.constraints[3], buy.constraints[4]);
-    bool isSellTimeValid = sellStartTime <= block.timestamp && sellEndTime >= block.timestamp;
-    bool isBuyTimeValid = buyStartTime <= block.timestamp && buyEndTime >= block.timestamp;
-
-    return isSellTimeValid && isBuyTimeValid;
-  }
-
-  function _isAmountValid(
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy,
-    OrderTypes.Order calldata constructed
-  ) internal view returns (bool) {
-    (uint256 currentSellPrice, uint256 currentBuyPrice, uint256 currentConstructedPrice) = (
-      Utils.getCurrentPrice(sell),
-      Utils.getCurrentPrice(buy),
-      Utils.getCurrentPrice(constructed)
-    );
-    return
-      Utils.arePricesWithinErrorBound(currentConstructedPrice, currentBuyPrice, ERROR_BOUND) &&
-      Utils.arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
   }
 
   function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
@@ -93,5 +72,29 @@ contract OrderBookComplication is IComplication, Ownable {
   function setErrorBound(uint256 _errorBound) external onlyOwner {
     ERROR_BOUND = _errorBound;
     emit NewErrorbound(_errorBound);
+  }
+
+  function _isTimeValid(OrderTypes.Order calldata sell, OrderTypes.Order calldata buy) internal view returns (bool) {
+    (uint256 sellStartTime, uint256 sellEndTime) = (sell.constraints[3], sell.constraints[4]);
+    (uint256 buyStartTime, uint256 buyEndTime) = (buy.constraints[3], buy.constraints[4]);
+    bool isSellTimeValid = sellStartTime <= block.timestamp && sellEndTime >= block.timestamp;
+    bool isBuyTimeValid = buyStartTime <= block.timestamp && buyEndTime >= block.timestamp;
+
+    return isSellTimeValid && isBuyTimeValid;
+  }
+
+  function _isAmountValid(
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
+  ) internal view returns (bool) {
+    (uint256 currentSellPrice, uint256 currentBuyPrice, uint256 currentConstructedPrice) = (
+      Utils.getCurrentPrice(sell),
+      Utils.getCurrentPrice(buy),
+      Utils.getCurrentPrice(constructed)
+    );
+    return
+      Utils.arePricesWithinErrorBound(currentConstructedPrice, currentBuyPrice, ERROR_BOUND) &&
+      Utils.arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
   }
 }

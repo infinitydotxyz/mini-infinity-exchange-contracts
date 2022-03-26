@@ -163,37 +163,6 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   }
 
   /**
-   * @notice Update protocol fee recipient
-   * @param _protocolFeeRecipient new recipient for protocol fees
-   */
-  function updateProtocolFeeRecipient(address _protocolFeeRecipient) external onlyOwner {
-    protocolFeeRecipient = _protocolFeeRecipient;
-    emit NewProtocolFeeRecipient(_protocolFeeRecipient);
-  }
-
-  /**
-   * @notice Adds a FeeManager
-   * @param managerAddress address of the manager
-   */
-  function addFeeManager(address managerAddress) external onlyOwner {
-    require(!_feeManagers.contains(managerAddress), 'FeeManager: Already added');
-    _feeManagers.add(managerAddress);
-
-    emit FeeManagerAdded(managerAddress);
-  }
-
-  /**
-   * @notice Remove a FeeManager
-   * @param managerAddress managerAddress address of the manager to remove
-   */
-  function removeFeeManager(address managerAddress) external onlyOwner {
-    require(_feeManagers.contains(managerAddress), 'FeeManager: Not found');
-    _feeManagers.remove(managerAddress);
-
-    emit FeeManagerRemoved(managerAddress);
-  }
-
-  /**
    * @notice Returns if a FeeManager was whitelisted
    * @param managerAddress address of the manager
    */
@@ -227,5 +196,36 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     }
 
     return (feeManagers, cursor + length);
+  }
+
+  /**
+   * @notice Update protocol fee recipient
+   * @param _protocolFeeRecipient new recipient for protocol fees
+   */
+  function updateProtocolFeeRecipient(address _protocolFeeRecipient) external onlyOwner {
+    protocolFeeRecipient = _protocolFeeRecipient;
+    emit NewProtocolFeeRecipient(_protocolFeeRecipient);
+  }
+
+  /**
+   * @notice Adds a FeeManager
+   * @param managerAddress address of the manager
+   */
+  function addFeeManager(address managerAddress) external onlyOwner {
+    require(!_feeManagers.contains(managerAddress), 'FeeManager: Already added');
+    _feeManagers.add(managerAddress);
+
+    emit FeeManagerAdded(managerAddress);
+  }
+
+  /**
+   * @notice Remove a FeeManager
+   * @param managerAddress managerAddress address of the manager to remove
+   */
+  function removeFeeManager(address managerAddress) external onlyOwner {
+    require(_feeManagers.contains(managerAddress), 'FeeManager: Not found');
+    _feeManagers.remove(managerAddress);
+
+    emit FeeManagerRemoved(managerAddress);
   }
 }

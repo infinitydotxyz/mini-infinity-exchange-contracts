@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {OrderTypes} from '../libs/OrderTypes.sol';
 
 library Utils {
-  using OrderTypes for OrderTypes.Item;
+  using OrderTypes for OrderTypes.OrderItem;
   using OrderTypes for OrderTypes.Order;
 
   function getCurrentPrice(OrderTypes.Order calldata order) public view returns (uint256) {
@@ -73,19 +73,22 @@ library Utils {
     return numCollsMatched == takerOrder.nfts.length;
   }
 
-  function _checkTokenIdsIntersect(OrderTypes.Item calldata makerItem, OrderTypes.Item calldata takerItem)
+  function _checkTokenIdsIntersect(OrderTypes.OrderItem calldata makerItem, OrderTypes.OrderItem calldata takerItem)
     internal
     pure
     returns (bool)
   {
     // case where maker/taker didn't specify any tokenIds for this collection
-    if (makerItem.tokenIds.length == 0 || takerItem.tokenIds.length == 0) {
+    if (makerItem.tokens.length == 0 || takerItem.tokens.length == 0) {
       return true;
     }
     uint256 numTokenIdsPerCollMatched = 0;
-    for (uint256 k = 0; k < takerItem.tokenIds.length; ) {
-      for (uint256 l = 0; l < makerItem.tokenIds.length; ) {
-        if (makerItem.tokenIds[l] == takerItem.tokenIds[k]) {
+    for (uint256 k = 0; k < takerItem.tokens.length; ) {
+      for (uint256 l = 0; l < makerItem.tokens.length; ) {
+        if (
+          makerItem.tokens[l].tokenId == takerItem.tokens[k].tokenId &&
+          makerItem.tokens[l].numTokens == takerItem.tokens[k].numTokens
+        ) {
           // increment numTokenIdsPerCollMatched
           unchecked {
             ++numTokenIdsPerCollMatched;
@@ -100,6 +103,6 @@ library Utils {
         ++k;
       }
     }
-    return numTokenIdsPerCollMatched == takerItem.tokenIds.length;
+    return numTokenIdsPerCollMatched == takerItem.tokens.length;
   }
 }

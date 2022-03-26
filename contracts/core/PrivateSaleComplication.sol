@@ -10,6 +10,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @notice Complication that specifies an order that can only be executed by a specific address
  */
 contract PrivateSaleComplication is IComplication, Ownable {
+  using OrderTypes for OrderTypes.Order;
+  using OrderTypes for OrderTypes.OrderItem;
+
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
 

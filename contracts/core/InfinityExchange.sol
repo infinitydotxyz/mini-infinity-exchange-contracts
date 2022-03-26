@@ -44,7 +44,7 @@ NFTNFTNFT...........................................NFTNFTNFT
 */
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   using OrderTypes for OrderTypes.Order;
-  using OrderTypes for OrderTypes.Item;
+  using OrderTypes for OrderTypes.OrderItem;
 
   address public immutable WETH;
   bytes32 public immutable DOMAIN_SEPARATOR;
@@ -71,7 +71,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     address indexed buyer,
     address indexed complication, // address of the complication that defines the execution
     address currency, // token address of the transacting currency
-    OrderTypes.Item[] items, // items sold; todo: check actual output
+    OrderTypes.OrderItem[] nfts, // nfts sold; todo: check actual output
     uint256 amount // amount spent on the order
   );
 
@@ -89,9 +89,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     // Calculate the domain separator
     DOMAIN_SEPARATOR = keccak256(
       abi.encode(
-        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f, // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-        0xcd07a2d5dd0d50cbe9aef4d6509941c5576ea10e93ff919a6e4d463e00c5c9f8, // keccak256("InfinityExchange")
-        0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6, // keccak256(bytes("1")) for versionId = 1
+        keccak256('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'),
+        keccak256('InfinityExchange'),
+        keccak256(bytes('1')), // for versionId = 1
         block.chainid,
         address(this)
       )
@@ -172,6 +172,14 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         ++i;
       }
     }
+  }
+
+  function batchTransferNFTs(
+    address from,
+    address to,
+    OrderTypes.OrderItem[] calldata items
+  ) external {
+    _batchTransferNFTs(from, to, items);
   }
 
   // ====================================================== VIEW FUNCTIONS ======================================================
@@ -366,26 +374,40 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _transferNFTsAndFees(
     address seller,
     address buyer,
-    OrderTypes.Item[] calldata items,
+    OrderTypes.OrderItem[] calldata nfts,
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
     address complication
   ) internal {
-    uint256 numTokensToTransfer = 1; // assuming only ERC721
-    for (uint256 i = 0; i < items.length; ) {
-      OrderTypes.Item calldata item = items[i];
+    for (uint256 i = 0; i < nfts.length; ) {
+      OrderTypes.OrderItem calldata item = nfts[i];
       address[] memory collections = new address[](1);
       collections[0] = item.collection;
-      for (uint256 j = 0; j < item.tokenIds.length; ) {
-        // transfer NFT
-        _transferNFT(collections[0], seller, buyer, item.tokenIds[j], numTokensToTransfer);
+      // transfer NFTs
+      _batchTransferNFTs(seller, buyer, nfts);
+      // transfer fees
+      _transferFees(seller, buyer, item, amount, currency, minBpsToSeller, complication);
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _batchTransferNFTs(
+    address from,
+    address to,
+    OrderTypes.OrderItem[] calldata nfts
+  ) internal {
+    for (uint256 i = 0; i < nfts.length; ) {
+      OrderTypes.OrderItem calldata item = nfts[i];
+      // transfer NFTs
+      for (uint256 j = 0; j < item.tokens.length; ) {
+        _transferNFTs(from, to, item);
         unchecked {
           ++j;
         }
       }
-      // transfer fees
-      _transferFees(seller, buyer, collections, item.tokenIds, amount, currency, minBpsToSeller, complication);
       unchecked {
         ++i;
       }
@@ -394,44 +416,45 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Transfer NFT
-   * @param collection address of the token collection
    * @param from address of the sender
    * @param to address of the recipient
-   * @param tokenId tokenId
-   * @param amount amount of tokens (1 for ERC721, 1+ for ERC1155)
-   * @dev For ERC721, amount is not used
+   * @param item item to transfer
    */
-  function _transferNFT(
-    address collection,
+  function _transferNFTs(
     address from,
     address to,
-    uint256 tokenId,
-    uint256 amount
+    OrderTypes.OrderItem calldata item
   ) internal {
     // Retrieve the transfer manager address
-    address transferManager = nftTransferSelector.getTransferManager(collection);
-
+    address transferManager = nftTransferSelector.getTransferManager(item.collection);
     // If no transfer manager found, it returns address(0)
     require(transferManager != address(0), 'Transfer: No NFT transfer manager available');
-
     // If one is found, transfer the token
-    INFTTransferManager(transferManager).transferNFT(collection, from, to, tokenId, amount);
+    for (uint256 j = 0; j < item.tokens.length; ) {
+      INFTTransferManager(transferManager).transferNFT(
+        item.collection,
+        from,
+        to,
+        item.tokens[j].tokenId,
+        item.tokens[j].numTokens
+      );
+      unchecked {
+        ++j;
+      }
+    }
   }
 
   function _transferFees(
     address seller,
     address buyer,
-    address[] memory collections,
-    uint256[] memory tokenIds,
+    OrderTypes.OrderItem calldata item,
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
     address complication
   ) internal {
-    for (uint256 i = 0; i < collections.length; ) {
-      address collection = collections[i];
-      uint256 tokenId = tokenIds[i];
-      // transfer fees
+    // transfer fees
+    for (uint256 i = 0; i < item.tokens.length; ) {
       infinityFeeDistributor.distributeFees(
         amount,
         currency,
@@ -439,8 +462,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         seller,
         minBpsToSeller,
         complication,
-        collection,
-        tokenId
+        item.collection,
+        item.tokens[i].tokenId
       );
       unchecked {
         ++i;
