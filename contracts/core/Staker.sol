@@ -4,13 +4,16 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-import {IStaker, Duration} from '../interfaces/IStaker.sol';
+import {IStaker, Duration, StakeLevel} from '../interfaces/IStaker.sol';
 import 'hardhat/console.sol'; // todo: remove this
 
 contract Staker is IStaker, Ownable, Pausable {
   using SafeERC20 for IERC20;
   mapping(address => mapping(Duration => uint256)) public userstakedAmounts;
   address tokenAddress;
+  uint32 public BRONZE_STAKE_LEVEL = 1000;
+  uint32 public SILVER_STAKE_LEVEL = 5000;
+  uint32 public GOLD_STAKE_LEVEL = 10000;
 
   event Staked(address indexed user, uint256 amount, Duration duration);
   event Locked(address indexed user, uint256 amount, Duration duration);
@@ -92,12 +95,21 @@ contract Staker is IStaker, Ownable, Pausable {
     return _getUserTotalStaked(user);
   }
 
-  function getUserVotingPower(address user) external view returns (uint256) {
-    return
-      (userstakedAmounts[user][Duration.NONE] * 1) +
-      (userstakedAmounts[user][Duration.THREE_MONTHS] * 2) +
-      (userstakedAmounts[user][Duration.SIX_MONTHS] * 3) +
-      (userstakedAmounts[user][Duration.TWELVE_MONTHS] * 4);
+  function getUserStakeLevel(address user) external view returns (StakeLevel) {
+    uint256 totalPower = _getUserStakePower(user);
+    if (totalPower < BRONZE_STAKE_LEVEL) {
+      return StakeLevel.BRONZE;
+    } else if (totalPower < SILVER_STAKE_LEVEL) {
+      return StakeLevel.SILVER;
+    } else if (totalPower < GOLD_STAKE_LEVEL) {
+      return StakeLevel.GOLD;
+    } else {
+      return StakeLevel.PLATINUM;
+    }
+  }
+
+  function getUserStakePower(address user) external view returns (uint256) {
+    return _getUserStakePower(user);
   }
 
   // ====================================================== INTERNAL FUNCTIONS ================================================
@@ -110,10 +122,29 @@ contract Staker is IStaker, Ownable, Pausable {
       userstakedAmounts[user][Duration.TWELVE_MONTHS];
   }
 
+  function _getUserStakePower(address user) internal view returns (uint256) {
+    return
+      (userstakedAmounts[user][Duration.NONE] * 1) +
+      (userstakedAmounts[user][Duration.THREE_MONTHS] * 2) +
+      (userstakedAmounts[user][Duration.SIX_MONTHS] * 3) +
+      (userstakedAmounts[user][Duration.TWELVE_MONTHS] * 4);
+  }
+
   function _clearUserStakedAmounts(address user) internal {
     userstakedAmounts[user][Duration.NONE] = 0;
     userstakedAmounts[user][Duration.THREE_MONTHS] = 0;
     userstakedAmounts[user][Duration.SIX_MONTHS] = 0;
     userstakedAmounts[user][Duration.TWELVE_MONTHS] = 0;
+  }
+
+  // ====================================================== ADMIN FUNCTIONS ================================================
+  function updateStakeLevelThreshold(StakeLevel stakeLevel, uint32 threshold) external onlyOwner {
+    if (stakeLevel == StakeLevel.BRONZE) {
+      BRONZE_STAKE_LEVEL = threshold;
+    } else if (stakeLevel == StakeLevel.SILVER) {
+      SILVER_STAKE_LEVEL = threshold;
+    } else if (stakeLevel == StakeLevel.GOLD) {
+      GOLD_STAKE_LEVEL = threshold;
+    }
   }
 }

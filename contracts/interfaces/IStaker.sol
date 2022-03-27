@@ -10,6 +10,13 @@ enum Duration {
   TWELVE_MONTHS
 }
 
+enum StakeLevel {
+  BRONZE,
+  SILVER,
+  GOLD,
+  PLATINUM
+}
+
 interface IStaker {
   function stake(uint256 amount, Duration duration) external;
 
@@ -20,4 +27,10 @@ interface IStaker {
   function unstake(uint256 amount) external;
 
   function rageQuit() external;
+
+  function getUserTotalStaked(address user) external view returns (uint256);
+
+  function getUserStakePower(address user) external view returns (uint256);
+
+  function getUserStakeLevel(address user) external view returns (StakeLevel);
 }
