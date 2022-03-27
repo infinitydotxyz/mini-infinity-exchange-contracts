@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IInfinityFeeDistributor {
+  function getFeeDiscountBps(address user) external view returns (uint16);
+
   function distributeFees(
     address seller,
     address buyer,

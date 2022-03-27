@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165, IERC2981} from '@openzeppelin/contracts/interfaces/IERC2981.sol';
 
-import {IFeeManager} from '../interfaces/IFeeManager.sol';
+import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
 import {IRoyaltyEngine} from '../interfaces/IRoyaltyEngine.sol';
 
 /**
@@ -14,7 +14,7 @@ import {IRoyaltyEngine} from '../interfaces/IRoyaltyEngine.sol';
 contract CreatorsFeeManager is IFeeManager, Ownable {
   // https://eips.ethereum.org/EIPS/eip-2981
   bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
-  string public PARTY_NAME = 'creators';
+  FeeParty public PARTY_NAME = FeeParty.CREATORS;
 
   IRoyaltyEngine public royaltyEngine;
 
@@ -43,7 +43,7 @@ contract CreatorsFeeManager is IFeeManager, Ownable {
     external
     override
     returns (
-      string memory,
+      FeeParty,
       address[] memory,
       uint256[] memory
     )

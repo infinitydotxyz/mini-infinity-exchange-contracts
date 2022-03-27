@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+enum FeeParty {
+  PROTOCOL,
+  SAFU_FUND,
+  CREATORS,
+  COLLECTORS,
+  CURATORS
+}
+
 interface IFeeManager {
   function calcFeesAndGetRecipients(
     address complication,
@@ -10,7 +18,7 @@ interface IFeeManager {
   )
     external
     returns (
-      string memory partyName,
+      FeeParty partyName,
       address[] memory,
       uint256[] memory
     );

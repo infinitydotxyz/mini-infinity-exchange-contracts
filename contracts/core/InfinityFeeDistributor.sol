@@ -5,8 +5,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {IFeeManager} from '../interfaces/IFeeManager.sol';
+import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
+import {IStaker, StakeLevel} from '../interfaces/IStaker.sol';
 
 /**
  * @title InfinityFeeDistributor
@@ -20,18 +21,23 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   address public SAFU_FEE_RECIPIENT;
   address public PROTOCOL_FEE_RECIPIENT;
   address public INFINITY_EXCHANGE;
-  string public PROTOCOL_PARTY_NAME = 'protocol';
-  string public SAFU_PARTY_NAME = 'safu';
+  address public STAKER_CONTRACT;
   uint256 public SAFU_FEE_BPS = 500; // default
+
+  uint16 BRONZE_FEE_DISCOUNT_BPS = 1000;
+  uint16 SILVER_FEE_DISCOUNT_BPS = 2000;
+  uint16 GOLD_FEE_DISCOUNT_BPS = 3000;
+  uint16 PLATINUM_FEE_DISCOUNT_BPS = 4000;
 
   event FeeManagerAdded(address indexed managerAddress);
   event FeeManagerRemoved(address indexed managerAddress);
   event NewProtocolFeeRecipient(address indexed protocolFeeRecipient);
   event NewSafuFeeRecipient(address indexed safuFeeRecipient);
   event SafuFeeUpdated(uint256 newBps);
+  event StakerContractUpdated(address stakingContract);
 
   event FeeDistributed(
-    string partyName,
+    FeeParty partyName,
     address indexed collection,
     uint256 indexed tokenId,
     address indexed recipient,
@@ -44,11 +50,18 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
    * @param _protocolFeeRecipient protocol fee recipient
    * @param _safuFeeRecipient safu fee recipient
    * @param _infinityExchange infinity exchange address
+   * @param _stakerContract staker contract address
    */
-  constructor(address _protocolFeeRecipient, address _safuFeeRecipient, address _infinityExchange) {
+  constructor(
+    address _protocolFeeRecipient,
+    address _safuFeeRecipient,
+    address _infinityExchange,
+    address _stakerContract
+  ) {
     PROTOCOL_FEE_RECIPIENT = _protocolFeeRecipient;
     SAFU_FEE_RECIPIENT = _safuFeeRecipient;
     INFINITY_EXCHANGE = _infinityExchange;
+    STAKER_CONTRACT = _stakerContract;
   }
 
   function distributeFees(
@@ -63,16 +76,49 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   ) external override {
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     uint256 remainingAmount = amount;
+    uint16 feeDiscountBps = _getFeeDiscountBps(seller);
     // protocol fee
-    remainingAmount -= _disburseFeesToProtocol(execComplication, amount, collection, tokenId, currency, seller);
+    remainingAmount -= _disburseFeesToProtocol(
+      execComplication,
+      amount,
+      collection,
+      tokenId,
+      currency,
+      seller,
+      feeDiscountBps
+    );
     // safu fund fee
-    remainingAmount -= _disburseFeesToSafuFund(amount, collection, tokenId, currency, seller);
+    remainingAmount -= _disburseFeesToSafuFund(amount, collection, tokenId, currency, seller, feeDiscountBps);
     // other party fees
-    remainingAmount -= _disburseFeesToParties(execComplication, amount, collection, tokenId, currency, seller);
+    remainingAmount -= _disburseFeesToParties(
+      execComplication,
+      amount,
+      collection,
+      tokenId,
+      currency,
+      seller,
+      feeDiscountBps
+    );
     // check min bps to seller is met
     require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
     // transfer final amount (post-fees) to seller
     IERC20(currency).safeTransferFrom(buyer, seller, remainingAmount);
+  }
+
+  // ====================================================== INTERNAL FUNCTIONS ================================================
+
+  function _getFeeDiscountBps(address user) internal view returns (uint16) {
+    StakeLevel stakeLevel = IStaker(STAKER_CONTRACT).getUserStakeLevel(user);
+    if (stakeLevel == StakeLevel.BRONZE) {
+      return BRONZE_FEE_DISCOUNT_BPS;
+    } else if (stakeLevel == StakeLevel.SILVER) {
+      return SILVER_FEE_DISCOUNT_BPS;
+    } else if (stakeLevel == StakeLevel.GOLD) {
+      return GOLD_FEE_DISCOUNT_BPS;
+    } else if (stakeLevel == StakeLevel.PLATINUM) {
+      return PLATINUM_FEE_DISCOUNT_BPS;
+    }
+    return 0;
   }
 
   /**
@@ -84,12 +130,13 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     address collection,
     uint256 tokenId,
     address currency,
-    address from
+    address from,
+    uint16 feeDiscountBps
   ) internal returns (uint256) {
-    uint256 protocolFeeAmount = _calculateProtocolFee(execComplication, amount);
+    uint256 protocolFeeAmount = (_calculateProtocolFee(execComplication, amount) * feeDiscountBps) / 10000;
     if (PROTOCOL_FEE_RECIPIENT != address(0) && protocolFeeAmount != 0) {
       IERC20(currency).safeTransferFrom(from, PROTOCOL_FEE_RECIPIENT, protocolFeeAmount);
-      emit FeeDistributed(PROTOCOL_PARTY_NAME, collection, tokenId, PROTOCOL_FEE_RECIPIENT, currency, protocolFeeAmount);
+      emit FeeDistributed(FeeParty.PROTOCOL, collection, tokenId, PROTOCOL_FEE_RECIPIENT, currency, protocolFeeAmount);
     }
     return protocolFeeAmount;
   }
@@ -102,18 +149,19 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     address collection,
     uint256 tokenId,
     address currency,
-    address from
+    address from,
+    uint16 feeDiscountBps
   ) internal returns (uint256) {
-    uint256 safuAmount = (SAFU_FEE_BPS * amount) / 10000;
+    uint256 safuAmount = (((SAFU_FEE_BPS * amount) / 10000) * feeDiscountBps) / 10000;
     if (SAFU_FEE_RECIPIENT != address(0) && safuAmount != 0) {
       IERC20(currency).safeTransferFrom(from, SAFU_FEE_RECIPIENT, safuAmount);
-      emit FeeDistributed(SAFU_PARTY_NAME, collection, tokenId, SAFU_FEE_RECIPIENT, currency, safuAmount);
+      emit FeeDistributed(FeeParty.SAFU_FUND, collection, tokenId, SAFU_FEE_RECIPIENT, currency, safuAmount);
     }
     return safuAmount;
   }
 
   /**
-   * @notice disburses fees to parties like collectors, creators, curators etc and returns the disbursed amount
+   * @notice disburses fees to parties like collectors, creators, curators and returns the disbursed amount
    */
   function _disburseFeesToParties(
     address execComplication,
@@ -121,11 +169,12 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     address collection,
     uint256 tokenId,
     address currency,
-    address from
+    address from,
+    uint16 feeDiscountBps
   ) internal returns (uint256) {
     uint256 partyFees = 0;
     // for each party
-    for (uint256 i = 0; i < _feeManagers.length();) {
+    for (uint256 i = 0; i < _feeManagers.length(); ) {
       partyFees += _disburseFeesViaFeeManager(
         _feeManagers.at(i),
         execComplication,
@@ -133,7 +182,8 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
         tokenId,
         amount,
         currency,
-        from
+        from,
+        feeDiscountBps
       );
       unchecked {
         ++i;
@@ -149,34 +199,41 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     uint256 tokenId,
     uint256 amount,
     address currency,
-    address from
+    address from,
+    uint16 feeDiscountBps
   ) internal returns (uint256) {
     IFeeManager feeManager = IFeeManager(feeManagerAddress);
-    (string memory partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
+    (FeeParty partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
       .calcFeesAndGetRecipients(execComplication, collection, tokenId, amount);
-    return _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from);
+    return
+      _disburseFeesToParty(partyName, collection, tokenId, feeRecipients, feeAmounts, currency, from, feeDiscountBps);
   }
 
   /**
    * @notice disburses fees to a party like collectors and returns the disbursed amount
    */
   function _disburseFeesToParty(
-    string memory partyName,
+    FeeParty partyName,
     address collection,
     uint256 tokenId,
     address[] memory feeRecipients,
     uint256[] memory feeAmounts,
     address currency,
-    address from
+    address from,
+    uint16 feeDiscountBps
   ) internal returns (uint256) {
     uint256 partyFees = 0;
-    uint256 numRecipients = feeRecipients.length;
-    for (uint256 i = 0; i < numRecipients;) {
-      if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
-        IERC20(currency).safeTransferFrom(from, feeRecipients[i], feeAmounts[i]);
-        partyFees += feeAmounts[i];
+    for (uint256 i = 0; i < feeRecipients.length; ) {
+      uint256 feeAmount = feeAmounts[i];
+      if (partyName != FeeParty.CREATORS) {
+        // apply discount for non royalty parties
+        feeAmount = (feeAmount * feeDiscountBps) / 10000;
+      }
 
-        emit FeeDistributed(partyName, collection, tokenId, feeRecipients[i], currency, feeAmounts[i]);
+      if (feeRecipients[i] != address(0) && feeAmount != 0) {
+        IERC20(currency).safeTransferFrom(from, feeRecipients[i], feeAmount);
+        partyFees += feeAmount;
+        emit FeeDistributed(partyName, collection, tokenId, feeRecipients[i], currency, feeAmount);
       }
       unchecked {
         ++i;
@@ -193,6 +250,12 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   function _calculateProtocolFee(address execComplication, uint256 amount) internal view returns (uint256) {
     uint256 protocolFee = IComplication(execComplication).getProtocolFee();
     return (protocolFee * amount) / 10000;
+  }
+
+  // ====================================================== VIEW FUNCTIONS ================================================
+
+  function getFeeDiscountBps(address user) external view returns (uint16) {
+    return _getFeeDiscountBps(user);
   }
 
   /**
@@ -231,7 +294,16 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     return (feeManagers, cursor + length);
   }
 
-  // ================================================= Admin functions ==================================================
+  // ================================================= ADMIN FUNCTIONS ==================================================
+
+  /**
+   * @notice Updates staking contract address
+   * @param _stakerContract new staking contract address
+   */
+  function updateStakingContractAddress(address _stakerContract) external onlyOwner {
+    STAKER_CONTRACT = _stakerContract;
+    emit StakerContractUpdated(_stakerContract);
+  }
 
   /**
    * @notice Updates safu fees
@@ -280,5 +352,17 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     _feeManagers.remove(managerAddress);
 
     emit FeeManagerRemoved(managerAddress);
+  }
+
+  function updateFeeDiscountBps(StakeLevel stakeLevel, uint16 bps) external onlyOwner {
+    if (stakeLevel == StakeLevel.BRONZE) {
+      BRONZE_FEE_DISCOUNT_BPS = bps;
+    } else if (stakeLevel == StakeLevel.SILVER) {
+      SILVER_FEE_DISCOUNT_BPS = bps;
+    } else if (stakeLevel == StakeLevel.GOLD) {
+      GOLD_FEE_DISCOUNT_BPS = bps;
+    } else if (stakeLevel == StakeLevel.PLATINUM) {
+      PLATINUM_FEE_DISCOUNT_BPS = bps;
+    }
   }
 }

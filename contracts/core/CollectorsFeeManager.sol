@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165, IERC2981} from '@openzeppelin/contracts/interfaces/IERC2981.sol';
-import {IFeeManager} from '../interfaces/IFeeManager.sol';
+import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {IOwnable} from '../interfaces/IOwnable.sol';
 import {IFeeRegistry} from '../interfaces/IFeeRegistry.sol';
@@ -18,7 +18,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
   bytes4 public constant INTERFACE_ID_ERC721 = 0x80ac58cd;
   // ERC1155 interfaceID
   bytes4 public constant INTERFACE_ID_ERC1155 = 0xd9b67a26;
-  string public PARTY_NAME = 'collectors';
+  FeeParty PARTY_NAME = FeeParty.COLLECTORS;
   uint32 public MAX_COLL_FEE_BPS = 10000; // default
   address public immutable collectorsFeeRegistry;
 
@@ -48,7 +48,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
     view
     override
     returns (
-      string memory,
+      FeeParty,
       address[] memory,
       uint256[] memory
     )
