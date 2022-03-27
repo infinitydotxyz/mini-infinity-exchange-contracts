@@ -10,20 +10,25 @@ import {IComplication} from '../interfaces/IComplication.sol';
 
 /**
  * @title InfinityFeeDistributor
- * @notice distributes fees to all parties: protocol, seller, creators, curators, collectors
+ * @notice distributes fees to all parties: protocol, safu fund, seller, creators, curators, collectors
  */
 contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   using SafeERC20 for IERC20;
   using EnumerableSet for EnumerableSet.AddressSet;
 
   EnumerableSet.AddressSet private _feeManagers;
-  address public protocolFeeRecipient;
+  address public SAFU_FEE_RECIPIENT;
+  address public PROTOCOL_FEE_RECIPIENT;
   address public INFINITY_EXCHANGE;
-  string public PARTY_NAME = 'protocol';
+  string public PROTOCOL_PARTY_NAME = 'protocol';
+  string public SAFU_PARTY_NAME = 'safu';
+  uint256 public SAFU_FEE_BPS = 500; // default
 
   event FeeManagerAdded(address indexed managerAddress);
   event FeeManagerRemoved(address indexed managerAddress);
   event NewProtocolFeeRecipient(address indexed protocolFeeRecipient);
+  event NewSafuFeeRecipient(address indexed safuFeeRecipient);
+  event SafuFeeUpdated(uint256 newBps);
 
   event FeeDistributed(
     string partyName,
@@ -37,33 +42,37 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   /**
    * @notice Constructor
    * @param _protocolFeeRecipient protocol fee recipient
+   * @param _safuFeeRecipient safu fee recipient
    * @param _infinityExchange infinity exchange address
    */
-  constructor(address _protocolFeeRecipient, address _infinityExchange) {
-    protocolFeeRecipient = _protocolFeeRecipient;
+  constructor(address _protocolFeeRecipient, address _safuFeeRecipient, address _infinityExchange) {
+    PROTOCOL_FEE_RECIPIENT = _protocolFeeRecipient;
+    SAFU_FEE_RECIPIENT = _safuFeeRecipient;
     INFINITY_EXCHANGE = _infinityExchange;
   }
 
   function distributeFees(
+    address seller,
+    address buyer,
+    address collection,
+    uint256 tokenId,
     uint256 amount,
     address currency,
-    address from,
-    address to,
     uint256 minBpsToSeller,
-    address execComplication,
-    address collection,
-    uint256 tokenId
+    address execComplication
   ) external override {
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     uint256 remainingAmount = amount;
     // protocol fee
-    remainingAmount -= _disburseFeesToProtocol(execComplication, amount, collection, tokenId, currency, from);
+    remainingAmount -= _disburseFeesToProtocol(execComplication, amount, collection, tokenId, currency, seller);
+    // safu fund fee
+    remainingAmount -= _disburseFeesToSafuFund(amount, collection, tokenId, currency, seller);
     // other party fees
-    remainingAmount -= _disburseFeesToParties(execComplication, amount, collection, tokenId, currency, from);
+    remainingAmount -= _disburseFeesToParties(execComplication, amount, collection, tokenId, currency, seller);
     // check min bps to seller is met
     require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
     // transfer final amount (post-fees) to seller
-    IERC20(currency).safeTransferFrom(from, to, remainingAmount);
+    IERC20(currency).safeTransferFrom(buyer, seller, remainingAmount);
   }
 
   /**
@@ -78,11 +87,29 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     address from
   ) internal returns (uint256) {
     uint256 protocolFeeAmount = _calculateProtocolFee(execComplication, amount);
-    if (protocolFeeRecipient != address(0) && protocolFeeAmount != 0) {
-      IERC20(currency).safeTransferFrom(from, protocolFeeRecipient, protocolFeeAmount);
-      emit FeeDistributed(PARTY_NAME, collection, tokenId, protocolFeeRecipient, currency, protocolFeeAmount);
+    if (PROTOCOL_FEE_RECIPIENT != address(0) && protocolFeeAmount != 0) {
+      IERC20(currency).safeTransferFrom(from, PROTOCOL_FEE_RECIPIENT, protocolFeeAmount);
+      emit FeeDistributed(PROTOCOL_PARTY_NAME, collection, tokenId, PROTOCOL_FEE_RECIPIENT, currency, protocolFeeAmount);
     }
     return protocolFeeAmount;
+  }
+
+  /**
+   * @notice sends safu fees and returns amount sent
+   */
+  function _disburseFeesToSafuFund(
+    uint256 amount,
+    address collection,
+    uint256 tokenId,
+    address currency,
+    address from
+  ) internal returns (uint256) {
+    uint256 safuAmount = (SAFU_FEE_BPS * amount) / 10000;
+    if (SAFU_FEE_RECIPIENT != address(0) && safuAmount != 0) {
+      IERC20(currency).safeTransferFrom(from, SAFU_FEE_RECIPIENT, safuAmount);
+      emit FeeDistributed(SAFU_PARTY_NAME, collection, tokenId, SAFU_FEE_RECIPIENT, currency, safuAmount);
+    }
+    return safuAmount;
   }
 
   /**
@@ -98,7 +125,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   ) internal returns (uint256) {
     uint256 partyFees = 0;
     // for each party
-    for (uint256 i = 0; i < _feeManagers.length(); i++) {
+    for (uint256 i = 0; i < _feeManagers.length();) {
       partyFees += _disburseFeesViaFeeManager(
         _feeManagers.at(i),
         execComplication,
@@ -108,6 +135,9 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
         currency,
         from
       );
+      unchecked {
+        ++i;
+      }
     }
     return partyFees;
   }
@@ -141,12 +171,15 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   ) internal returns (uint256) {
     uint256 partyFees = 0;
     uint256 numRecipients = feeRecipients.length;
-    for (uint256 i = 0; i < numRecipients; i++) {
+    for (uint256 i = 0; i < numRecipients;) {
       if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
         IERC20(currency).safeTransferFrom(from, feeRecipients[i], feeAmounts[i]);
         partyFees += feeAmounts[i];
 
         emit FeeDistributed(partyName, collection, tokenId, feeRecipients[i], currency, feeAmounts[i]);
+      }
+      unchecked {
+        ++i;
       }
     }
     return partyFees;
@@ -198,12 +231,32 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
     return (feeManagers, cursor + length);
   }
 
+  // ================================================= Admin functions ==================================================
+
   /**
-   * @notice Update protocol fee recipient
+   * @notice Updates safu fees
+   * @param safuFeeBps new safu fees
+   */
+  function updateSafuFees(uint256 safuFeeBps) external onlyOwner {
+    SAFU_FEE_BPS = safuFeeBps;
+    emit SafuFeeUpdated(safuFeeBps);
+  }
+
+  /**
+   * @notice Updates safu fee recipient
+   * @param _safuFeeRecipient new recipient for protocol fees
+   */
+  function updateSafuFeeRecipient(address _safuFeeRecipient) external onlyOwner {
+    SAFU_FEE_RECIPIENT = _safuFeeRecipient;
+    emit NewProtocolFeeRecipient(_safuFeeRecipient);
+  }
+
+  /**
+   * @notice Updates protocol fee recipient
    * @param _protocolFeeRecipient new recipient for protocol fees
    */
   function updateProtocolFeeRecipient(address _protocolFeeRecipient) external onlyOwner {
-    protocolFeeRecipient = _protocolFeeRecipient;
+    PROTOCOL_FEE_RECIPIENT = _protocolFeeRecipient;
     emit NewProtocolFeeRecipient(_protocolFeeRecipient);
   }
 
@@ -219,7 +272,7 @@ contract InfinityFeeDistributor is IInfinityFeeDistributor, Ownable {
   }
 
   /**
-   * @notice Remove a FeeManager
+   * @notice Removes a FeeManager
    * @param managerAddress managerAddress address of the manager to remove
    */
   function removeFeeManager(address managerAddress) external onlyOwner {

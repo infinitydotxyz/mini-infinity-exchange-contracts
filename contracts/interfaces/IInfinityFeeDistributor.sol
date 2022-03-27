@@ -3,13 +3,13 @@ pragma solidity ^0.8.0;
 
 interface IInfinityFeeDistributor {
   function distributeFees(
+    address seller,
+    address buyer,
+    address collection,
+    uint256 tokenId,
     uint256 amount,
     address currency,
-    address from,
-    address to,
     uint256 minBpsToSeller,
-    address execComplication,
-    address collection,
-    uint256 tokenId
+    address execComplication
   ) external;
 }

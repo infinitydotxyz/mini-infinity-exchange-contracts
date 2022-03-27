@@ -456,14 +456,14 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     // transfer fees
     for (uint256 i = 0; i < item.tokens.length; ) {
       infinityFeeDistributor.distributeFees(
+        seller,
+        buyer,
+        item.collection,
+        item.tokens[i].tokenId,
         amount,
         currency,
-        buyer,
-        seller,
         minBpsToSeller,
-        complication,
-        item.collection,
-        item.tokens[i].tokenId
+        complication
       );
       unchecked {
         ++i;
