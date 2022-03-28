@@ -12,7 +12,7 @@ import {IOwnable} from '../interfaces/IOwnable.sol';
 
 contract CuratorsFeeManager is IFeeManager, Ownable {
   FeeParty PARTY_NAME = FeeParty.CURATORS;
-  uint32 public MAX_CURATOR_FEE_BPS = 7500; // default
+  uint16 public MAX_CURATOR_FEE_BPS = 750; // default
   address CURATOR_FEE_TREASURY;
 
   event NewMaxBPS(uint16 newBps);

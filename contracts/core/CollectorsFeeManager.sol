@@ -18,7 +18,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
   // ERC1155 interfaceID
   bytes4 public constant INTERFACE_ID_ERC1155 = 0xd9b67a26;
   FeeParty PARTY_NAME = FeeParty.COLLECTORS;
-  uint32 public MAX_COLL_FEE_BPS = 7500; // default
+  uint16 public MAX_COLL_FEE_BPS = 75;
   address public immutable COLLECTORS_FEE_REGISTRY;
 
   event NewMaxBPS(uint16 newBps);
@@ -73,7 +73,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
   function setupCollectionForFeeShare(
     address collection,
     address feeDestination,
-    uint32 bps
+    uint16 bps
   ) external {
     require(feeDestination != address(0), 'fee destination cant be 0x0');
     require(
@@ -112,11 +112,11 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
     returns (
       address,
       address,
-      uint32,
+      uint16,
       uint256
     )
   {
-    (address setter, address destination, uint32 bps) = IFeeRegistry(COLLECTORS_FEE_REGISTRY).getFeeInfo(collection);
+    (address setter, address destination, uint16 bps) = IFeeRegistry(COLLECTORS_FEE_REGISTRY).getFeeInfo(collection);
     uint256 collectorsFee = (bps * amount) / 10000;
     return (setter, destination, bps, collectorsFee);
   }
@@ -138,7 +138,7 @@ contract CollectorsFeeManager is IFeeManager, Ownable {
     returns (
       address,
       address,
-      uint32,
+      uint16,
       uint256
     )
   {

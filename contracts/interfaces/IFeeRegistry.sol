@@ -6,7 +6,7 @@ interface IFeeRegistry {
     address collection,
     address setter,
     address destination,
-    uint32 bps
+    uint16 bps
   ) external;
 
   function getFeeInfo(address collection)
@@ -15,6 +15,6 @@ interface IFeeRegistry {
     returns (
       address,
       address,
-      uint32
+      uint16
     );
 }

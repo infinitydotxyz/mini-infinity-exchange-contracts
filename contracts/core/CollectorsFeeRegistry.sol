@@ -13,7 +13,7 @@ contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
   struct FeeInfo {
     address setter;
     address destination;
-    uint32 bps;
+    uint16 bps;
   }
 
   mapping(address => FeeInfo) private _collectorsFeeInfo;
@@ -22,7 +22,7 @@ contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
     address indexed collection,
     address indexed setter,
     address indexed destination,
-    uint32 bps
+    uint16 bps
   );
 
   event CollectionFeeManagerUpdated(address indexed manager);
@@ -38,7 +38,7 @@ contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
     address collection,
     address setter,
     address destination,
-    uint32 bps
+    uint16 bps
   ) external override onlyOwner {
     require(msg.sender == COLLECTION_FEE_MANAGER, 'Collection Registry: Only collection fee manager');
     _collectorsFeeInfo[collection] = FeeInfo({setter: setter, destination: destination, bps: bps});
@@ -56,7 +56,7 @@ contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
     returns (
       address,
       address,
-      uint32
+      uint16
     )
   {
     return (
