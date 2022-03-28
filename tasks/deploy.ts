@@ -12,10 +12,11 @@ const DAY = 24 * 60 * 60;
 
 const WETH_ADDRESS = undefined; // todo: change this to the address of WETH contract;
 
-export let mock721Address1 = undefined;
-export let mock721Address2 = undefined;
-export let mock721Address3 = undefined;
-export let mock20Address = undefined;
+let mock721Address1 = '';
+let mock721Address2 = '';
+let mock721Address3 = '';
+let mock20Address = '';
+let nftTokenAddress = '';
 
 task('runAllInteractions', 'Run all interactions').setAction(async (args, { ethers, run, network }) => {
   await run('sendAssetsToTest');
@@ -28,6 +29,9 @@ task('deployAll', 'Deploy all contracts')
 
     const mock20 = await run('deployMock20', { verify: args.verify });
     mock20Address = mock20.address;
+
+    const nftToken = await run('deployInfinityToken', { verify: args.verify });
+    nftTokenAddress = nftToken.address;
 
     const mock721a = await run('deployMock721', { verify: args.verify, name: 'Mock721A', symbol: 'MCKA' });
     mock721Address1 = mock721a.address;
