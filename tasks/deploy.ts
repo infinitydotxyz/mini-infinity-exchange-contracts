@@ -108,37 +108,23 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
   .addParam('supply', 'initial supply')
   .addParam('inflation', 'per epoch inflation')
   .addParam('epochduration', 'epoch duration in days')
+  .addParam('cliff', 'initial cliff in days')
+  .addParam('totalepochs', 'total number of epochs')
   .addParam('timelock', 'timelock duration in days')
-  .addParam('epochstart', 'epoch start future in days')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run }) => {
     // get signer
     const signer = (await ethers.getSigners())[0];
-    console.log('Signer');
-    console.log('  at', signer.address);
-
-    const now = new Date();
-    const utcMilllisecondsSinceEpoch = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
-    const utcSecondsSinceEpoch = Math.round(utcMilllisecondsSinceEpoch / 1000);
-    const epochStart = BigNumber.from(utcSecondsSinceEpoch).add(BigNumber.from(args.epochstart).mul(DAY));
 
     const tokenArgs = [
       signer.address,
       parseEther(args.inflation),
       BigNumber.from(args.epochduration).mul(DAY),
+      BigNumber.from(args.cliff).mul(DAY),
+      args.totalepochs,
       BigNumber.from(args.timelock).mul(DAY),
-      parseEther(args.supply),
-      epochStart
+      parseEther(args.supply)
     ];
-
-    console.log(
-      signer.address,
-      parseEther(args.inflation),
-      BigNumber.from(args.epochduration).mul(DAY).toNumber(),
-      BigNumber.from(args.timelock).mul(DAY).toNumber(),
-      parseEther(args.supply),
-      epochStart.toNumber()
-    );
 
     const infinityToken = await deployContract(
       'InfinityToken',
@@ -163,7 +149,7 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
       await infinityToken.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityToken.address,
-        contract: 'contracts/infinity-token/InfinityToken.sol:InfinityToken',
+        contract: 'contracts/token/InfinityToken.sol:InfinityToken',
         constructorArguments: tokenArgs
       });
     }

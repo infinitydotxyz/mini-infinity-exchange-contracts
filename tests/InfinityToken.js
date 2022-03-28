@@ -14,7 +14,7 @@ describe('Infinity Token', function () {
   const EPOCH_DURATION = MONTH;
   const CLIFF = toBN(6);
   const CLIFF_PERIOD = CLIFF.mul(MONTH);
-  const TOTAL_EPOCHS = 21;
+  const TOTAL_EPOCHS = 25;
   const TIMELOCK = 7 * DAY;
   const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT); // 1b
 
@@ -33,8 +33,7 @@ describe('Infinity Token', function () {
       CLIFF_PERIOD.toString(),
       TOTAL_EPOCHS.toString(),
       TIMELOCK.toString(),
-      INITIAL_SUPPLY.toString(),
-      now
+      INITIAL_SUPPLY.toString()
     );
     await token.deployed();
   });

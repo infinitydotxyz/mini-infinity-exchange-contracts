@@ -7,12 +7,8 @@ import '../interfaces/ITimelockConfig.sol';
 contract TimelockConfig is ITimelockConfig {
   using EnumerableSet for EnumerableSet.Bytes32Set;
 
-  /* constants */
-
-  bytes32 public constant ADMIN_CONFIG_ID = keccak256('Admin');
-  bytes32 public constant TIMELOCK_CONFIG_ID = keccak256('Timelock');
-
-  /* storage */
+  bytes32 public constant ADMIN = keccak256('Admin');
+  bytes32 public constant TIMELOCK = keccak256('Timelock');
 
   struct InternalPending {
     uint256 value;
@@ -25,26 +21,24 @@ contract TimelockConfig is ITimelockConfig {
   mapping(bytes32 => InternalPending) _pending;
   EnumerableSet.Bytes32Set _pendingSet;
 
-  /* modifiers */
-
   modifier onlyAdmin() {
-    require(msg.sender == address(uint160(_config[ADMIN_CONFIG_ID])), 'only admin');
+    require(msg.sender == address(uint160(_config[ADMIN])), 'only admin');
     _;
   }
 
   constructor(address admin, uint256 timelock) {
-    _setRawConfig(ADMIN_CONFIG_ID, uint256(uint160((admin))));
-    _setRawConfig(TIMELOCK_CONFIG_ID, timelock);
+    _setRawConfig(ADMIN, uint256(uint160((admin))));
+    _setRawConfig(TIMELOCK, timelock);
   }
 
-  // =============================================== user functions =========================================================
+  // =============================================== USER FUNCTIONS =========================================================
 
   function confirmChange(bytes32 configID) external override {
     //require existing pending configID
     require(isPending(configID), 'No pending configID found');
 
     // require sufficient time elapsed
-    require(block.timestamp >= _pending[configID].timestamp + _config[TIMELOCK_CONFIG_ID], 'too early');
+    require(block.timestamp >= _pending[configID].timestamp + _config[TIMELOCK], 'too early');
 
     // get pending value
     uint256 value = _pending[configID].value;
@@ -61,7 +55,7 @@ contract TimelockConfig is ITimelockConfig {
     emit ChangeConfirmed(configID, value);
   }
 
-  // =============================================== internal functions =========================================================
+  // =============================================== INTERNAL FUNCTIONS =========================================================
 
   function _setRawConfig(bytes32 configID, uint256 value) internal {
     // commit change
@@ -73,7 +67,7 @@ contract TimelockConfig is ITimelockConfig {
     emit ChangeConfirmed(configID, value);
   }
 
-  // =============================================== view functions =========================================================
+  // =============================================== VIEW FUNCTIONS =========================================================
 
   function calculateConfigID(string memory name) external pure override returns (bytes32 configID) {
     return keccak256(abi.encodePacked(name));
@@ -133,7 +127,7 @@ contract TimelockConfig is ITimelockConfig {
     return ITimelockConfig.PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
   }
 
-  // =============================================== admin functions =========================================================
+  // =============================================== ADMIN FUNCTIONS =========================================================
 
   function requestChange(bytes32 configID, uint256 value) external override onlyAdmin {
     // add to pending set
