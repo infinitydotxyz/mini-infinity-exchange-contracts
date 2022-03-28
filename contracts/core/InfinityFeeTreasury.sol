@@ -66,7 +66,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   // collection fee share treasury contract address to currency to amount
   mapping(address => mapping(address => uint256)) public collectorFees;
   // currency address to root
-  mapping(address => bytes32) public currencyMerkleRoot;
+  mapping(address => bytes32) public merkleRoots;
   // user to currency to claimed amount
   mapping(address => mapping(address => uint256)) public cumulativeClaimed;
 
@@ -131,19 +131,12 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     bytes32 expectedMerkleRoot,
     bytes32[] calldata merkleProof
   ) external override {
-    require(currencyMerkleRoot[currency] == expectedMerkleRoot, 'invalid merkle root');
+    // process
+    _processClaim(currency, cumulativeAmount, expectedMerkleRoot, merkleProof);
 
-    // Verify the merkle proof
-    bytes32 leaf = keccak256(abi.encodePacked(msg.sender, cumulativeAmount));
-    require(_verifyAsm(merkleProof, expectedMerkleRoot, leaf), 'invalid merkle proof');
-
-    // Mark it claimed
-    uint256 preclaimed = cumulativeClaimed[msg.sender][currency];
-    require(preclaimed < cumulativeAmount, 'merkle: nothing to claim');
-    cumulativeClaimed[msg.sender][currency] = cumulativeAmount;
-
+    // transfer
     unchecked {
-      uint256 amount = cumulativeAmount - preclaimed;
+      uint256 amount = cumulativeAmount - cumulativeClaimed[msg.sender][currency];
       curatorFees[currency] -= amount;
       IERC20(currency).safeTransfer(msg.sender, amount);
       emit CuratorFeesClaimed(msg.sender, currency, amount);
@@ -166,6 +159,24 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   }
 
   // ====================================================== INTERNAL FUNCTIONS ================================================
+
+  function _processClaim(
+    address currency,
+    uint256 cumulativeAmount,
+    bytes32 expectedMerkleRoot,
+    bytes32[] calldata merkleProof
+  ) internal {
+    require(merkleRoots[currency] == expectedMerkleRoot, 'invalid merkle root');
+
+    // Verify the merkle proof
+    bytes32 leaf = keccak256(abi.encodePacked(msg.sender, cumulativeAmount));
+    require(_verifyAsm(merkleProof, expectedMerkleRoot, leaf), 'invalid merkle proof');
+
+    // Mark it claimed
+    uint256 preclaimed = cumulativeClaimed[msg.sender][currency];
+    require(preclaimed < cumulativeAmount, 'merkle: nothing to claim');
+    cumulativeClaimed[msg.sender][currency] = cumulativeAmount;
+  }
 
   function _getFeeDiscountBps(address user) internal view returns (uint16) {
     StakeLevel stakeLevel = IStaker(STAKER_CONTRACT).getUserStakeLevel(user);
@@ -380,7 +391,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   }
 
   function setMerkleRoot(address currency, bytes32 _merkleRoot) external override onlyOwner {
-    emit MerkelRootUpdated(currency, currencyMerkleRoot[currency], _merkleRoot);
-    currencyMerkleRoot[currency] = _merkleRoot;
+    emit MerkelRootUpdated(currency, merkleRoots[currency], _merkleRoot);
+    merkleRoots[currency] = _merkleRoot;
   }
 }
