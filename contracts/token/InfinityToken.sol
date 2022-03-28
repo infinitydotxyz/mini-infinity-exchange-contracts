@@ -77,11 +77,11 @@ contract InfinityToken is ERC20('Infinity', 'NFT'), ERC20Burnable, ERC20Snapshot
   // =============================================== VIEW FUNCTIONS =========================================================
 
   function getAdmin() public view returns (address admin) {
-    return address(uint160(TimelockConfig.getConfig(TimelockConfig.ADMIN_CONFIG_ID).value));
+    return address(uint160(TimelockConfig.getConfig(TimelockConfig.ADMIN).value));
   }
 
   function getTimelock() public view returns (uint256 timelock) {
-    return TimelockConfig.getConfig(TimelockConfig.TIMELOCK_CONFIG_ID).value;
+    return TimelockConfig.getConfig(TimelockConfig.TIMELOCK).value;
   }
 
   function getInflation() public view returns (uint256 inflation) {
