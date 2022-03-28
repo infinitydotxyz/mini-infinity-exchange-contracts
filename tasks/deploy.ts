@@ -1,7 +1,14 @@
 import { task } from 'hardhat/config';
 import { deployContract } from './utils';
+import { expect } from 'chai';
+import { BigNumber } from 'ethers';
+import { parseEther } from 'ethers/lib/utils';
 import { erc20Abi } from '../abi/erc20';
 import { erc721Abi } from '../abi/erc721';
+require('dotenv').config();
+
+const DAY = 24 * 60 * 60;
+//const DAY = 1
 
 const WETH_ADDRESS = undefined; // todo: change this to the address of WETH contract;
 
@@ -95,6 +102,71 @@ task('deployMock20', 'Deploy')
       });
     }
     return mock20;
+  });
+
+task('deployInfinityToken', 'Deploy Infinity token contract')
+  .addParam('supply', 'initial supply')
+  .addParam('inflation', 'per epoch inflation')
+  .addParam('epochduration', 'epoch duration in days')
+  .addParam('timelock', 'timelock duration in days')
+  .addParam('epochstart', 'epoch start future in days')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .setAction(async (args, { ethers, run }) => {
+    // get signer
+    const signer = (await ethers.getSigners())[0];
+    console.log('Signer');
+    console.log('  at', signer.address);
+
+    const now = new Date();
+    const utcMilllisecondsSinceEpoch = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+    const utcSecondsSinceEpoch = Math.round(utcMilllisecondsSinceEpoch / 1000);
+    const epochStart = BigNumber.from(utcSecondsSinceEpoch).add(BigNumber.from(args.epochstart).mul(DAY));
+
+    const tokenArgs = [
+      signer.address,
+      parseEther(args.inflation),
+      BigNumber.from(args.epochduration).mul(DAY),
+      BigNumber.from(args.timelock).mul(DAY),
+      parseEther(args.supply),
+      epochStart
+    ];
+
+    console.log(
+      signer.address,
+      parseEther(args.inflation),
+      BigNumber.from(args.epochduration).mul(DAY).toNumber(),
+      BigNumber.from(args.timelock).mul(DAY).toNumber(),
+      parseEther(args.supply),
+      epochStart.toNumber()
+    );
+
+    const infinityToken = await deployContract(
+      'InfinityToken',
+      await ethers.getContractFactory('InfinityToken'),
+      signer,
+      tokenArgs
+    );
+
+    // post deployment checks
+
+    console.log('Validating deployment');
+
+    expect(await infinityToken.balanceOf(args.treasurer)).to.be.eq(parseEther(args.supply));
+    expect(await infinityToken.getAdmin()).to.be.eq(signer.address);
+    expect(await infinityToken.getTimelock()).to.be.eq(BigNumber.from(args.timelock).mul(DAY));
+    expect(await infinityToken.getInflation()).to.be.eq(parseEther(args.inflation));
+    expect(await infinityToken.getEpochDuration()).to.be.eq(BigNumber.from(args.epochduration).mul(DAY));
+
+    // verify etherscan
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await infinityToken.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: infinityToken.address,
+        contract: 'contracts/infinity-token/InfinityToken.sol:InfinityToken',
+        constructorArguments: tokenArgs
+      });
+    }
   });
 
 task('deployMock721', 'Deploy')
