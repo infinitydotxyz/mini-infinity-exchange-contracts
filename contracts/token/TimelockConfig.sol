@@ -2,13 +2,23 @@
 pragma solidity ^0.8.0;
 
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-import '../interfaces/ITimelockConfig.sol';
 
-contract TimelockConfig is ITimelockConfig {
+contract TimelockConfig {
   using EnumerableSet for EnumerableSet.Bytes32Set;
 
   bytes32 public constant ADMIN = keccak256('Admin');
   bytes32 public constant TIMELOCK = keccak256('Timelock');
+
+  struct Config {
+    bytes32 id;
+    uint256 value;
+  }
+
+  struct PendingRequest {
+    bytes32 id;
+    uint256 value;
+    uint256 timestamp;
+  }
 
   struct InternalPending {
     uint256 value;
@@ -20,6 +30,10 @@ contract TimelockConfig is ITimelockConfig {
 
   mapping(bytes32 => InternalPending) _pending;
   EnumerableSet.Bytes32Set _pendingSet;
+
+  event ChangeRequested(bytes32 configID, uint256 value);
+  event ChangeConfirmed(bytes32 configID, uint256 value);
+  event ChangeCanceled(bytes32 configID, uint256 value);
 
   modifier onlyAdmin() {
     require(msg.sender == address(uint160(_config[ADMIN])), 'only admin');
@@ -33,7 +47,7 @@ contract TimelockConfig is ITimelockConfig {
 
   // =============================================== USER FUNCTIONS =========================================================
 
-  function confirmChange(bytes32 configID) external override {
+  function confirmChange(bytes32 configID) external {
     //require existing pending configID
     require(isPending(configID), 'No pending configID found');
 
@@ -69,67 +83,57 @@ contract TimelockConfig is ITimelockConfig {
 
   // =============================================== VIEW FUNCTIONS =========================================================
 
-  function calculateConfigID(string memory name) external pure override returns (bytes32 configID) {
+  function calculateConfigID(string memory name) external pure returns (bytes32 configID) {
     return keccak256(abi.encodePacked(name));
   }
 
-  function isConfig(bytes32 configID) external view override returns (bool status) {
+  function isConfig(bytes32 configID) external view returns (bool status) {
     return _configSet.contains(configID);
   }
 
-  function getConfigCount() external view override returns (uint256 count) {
+  function getConfigCount() external view returns (uint256 count) {
     return _configSet.length();
   }
 
-  function getConfigByIndex(uint256 index) external view override returns (ITimelockConfig.Config memory config) {
+  function getConfigByIndex(uint256 index) external view returns (Config memory config) {
     // get config ID
     bytes32 configID = _configSet.at(index);
     // return config
-    return ITimelockConfig.Config(configID, _config[configID]);
+    return Config(configID, _config[configID]);
   }
 
-  function getConfig(bytes32 configID) public view override returns (ITimelockConfig.Config memory config) {
+  function getConfig(bytes32 configID) public view returns (Config memory config) {
     // check for existance
     require(_configSet.contains(configID), 'not config');
     // return config
-    return ITimelockConfig.Config(configID, _config[configID]);
+    return Config(configID, _config[configID]);
   }
 
-  function isPending(bytes32 configID) public view override returns (bool status) {
+  function isPending(bytes32 configID) public view returns (bool status) {
     return _pendingSet.contains(configID);
   }
 
-  function getPendingCount() external view override returns (uint256 count) {
+  function getPendingCount() external view returns (uint256 count) {
     return _pendingSet.length();
   }
 
-  function getPendingByIndex(uint256 index)
-    external
-    view
-    override
-    returns (ITimelockConfig.PendingRequest memory pendingRequest)
-  {
+  function getPendingByIndex(uint256 index) external view returns (PendingRequest memory pendingRequest) {
     // get config ID
     bytes32 configID = _pendingSet.at(index);
     // return config
-    return ITimelockConfig.PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
+    return PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
   }
 
-  function getPending(bytes32 configID)
-    external
-    view
-    override
-    returns (ITimelockConfig.PendingRequest memory pendingRequest)
-  {
+  function getPending(bytes32 configID) external view returns (PendingRequest memory pendingRequest) {
     // check for existance
     require(_pendingSet.contains(configID), 'not pending');
     // return config
-    return ITimelockConfig.PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
+    return PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
   }
 
   // =============================================== ADMIN FUNCTIONS =========================================================
 
-  function requestChange(bytes32 configID, uint256 value) external override onlyAdmin {
+  function requestChange(bytes32 configID, uint256 value) external onlyAdmin {
     // add to pending set
     require(_pendingSet.add(configID), 'request already exists');
 
@@ -140,7 +144,7 @@ contract TimelockConfig is ITimelockConfig {
     emit ChangeRequested(configID, value);
   }
 
-  function cancelChange(bytes32 configID) external override onlyAdmin {
+  function cancelChange(bytes32 configID) external onlyAdmin {
     // remove from pending set
     require(_pendingSet.remove(configID), 'no pending request');
 
