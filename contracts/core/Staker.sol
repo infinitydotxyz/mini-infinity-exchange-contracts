@@ -11,18 +11,23 @@ contract Staker is IStaker, Ownable, Pausable {
   using SafeERC20 for IERC20;
   mapping(address => mapping(Duration => uint256)) public userstakedAmounts;
   address tokenAddress;
-  uint32 public BRONZE_STAKE_LEVEL = 1000;
-  uint32 public SILVER_STAKE_LEVEL = 5000;
-  uint32 public GOLD_STAKE_LEVEL = 10000;
+  address infinityTreasury;
+  uint16 public BRONZE_STAKE_LEVEL = 1000;
+  uint16 public SILVER_STAKE_LEVEL = 5000;
+  uint16 public GOLD_STAKE_LEVEL = 10000;
+  uint16 public THREE_MONTH_PENALTY = 3;
+  uint16 public SIX_MONTH_PENALTY = 6;
+  uint16 public TWELVE_MONTH_PENALTY = 12;
 
   event Staked(address indexed user, uint256 amount, Duration duration);
   event Locked(address indexed user, uint256 amount, Duration duration);
   event DurationChanged(address indexed user, uint256 amount, Duration oldDuration, Duration newDuration);
   event UnStaked(address indexed user, uint256 amount);
-  event RageQuit(address indexed user, uint256 amount);
+  event RageQuit(address indexed user, uint256 totalStaked, uint256 totalToUser);
 
-  constructor(address _tokenAddress) {
+  constructor(address _tokenAddress, address _infinityTreasury) {
     tokenAddress = _tokenAddress;
+    infinityTreasury = _infinityTreasury;
   }
 
   // =================================================== USER FUNCTIONS =======================================================
@@ -78,15 +83,27 @@ contract Staker is IStaker, Ownable, Pausable {
   }
 
   function rageQuit() external {
-    uint256 totalStaked = _getUserTotalStaked(msg.sender);
+    uint256 noLock = userstakedAmounts[msg.sender][Duration.NONE];
+    uint256 threeMonthLock = userstakedAmounts[msg.sender][Duration.THREE_MONTHS];
+    uint256 sixMonthLock = userstakedAmounts[msg.sender][Duration.SIX_MONTHS];
+    uint256 twelveMonthLock = userstakedAmounts[msg.sender][Duration.TWELVE_MONTHS];
+    uint256 totalStaked = noLock + threeMonthLock + sixMonthLock + twelveMonthLock;
     require(totalStaked >= 0, 'nothing staked to rage quit');
+    uint256 totalToUser = noLock +
+      threeMonthLock /
+      THREE_MONTH_PENALTY +
+      sixMonthLock /
+      SIX_MONTH_PENALTY +
+      twelveMonthLock /
+      TWELVE_MONTH_PENALTY;
 
     // update storage
     _clearUserStakedAmounts(msg.sender);
-    // perform transfer
-    IERC20(tokenAddress).safeTransferFrom(address(this), msg.sender, totalStaked);
+    // perform transfers
+    IERC20(tokenAddress).safeTransfer(msg.sender, totalToUser);
+    IERC20(tokenAddress).safeTransfer(infinityTreasury, totalStaked - totalToUser);
     // emit event
-    emit RageQuit(msg.sender, totalStaked);
+    emit RageQuit(msg.sender, totalStaked, totalToUser);
   }
 
   // ====================================================== VIEW FUNCTIONS ======================================================
@@ -138,7 +155,7 @@ contract Staker is IStaker, Ownable, Pausable {
   }
 
   // ====================================================== ADMIN FUNCTIONS ================================================
-  function updateStakeLevelThreshold(StakeLevel stakeLevel, uint32 threshold) external onlyOwner {
+  function updateStakeLevelThreshold(StakeLevel stakeLevel, uint16 threshold) external onlyOwner {
     if (stakeLevel == StakeLevel.BRONZE) {
       BRONZE_STAKE_LEVEL = threshold;
     } else if (stakeLevel == StakeLevel.SILVER) {
@@ -146,5 +163,19 @@ contract Staker is IStaker, Ownable, Pausable {
     } else if (stakeLevel == StakeLevel.GOLD) {
       GOLD_STAKE_LEVEL = threshold;
     }
+  }
+
+  function updatePenalties(
+    uint16 threeMonthPenalty,
+    uint16 sixMonthPenalty,
+    uint16 twelveMonthPenalty
+  ) external onlyOwner {
+    THREE_MONTH_PENALTY = threeMonthPenalty;
+    SIX_MONTH_PENALTY = sixMonthPenalty;
+    TWELVE_MONTH_PENALTY = twelveMonthPenalty;
+  }
+
+  function updateInfinityTreasury(address _infinityTreasury) external onlyOwner {
+    infinityTreasury = _infinityTreasury;
   }
 }
