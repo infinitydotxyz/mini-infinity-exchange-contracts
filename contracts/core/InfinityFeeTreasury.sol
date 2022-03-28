@@ -8,12 +8,13 @@ import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {IComplication} from '../interfaces/IComplication.sol';
 import {IStaker, StakeLevel} from '../interfaces/IStaker.sol';
 import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
+import {IMerkleDistributor} from '../interfaces/IMerkleDistributor.sol';
 
 /**
  * @title InfinityFeeTreasury
  * @notice allocates and disburses fees to all parties: protocol/safu fund/creators/curators/collectors
  */
-contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
+contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownable {
   using SafeERC20 for IERC20;
   using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -30,6 +31,12 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
   uint16 SILVER_FEE_DISCOUNT_BPS = 2000;
   uint16 GOLD_FEE_DISCOUNT_BPS = 3000;
   uint16 PLATINUM_FEE_DISCOUNT_BPS = 4000;
+
+  event ProtocolFeesClaimed(address destination, address currency, uint256 amount);
+  event SafuFeesClaimed(address destination, address currency, uint256 amount);
+  event CreatorFeesClaimed(address indexed user, address currency, uint256 amount);
+  event CuratorFeesClaimed(address indexed user, address currency, uint256 amount);
+  event CollectorFeesClaimed(address indexed collection, address currency, uint256 amount);
 
   event StakerContractUpdated(address stakingContract);
   event CreatorFeeManagerUpdated(address manager);
@@ -51,13 +58,17 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
 
   // currency address to amounts
   mapping(address => uint256) public protocolFees;
-  mapping(address => uint256) public safuFundFees;
+  mapping(address => uint256) public safuFees;
   // creator address to currency to amount
   mapping(address => mapping(address => uint256)) public creatorFees;
   // currency to amount
   mapping(address => uint256) public curatorFees;
   // collection fee share treasury contract address to currency to amount
   mapping(address => mapping(address => uint256)) public collectorFees;
+  // currency address to root
+  mapping(address => bytes32) public currencyMerkleRoot;
+  // user to currency to claimed amount
+  mapping(address => mapping(address => uint256)) public cumulativeClaimed;
 
   constructor(
     address _infinityExchange,
@@ -109,17 +120,49 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
 
   function claimCreatorFees(address currency) external {
     require(creatorFees[msg.sender][currency] > 0, 'Fees: No creator fees to claim');
-    IERC20(currency).safeTransferFrom(address(this), msg.sender, creatorFees[msg.sender][currency]);
+    creatorFees[msg.sender][currency] = 0;
+    IERC20(currency).safeTransfer(msg.sender, creatorFees[msg.sender][currency]);
+    emit CreatorFeesClaimed(msg.sender, currency, creatorFees[msg.sender][currency]);
   }
 
-  function claimCuratorFees(address currency) external {
-    require(curatorFees[msg.sender] > 0, 'Fees: No curator fees to claim');
-    IERC20(currency).safeTransferFrom(address(this), msg.sender, curatorFees[msg.sender]);
+  function claimCuratorFees(
+    address currency,
+    uint256 cumulativeAmount,
+    bytes32 expectedMerkleRoot,
+    bytes32[] calldata merkleProof
+  ) external override {
+    require(currencyMerkleRoot[currency] == expectedMerkleRoot, 'invalid merkle root');
+
+    // Verify the merkle proof
+    bytes32 leaf = keccak256(abi.encodePacked(msg.sender, cumulativeAmount));
+    require(_verifyAsm(merkleProof, expectedMerkleRoot, leaf), 'invalid merkle proof');
+
+    // Mark it claimed
+    uint256 preclaimed = cumulativeClaimed[msg.sender][currency];
+    require(preclaimed < cumulativeAmount, 'merkle: nothing to claim');
+    cumulativeClaimed[msg.sender][currency] = cumulativeAmount;
+
+    unchecked {
+      uint256 amount = cumulativeAmount - preclaimed;
+      curatorFees[currency] -= amount;
+      IERC20(currency).safeTransfer(msg.sender, amount);
+      emit CuratorFeesClaimed(msg.sender, currency, amount);
+    }
   }
 
   function claimCollectorFees(address currency) external {
     require(collectorFees[msg.sender][currency] > 0, 'Fees: No collector fees to claim');
-    IERC20(currency).safeTransferFrom(address(this), msg.sender, collectorFees[msg.sender][currency]);
+    collectorFees[msg.sender][currency] = 0;
+    IERC20(currency).safeTransfer(msg.sender, collectorFees[msg.sender][currency]);
+    emit CollectorFeesClaimed(msg.sender, currency, collectorFees[msg.sender][currency]);
+  }
+
+  function verify(
+    bytes32[] calldata proof,
+    bytes32 root,
+    bytes32 leaf
+  ) external pure override returns (bool) {
+    return _verifyAsm(proof, root, leaf);
   }
 
   // ====================================================== INTERNAL FUNCTIONS ================================================
@@ -151,7 +194,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
     uint256 safuFeeAmount = (((SAFU_FEE_BPS * amount) / 10000) * feeDiscountBps) / 10000;
     // update storage
     protocolFees[currency] += protocolFeeAmount;
-    safuFundFees[currency] += safuFeeAmount;
+    safuFees[currency] += safuFeeAmount;
     return protocolFeeAmount + safuFeeAmount;
   }
 
@@ -236,6 +279,41 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
     return (protocolFee * amount) / 10000;
   }
 
+  function _verifyAsm(
+    bytes32[] calldata proof,
+    bytes32 root,
+    bytes32 leaf
+  ) private pure returns (bool valid) {
+    // solhint-disable-next-line no-inline-assembly
+    assembly {
+      let mem1 := mload(0x40)
+      let mem2 := add(mem1, 0x20)
+      let ptr := proof.offset
+
+      for {
+        let end := add(ptr, mul(0x20, proof.length))
+      } lt(ptr, end) {
+        ptr := add(ptr, 0x20)
+      } {
+        let node := calldataload(ptr)
+
+        switch lt(leaf, node)
+        case 1 {
+          mstore(mem1, leaf)
+          mstore(mem2, node)
+        }
+        default {
+          mstore(mem1, node)
+          mstore(mem2, leaf)
+        }
+
+        leaf := keccak256(mem1, 0x40)
+      }
+
+      valid := eq(root, leaf)
+    }
+  }
+
   // ====================================================== VIEW FUNCTIONS ================================================
 
   function getFeeDiscountBps(address user) external view returns (uint16) {
@@ -243,6 +321,21 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
   }
 
   // ================================================= ADMIN FUNCTIONS ==================================================
+
+  function claimProtocolFees(address currency, address destination) external onlyOwner {
+    require(protocolFees[currency] > 0, 'Fees: No protocol fees to claim');
+    protocolFees[currency] = 0;
+    IERC20(currency).safeTransfer(destination, protocolFees[currency]);
+    emit ProtocolFeesClaimed(destination, currency, protocolFees[currency]);
+  }
+
+  function claimSafuFees(address currency, address destination) external onlyOwner {
+    require(safuFees[currency] > 0, 'Fees: No safu fees to claim');
+    safuFees[currency] = 0;
+    IERC20(currency).safeTransfer(destination, safuFees[currency]);
+    emit SafuFeesClaimed(destination, currency, safuFees[currency]);
+  }
+
   function updateStakingContractAddress(address _stakerContract) external onlyOwner {
     STAKER_CONTRACT = _stakerContract;
     emit StakerContractUpdated(_stakerContract);
@@ -284,5 +377,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
       PLATINUM_FEE_DISCOUNT_BPS = bps;
     }
     emit FeeDiscountUpdated(stakeLevel, bps);
+  }
+
+  function setMerkleRoot(address currency, bytes32 _merkleRoot) external override onlyOwner {
+    emit MerkelRootUpdated(currency, currencyMerkleRoot[currency], _merkleRoot);
+    currencyMerkleRoot[currency] = _merkleRoot;
   }
 }

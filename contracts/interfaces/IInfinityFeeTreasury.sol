@@ -17,7 +17,12 @@ interface IInfinityFeeTreasury {
 
   function claimCreatorFees(address currency) external;
 
-  function claimCuratorFees(address currency) external;
+  function claimCuratorFees(
+    address currency,
+    uint256 cumulativeAmount,
+    bytes32 expectedMerkleRoot,
+    bytes32[] calldata merkleProof
+  ) external;
 
   function claimCollectorFees(address currency) external;
 }
