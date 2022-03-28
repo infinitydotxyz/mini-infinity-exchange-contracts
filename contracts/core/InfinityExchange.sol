@@ -10,7 +10,7 @@ import {IComplication} from '../interfaces/IComplication.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
 import {INFTTransferManager} from '../interfaces/INFTTransferManager.sol';
 import {INFTTransferSelector} from '../interfaces/INFTTransferSelector.sol';
-import {IInfinityFeeDistributor} from '../interfaces/IInfinityFeeDistributor.sol';
+import {IInfinityFeeTreasury} from '../interfaces/IInfinityFeeTreasury.sol';
 import {SignatureChecker} from '../libs/SignatureChecker.sol';
 import 'hardhat/console.sol'; // todo: remove this
 
@@ -52,7 +52,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   ICurrencyRegistry public currencyRegistry;
   IComplicationRegistry public complicationRegistry;
   INFTTransferSelector public nftTransferSelector;
-  IInfinityFeeDistributor public infinityFeeDistributor;
+  IInfinityFeeTreasury public infinityFeeTreasury;
 
   mapping(address => uint256) public userMinOrderNonce;
   mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceExecutedOrCancelled;
@@ -62,7 +62,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event NewCurrencyRegistry(address indexed currencyRegistry);
   event NewComplicationRegistry(address indexed complicationRegistry);
   event NewNFTTransferSelector(address indexed nftTransferSelector);
-  event NewInfinityFeeDistributor(address indexed infinityFeeDistributor);
+  event NewInfinityFeeTreasury(address indexed infinityFeeTreasury);
 
   event OrderFulfilled(
     bytes32 sellOrderHash, // hash of the sell order
@@ -455,7 +455,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   ) internal {
     // transfer fees
     for (uint256 i = 0; i < item.tokens.length; ) {
-      infinityFeeDistributor.distributeFees(
+      infinityFeeTreasury.allocateFees(
         seller,
         buyer,
         item.collection,
@@ -505,11 +505,11 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   /**
    * @notice Update fee distributor
-   * @param _infinityFeeDistributor new infinityFeeDistributor address
+   * @param _infinityFeeTreasury new address
    */
-  function updateInfinityFeeDistributor(address _infinityFeeDistributor) external onlyOwner {
-    require(_infinityFeeDistributor != address(0), 'Owner: Cannot be 0x0');
-    infinityFeeDistributor = IInfinityFeeDistributor(_infinityFeeDistributor);
-    emit NewInfinityFeeDistributor(_infinityFeeDistributor);
+  function updateInfinityFeeTreasury(address _infinityFeeTreasury) external onlyOwner {
+    require(_infinityFeeTreasury != address(0), 'Owner: Cannot be 0x0');
+    infinityFeeTreasury = IInfinityFeeTreasury(_infinityFeeTreasury);
+    emit NewInfinityFeeTreasury(_infinityFeeTreasury);
   }
 }
