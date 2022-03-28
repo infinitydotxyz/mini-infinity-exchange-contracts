@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {IInfinityFeeTreasury} from '../interfaces/IInfinityFeeTreasury.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
@@ -16,7 +15,6 @@ import {IMerkleDistributor} from '../interfaces/IMerkleDistributor.sol';
  */
 contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownable {
   using SafeERC20 for IERC20;
-  using EnumerableSet for EnumerableSet.AddressSet;
 
   address public INFINITY_EXCHANGE;
   address public STAKER_CONTRACT;
