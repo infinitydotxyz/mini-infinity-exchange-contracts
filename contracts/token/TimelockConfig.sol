@@ -14,13 +14,13 @@ contract TimelockConfig {
     uint256 value;
   }
 
-  struct PendingRequest {
+  struct PendingChange {
     bytes32 id;
     uint256 value;
     uint256 timestamp;
   }
 
-  struct InternalPending {
+  struct PendingChangeData {
     uint256 value;
     uint256 timestamp;
   }
@@ -28,12 +28,12 @@ contract TimelockConfig {
   mapping(bytes32 => uint256) _config;
   EnumerableSet.Bytes32Set _configSet;
 
-  mapping(bytes32 => InternalPending) _pending;
+  mapping(bytes32 => PendingChangeData) _pending;
   EnumerableSet.Bytes32Set _pendingSet;
 
-  event ChangeRequested(bytes32 configID, uint256 value);
-  event ChangeConfirmed(bytes32 configID, uint256 value);
-  event ChangeCanceled(bytes32 configID, uint256 value);
+  event ChangeRequested(bytes32 configId, uint256 value);
+  event ChangeConfirmed(bytes32 configId, uint256 value);
+  event ChangeCanceled(bytes32 configId, uint256 value);
 
   modifier onlyAdmin() {
     require(msg.sender == address(uint160(_config[ADMIN])), 'only admin');
@@ -47,48 +47,38 @@ contract TimelockConfig {
 
   // =============================================== USER FUNCTIONS =========================================================
 
-  function confirmChange(bytes32 configID) external {
-    //require existing pending configID
-    require(isPending(configID), 'No pending configID found');
+  function confirmChange(bytes32 configId) external {
+    require(isPending(configId), 'No pending configId found');
+    require(block.timestamp >= _pending[configId].timestamp + _config[TIMELOCK], 'too early');
 
-    // require sufficient time elapsed
-    require(block.timestamp >= _pending[configID].timestamp + _config[TIMELOCK], 'too early');
+    uint256 value = _pending[configId].value;
+    _configSet.add(configId);
+    _config[configId] = value;
 
-    // get pending value
-    uint256 value = _pending[configID].value;
+    _pendingSet.remove(configId);
+    delete _pending[configId];
 
-    // commit change
-    _configSet.add(configID);
-    _config[configID] = value;
-
-    // delete pending
-    _pendingSet.remove(configID);
-    delete _pending[configID];
-
-    // emit event
-    emit ChangeConfirmed(configID, value);
+    emit ChangeConfirmed(configId, value);
   }
 
   // =============================================== INTERNAL FUNCTIONS =========================================================
 
-  function _setRawConfig(bytes32 configID, uint256 value) internal {
-    // commit change
-    _configSet.add(configID);
-    _config[configID] = value;
+  function _setRawConfig(bytes32 configId, uint256 value) internal {
+    _configSet.add(configId);
+    _config[configId] = value;
 
-    // emit event
-    emit ChangeRequested(configID, value);
-    emit ChangeConfirmed(configID, value);
+    emit ChangeRequested(configId, value);
+    emit ChangeConfirmed(configId, value);
   }
 
   // =============================================== VIEW FUNCTIONS =========================================================
 
-  function calculateConfigID(string memory name) external pure returns (bytes32 configID) {
+  function calculateConfigId(string memory name) external pure returns (bytes32 configId) {
     return keccak256(abi.encodePacked(name));
   }
 
-  function isConfig(bytes32 configID) external view returns (bool status) {
-    return _configSet.contains(configID);
+  function isConfig(bytes32 configId) external view returns (bool status) {
+    return _configSet.contains(configId);
   }
 
   function getConfigCount() external view returns (uint256 count) {
@@ -96,65 +86,50 @@ contract TimelockConfig {
   }
 
   function getConfigByIndex(uint256 index) external view returns (Config memory config) {
-    // get config ID
-    bytes32 configID = _configSet.at(index);
-    // return config
-    return Config(configID, _config[configID]);
+    bytes32 configId = _configSet.at(index);
+    return Config(configId, _config[configId]);
   }
 
-  function getConfig(bytes32 configID) public view returns (Config memory config) {
-    // check for existance
-    require(_configSet.contains(configID), 'not config');
-    // return config
-    return Config(configID, _config[configID]);
+  function getConfig(bytes32 configId) public view returns (Config memory config) {
+    require(_configSet.contains(configId), 'not config');
+    return Config(configId, _config[configId]);
   }
 
-  function isPending(bytes32 configID) public view returns (bool status) {
-    return _pendingSet.contains(configID);
+  function isPending(bytes32 configId) public view returns (bool status) {
+    return _pendingSet.contains(configId);
   }
 
   function getPendingCount() external view returns (uint256 count) {
     return _pendingSet.length();
   }
 
-  function getPendingByIndex(uint256 index) external view returns (PendingRequest memory pendingRequest) {
-    // get config ID
-    bytes32 configID = _pendingSet.at(index);
-    // return config
-    return PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
+  function getPendingByIndex(uint256 index) external view returns (PendingChange memory pendingRequest) {
+    bytes32 configId = _pendingSet.at(index);
+    return PendingChange(configId, _pending[configId].value, _pending[configId].timestamp);
   }
 
-  function getPending(bytes32 configID) external view returns (PendingRequest memory pendingRequest) {
-    // check for existance
-    require(_pendingSet.contains(configID), 'not pending');
-    // return config
-    return PendingRequest(configID, _pending[configID].value, _pending[configID].timestamp);
+  function getPending(bytes32 configId) external view returns (PendingChange memory pendingRequest) {
+    require(_pendingSet.contains(configId), 'not pending');
+    return PendingChange(configId, _pending[configId].value, _pending[configId].timestamp);
   }
 
   // =============================================== ADMIN FUNCTIONS =========================================================
 
-  function requestChange(bytes32 configID, uint256 value) external onlyAdmin {
-    // add to pending set
-    require(_pendingSet.add(configID), 'request already exists');
+  function requestChange(bytes32 configId, uint256 value) external onlyAdmin {
+    require(_pendingSet.add(configId), 'request already exists');
 
-    // lock new value
-    _pending[configID] = InternalPending(value, block.timestamp);
+    _pending[configId] = PendingChangeData(value, block.timestamp);
 
-    // emit event
-    emit ChangeRequested(configID, value);
+    emit ChangeRequested(configId, value);
   }
 
-  function cancelChange(bytes32 configID) external onlyAdmin {
-    // remove from pending set
-    require(_pendingSet.remove(configID), 'no pending request');
+  function cancelChange(bytes32 configId) external onlyAdmin {
+    require(_pendingSet.remove(configId), 'no pending request');
 
-    // get pending value
-    uint256 value = _pending[configID].value;
+    uint256 value = _pending[configId].value;
 
-    // delete pending
-    delete _pending[configID];
+    delete _pending[configId];
 
-    // emit event
-    emit ChangeCanceled(configID, value);
+    emit ChangeCanceled(configId, value);
   }
 }
