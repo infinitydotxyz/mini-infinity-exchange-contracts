@@ -92,7 +92,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
     totalFees += _allocateFeesToCreators(execComplication, collection, tokenId, amount, currency);
 
     // curator fee
-    totalFees += _allocateFeesToCurators(collection, amount, currency, feeDiscountBps);
+    totalFees += _allocateFeesToCurators(collection, tokenId, amount, currency, feeDiscountBps);
 
     // collector fee
     totalFees += _allocateFeesToCollectors(execComplication, collection, tokenId, amount, currency, feeDiscountBps);
@@ -155,18 +155,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
     return protocolFeeAmount + safuFeeAmount;
   }
 
-  function _allocateFeesToCurators(
-    address collection,
-    uint256 amount,
-    address currency,
-    uint16 feeDiscountBps
-  ) internal returns (uint256) {
-    uint256 curatorFee = (((CURATOR_FEE_BPS * amount) / 10000) * feeDiscountBps) / 10000;
-    // update storage
-    curatorFees[currency] += curatorFee;
-    return curatorFee;
-  }
-
   function _allocateFeesToCreators(
     address execComplication,
     address collection,
@@ -190,6 +178,20 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, Ownable {
       }
     }
     return partyFees;
+  }
+
+  function _allocateFeesToCurators(
+    address collection,
+    uint256 tokenId,
+    uint256 amount,
+    address currency,
+    uint16 feeDiscountBps
+  ) internal returns (uint256) {
+    uint256 curatorFee = (((CURATOR_FEE_BPS * amount) / 10000) * feeDiscountBps) / 10000;
+    // update storage
+    curatorFees[currency] += curatorFee;
+    emit FeeDistributed(FeeParty.CURATORS, collection, tokenId, address(this), currency, curatorFee);
+    return curatorFee;
   }
 
   function _allocateFeesToCollectors(
