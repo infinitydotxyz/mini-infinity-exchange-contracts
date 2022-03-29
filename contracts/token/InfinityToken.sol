@@ -2,11 +2,20 @@
 pragma solidity ^0.8.0;
 
 import {ERC20} from '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import {ERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol';
 import {ERC20Burnable} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import {ERC20Snapshot} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol';
 import {TimelockConfig} from './TimelockConfig.sol';
+import {ERC20Votes} from '@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol';
 
-contract InfinityToken is ERC20('Infinity', 'NFT'), ERC20Burnable, ERC20Snapshot, TimelockConfig {
+contract InfinityToken is
+  ERC20('Infinity', 'NFT'),
+  ERC20Permit('Infinity'),
+  ERC20Burnable,
+  ERC20Snapshot,
+  ERC20Votes,
+  TimelockConfig
+{
   bytes32 public constant EPOCH_INFLATION = keccak256('Inflation');
   bytes32 public constant EPOCH_DURATION = keccak256('EpochDuration');
   bytes32 public constant EPOCH_CLIFF = keccak256('Cliff');
@@ -49,7 +58,9 @@ contract InfinityToken is ERC20('Infinity', 'NFT'), ERC20Burnable, ERC20Snapshot
 
     uint256 epochsPassedSinceLastAdvance = (block.timestamp - previousEpochTimestamp) / getEpochDuration();
     uint256 epochsLeft = getMaxEpochs() - currentEpoch;
-    epochsPassedSinceLastAdvance = epochsPassedSinceLastAdvance > epochsLeft ? epochsLeft : epochsPassedSinceLastAdvance;
+    epochsPassedSinceLastAdvance = epochsPassedSinceLastAdvance > epochsLeft
+      ? epochsLeft
+      : epochsPassedSinceLastAdvance;
 
     // update epochs
     currentEpoch += epochsPassedSinceLastAdvance;
@@ -72,6 +83,23 @@ contract InfinityToken is ERC20('Infinity', 'NFT'), ERC20Burnable, ERC20Snapshot
     uint256 amount
   ) internal override(ERC20, ERC20Snapshot) {
     ERC20Snapshot._beforeTokenTransfer(from, to, amount);
+  }
+
+  // =============================================== REQUIRED OVERRIDES =========================================================
+  function _afterTokenTransfer(
+    address from,
+    address to,
+    uint256 amount
+  ) internal override(ERC20, ERC20Votes) {
+    super._afterTokenTransfer(from, to, amount);
+  }
+
+  function _mint(address to, uint256 amount) internal override(ERC20, ERC20Votes) {
+    super._mint(to, amount);
+  }
+
+  function _burn(address account, uint256 amount) internal override(ERC20, ERC20Votes) {
+    super._burn(account, amount);
   }
 
   // =============================================== VIEW FUNCTIONS =========================================================
