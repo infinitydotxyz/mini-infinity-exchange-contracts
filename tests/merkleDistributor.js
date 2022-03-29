@@ -1,4 +1,4 @@
-const { expect } = require('chai');
+import { expect } from 'chai';
 import { MerkleTree } from 'merkletreejs';
 import { ethers } from 'hardhat';
 import { keccak256, solidityKeccak256 } from 'ethers/lib/utils';
