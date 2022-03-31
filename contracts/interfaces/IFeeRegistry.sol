@@ -2,11 +2,11 @@
 pragma solidity ^0.8.0;
 
 interface IFeeRegistry {
-  function registerFeeDestination(
+  function registerFeeDestinations(
     address collection,
     address setter,
-    address destination,
-    uint16 bps
+    address[] calldata destinations,
+    uint16[] calldata bpsSplits
   ) external;
 
   function getFeeInfo(address collection)
@@ -14,7 +14,7 @@ interface IFeeRegistry {
     view
     returns (
       address,
-      address,
-      uint16
+      address[] calldata,
+      uint16[] calldata
     );
 }

@@ -10,8 +10,8 @@ import 'hardhat/console.sol'; // todo: remove this
 contract Staker is IStaker, Ownable, Pausable {
   using SafeERC20 for IERC20;
   mapping(address => mapping(Duration => uint256)) public userstakedAmounts;
-  address tokenAddress;
-  address infinityTreasury;
+  address INFINITY_TOKEN;
+  address INFINITY_TREASURY;
   uint16 public BRONZE_STAKE_LEVEL = 1000;
   uint16 public SILVER_STAKE_LEVEL = 5000;
   uint16 public GOLD_STAKE_LEVEL = 10000;
@@ -26,60 +26,66 @@ contract Staker is IStaker, Ownable, Pausable {
   event RageQuit(address indexed user, uint256 totalStaked, uint256 totalToUser);
 
   constructor(address _tokenAddress, address _infinityTreasury) {
-    tokenAddress = _tokenAddress;
-    infinityTreasury = _infinityTreasury;
+    INFINITY_TOKEN = _tokenAddress;
+    INFINITY_TREASURY = _infinityTreasury;
   }
+
+  // Fallback
+  fallback() external payable {}
+
+  receive() external payable {}
 
   // =================================================== USER FUNCTIONS =======================================================
-  function stake(uint256 amount, Duration duration) external whenNotPaused {
+  function stake(address user, uint256 amount, Duration duration) external whenNotPaused {
     require(amount != 0, 'stake amount cant be 0');
-    require(IERC20(tokenAddress).balanceOf(msg.sender) >= amount, 'insufficient balance to stake');
+    require(IERC20(INFINITY_TOKEN).balanceOf(user) >= amount, 'insufficient balance to stake');
 
     // update storage
-    userstakedAmounts[msg.sender][duration] += amount;
+    userstakedAmounts[user][duration] += amount;
     // perform transfer
-    IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
+    IERC20(INFINITY_TOKEN).safeTransferFrom(user, address(this), amount);
     // emit event
-    emit Staked(msg.sender, amount, duration);
+    emit Staked(user, amount, duration);
   }
 
-  function lock(uint256 amount, Duration duration) external whenNotPaused {
+  function lock(address user, uint256 amount, Duration duration) external whenNotPaused {
     require(amount != 0, 'lock amount cant be 0');
-    require(userstakedAmounts[msg.sender][Duration.NONE] >= amount, 'insufficient balance to lock');
+    require(userstakedAmounts[user][Duration.NONE] >= amount, 'insufficient balance to lock');
     require(duration != Duration.NONE, 'cant lock for duration NONE');
 
     // update storage
-    userstakedAmounts[msg.sender][Duration.NONE] -= amount;
-    userstakedAmounts[msg.sender][duration] += amount;
+    userstakedAmounts[user][Duration.NONE] -= amount;
+    userstakedAmounts[user][duration] += amount;
     // emit event
-    emit Locked(msg.sender, amount, duration);
+    emit Locked(user, amount, duration);
   }
 
   function changeDuration(
+    address user,
     uint256 amount,
     Duration oldDuration,
     Duration newDuration
   ) external whenNotPaused {
     require(amount != 0, 'amount cant be 0');
-    require(userstakedAmounts[msg.sender][oldDuration] >= amount, 'insufficient staked amount to change duration');
+    require(userstakedAmounts[user][oldDuration] >= amount, 'insufficient staked amount to change duration');
 
     // update storage
-    userstakedAmounts[msg.sender][oldDuration] -= amount;
-    userstakedAmounts[msg.sender][newDuration] += amount;
+    userstakedAmounts[user][oldDuration] -= amount;
+    userstakedAmounts[user][newDuration] += amount;
     // emit event
-    emit DurationChanged(msg.sender, amount, oldDuration, newDuration);
+    emit DurationChanged(user, amount, oldDuration, newDuration);
   }
 
-  function unstake(uint256 amount) external whenNotPaused {
+  function unstake(address user, uint256 amount) external whenNotPaused {
     require(amount != 0, 'stake amount cant be 0');
-    require(userstakedAmounts[msg.sender][Duration.NONE] >= amount, 'insufficient balance to unstake');
+    require(userstakedAmounts[user][Duration.NONE] >= amount, 'insufficient balance to unstake');
 
     // update storage
-    userstakedAmounts[msg.sender][Duration.NONE] -= amount;
+    userstakedAmounts[user][Duration.NONE] -= amount;
     // perform transfer
-    IERC20(tokenAddress).safeTransferFrom(address(this), msg.sender, amount);
+    IERC20(INFINITY_TOKEN).safeTransferFrom(address(this), user, amount);
     // emit event
-    emit UnStaked(msg.sender, amount);
+    emit UnStaked(user, amount);
   }
 
   function rageQuit() external {
@@ -100,8 +106,8 @@ contract Staker is IStaker, Ownable, Pausable {
     // update storage
     _clearUserStakedAmounts(msg.sender);
     // perform transfers
-    IERC20(tokenAddress).safeTransfer(msg.sender, totalToUser);
-    IERC20(tokenAddress).safeTransfer(infinityTreasury, totalStaked - totalToUser);
+    IERC20(INFINITY_TOKEN).safeTransfer(msg.sender, totalToUser);
+    IERC20(INFINITY_TOKEN).safeTransfer(INFINITY_TREASURY, totalStaked - totalToUser);
     // emit event
     emit RageQuit(msg.sender, totalStaked, totalToUser);
   }
@@ -155,6 +161,20 @@ contract Staker is IStaker, Ownable, Pausable {
   }
 
   // ====================================================== ADMIN FUNCTIONS ================================================
+  
+  function rescueTokens(
+    address destination,
+    address currency,
+    uint256 amount
+  ) external onlyOwner {
+    IERC20(currency).safeTransfer(destination, amount);
+  }
+
+  function rescueETH(address destination) external payable onlyOwner {
+    (bool sent, ) = destination.call{value: msg.value}('');
+    require(sent, 'Failed to send Ether');
+  }
+  
   function updateStakeLevelThreshold(StakeLevel stakeLevel, uint16 threshold) external onlyOwner {
     if (stakeLevel == StakeLevel.BRONZE) {
       BRONZE_STAKE_LEVEL = threshold;
@@ -176,6 +196,6 @@ contract Staker is IStaker, Ownable, Pausable {
   }
 
   function updateInfinityTreasury(address _infinityTreasury) external onlyOwner {
-    infinityTreasury = _infinityTreasury;
+    INFINITY_TREASURY = _infinityTreasury;
   }
 }

@@ -3,109 +3,129 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {IStaker, StakeLevel} from '../interfaces/IStaker.sol';
-import {IMerkleDistributor} from '../interfaces/IMerkleDistributor.sol';
+import {IStaker, StakeLevel, Duration} from '../interfaces/IStaker.sol';
+import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
+import {IInfinityTradingRewards} from '../interfaces/IInfinityTradingRewards.sol';
 
 /**
  * @title InfinityTradingRewards
- * @notice allocates and distribvutes trading rewards
+ * @notice allocates and distributes trading rewards
  */
-contract InfinityTradingRewards is IMerkleDistributor, Ownable {
+contract InfinityTradingRewards is IInfinityTradingRewards, Ownable {
   using SafeERC20 for IERC20;
+  using EnumerableSet for EnumerableSet.AddressSet;
+
+  EnumerableSet.AddressSet private _rewardTokens;
+
+  address INFINTY_EXCHANGE;
+  address INFINITY_STAKER;
+  address INFINITY_TOKEN;
+
+  // user to reward currency to balance
+  mapping(address => mapping(address => uint256)) public earnedRewards;
+  // txn currency to reward currency to amount; e.g: 1 WETH = how many $NFT?
+  mapping(address => mapping(address => uint256)) public rewardsMap;
 
   event RewardClaimed(address indexed user, address currency, uint256 amount);
+  event RewardStaked(address indexed user, address currency, uint256 amount);
+  event RewardTokenAdded(address indexed rewardToken);
+  event RewardTokenRemoved(address indexed rewardToken);
 
-  // currency address to root
-  mapping(address => bytes32) public merkleRoots;
-  // user to currency to claimed amount
-  mapping(address => mapping(address => uint256)) public cumulativeClaimed;
+  constructor(
+    address _infinityExchange,
+    address _staker,
+    address _infinityToken
+  ) {
+    INFINTY_EXCHANGE = _infinityExchange;
+    INFINITY_STAKER = _staker;
+    INFINITY_TOKEN = _infinityToken;
+  }
+
+  // Fallback
+  fallback() external payable {}
+
+  receive() external payable {}
+
+  function updateRewards(
+    address[] calldata sellers,
+    address[] calldata buyers,
+    address[] calldata currencies,
+    uint256[] calldata amounts
+  ) external override {
+    require(sellers.length == buyers.length);
+    require(sellers.length == currencies.length);
+    require(sellers.length == amounts.length);
+    require(msg.sender == INFINTY_EXCHANGE);
+
+    for (uint256 j = 0; j < _rewardTokens.length(); ) {
+      address rewardToken = _rewardTokens.at(j);
+      for (uint256 i = 0; i < sellers.length; ) {
+        uint256 rewardRatio = rewardsMap[currencies[i]][rewardToken];
+        uint256 reward = amounts[i] * rewardRatio;
+        earnedRewards[sellers[i]][rewardToken] += reward;
+        earnedRewards[buyers[i]][rewardToken] += reward;
+        unchecked {
+          ++i;
+        }
+      }
+      unchecked {
+        ++j;
+      }
+    }
+  }
 
   function claimRewards(
+    address destination,
     address currency,
-    uint256 cumulativeAmount,
-    bytes32 expectedMerkleRoot,
-    bytes32[] calldata merkleProof
-  ) external {
-    // process
-    _processClaim(currency, cumulativeAmount, expectedMerkleRoot, merkleProof);
+    uint256 amount
+  ) external override {
+    require(earnedRewards[destination][currency] >= amount, 'Not enough rewards to claim');
+    earnedRewards[destination][currency] -= amount;
+    IERC20(currency).safeTransfer(destination, amount);
+    emit RewardClaimed(destination, currency, amount);
+  }
 
-    // transfer
-    unchecked {
-      uint256 amount = cumulativeAmount - cumulativeClaimed[msg.sender][currency];
-      IERC20(currency).safeTransfer(msg.sender, amount);
-      emit RewardClaimed(msg.sender, currency, amount);
+  function stakeInfinityRewards(uint256 amount, Duration duration) external override {
+    require(amount > 0, 'Stake amount must be greater than 0');
+    require(amount <= earnedRewards[msg.sender][INFINITY_TOKEN], 'Not enough rewards to stake');
+    earnedRewards[msg.sender][INFINITY_TOKEN] -= amount;
+    IERC20(INFINITY_TOKEN).safeTransfer(INFINITY_STAKER, amount);
+    IStaker(INFINITY_STAKER).stake(msg.sender, amount, duration);
+    emit RewardStaked(msg.sender, INFINITY_TOKEN, amount);
+  }
+
+  // ====================================================== VIEW FUNCTIONS ================================================
+
+  function isRewardTokenAdded(address rewardToken) external view returns (bool) {
+    return _rewardTokens.contains(rewardToken);
+  }
+
+  function numRewardTokens() external view returns (uint256) {
+    return _rewardTokens.length();
+  }
+
+  /**
+   * @notice See added reward tokens
+   * @param cursor cursor (should start at 0 for first request)
+   * @param size size of the response (e.g., 50)
+   */
+  function getRewardTokens(uint256 cursor, uint256 size) external view returns (address[] memory, uint256) {
+    uint256 length = size;
+
+    if (length > _rewardTokens.length() - cursor) {
+      length = _rewardTokens.length() - cursor;
     }
-  }
 
-  function verify(
-    bytes32[] calldata proof,
-    bytes32 root,
-    bytes32 leaf
-  ) external pure override returns (bool) {
-    return _verifyAsm(proof, root, leaf);
-  }
+    address[] memory rewardTokens = new address[](length);
 
-  // ====================================================== INTERNAL FUNCTIONS ================================================
-
-  function _processClaim(
-    address currency,
-    uint256 cumulativeAmount,
-    bytes32 expectedMerkleRoot,
-    bytes32[] calldata merkleProof
-  ) internal {
-    require(merkleRoots[currency] == expectedMerkleRoot, 'invalid merkle root');
-
-    // Verify the merkle proof
-    bytes32 leaf = keccak256(abi.encodePacked(msg.sender, cumulativeAmount));
-    require(_verifyAsm(merkleProof, expectedMerkleRoot, leaf), 'invalid merkle proof');
-
-    // Mark it claimed
-    uint256 preclaimed = cumulativeClaimed[msg.sender][currency];
-    require(preclaimed < cumulativeAmount, 'merkle: nothing to claim');
-    cumulativeClaimed[msg.sender][currency] = cumulativeAmount;
-  }
-
-  function _verifyAsm(
-    bytes32[] calldata proof,
-    bytes32 root,
-    bytes32 leaf
-  ) private pure returns (bool valid) {
-    // solhint-disable-next-line no-inline-assembly
-    assembly {
-      let mem1 := mload(0x40)
-      let mem2 := add(mem1, 0x20)
-      let ptr := proof.offset
-
-      for {
-        let end := add(ptr, mul(0x20, proof.length))
-      } lt(ptr, end) {
-        ptr := add(ptr, 0x20)
-      } {
-        let node := calldataload(ptr)
-
-        switch lt(leaf, node)
-        case 1 {
-          mstore(mem1, leaf)
-          mstore(mem2, node)
-        }
-        default {
-          mstore(mem1, node)
-          mstore(mem2, leaf)
-        }
-
-        leaf := keccak256(mem1, 0x40)
-      }
-
-      valid := eq(root, leaf)
+    for (uint256 i = 0; i < length; i++) {
+      rewardTokens[i] = _rewardTokens.at(cursor + i);
     }
+
+    return (rewardTokens, cursor + length);
   }
 
   // ================================================= ADMIN FUNCTIONS ==================================================
-
-  function setMerkleRoot(address currency, bytes32 _merkleRoot) external override onlyOwner {
-    emit MerkelRootUpdated(currency, merkleRoots[currency], _merkleRoot);
-    merkleRoots[currency] = _merkleRoot;
-  }
 
   function rescueTokens(
     address destination,
@@ -113,5 +133,57 @@ contract InfinityTradingRewards is IMerkleDistributor, Ownable {
     uint256 amount
   ) external onlyOwner {
     IERC20(currency).safeTransfer(destination, amount);
+  }
+
+  function rescueETH(address destination) external payable onlyOwner {
+    (bool sent, ) = destination.call{value: msg.value}('');
+    require(sent, 'Failed to send Ether');
+  }
+
+  function updateInfinityExchange(address infinityExchange) external onlyOwner {
+    INFINTY_EXCHANGE = infinityExchange;
+  }
+
+  function updateInfinityToken(address infinityToken) external onlyOwner {
+    INFINITY_TOKEN = infinityToken;
+  }
+
+  function updateInfinityStaker(address infinityStaker) external onlyOwner {
+    INFINITY_STAKER = infinityStaker;
+  }
+
+  function updateRewardsMap(
+    address txnCurrency,
+    address rewardCurrency,
+    uint256 amount
+  ) external onlyOwner {
+    rewardsMap[txnCurrency][rewardCurrency] = amount;
+  }
+
+  /**
+   * @notice Adds a reward tokens
+   * @param rewardToken address of the token
+   */
+  function addRewardToken(address rewardToken) external onlyOwner {
+    require(!_rewardTokens.contains(rewardToken), 'Reward token already exists');
+    _rewardTokens.add(rewardToken);
+
+    emit RewardTokenAdded(rewardToken);
+  }
+
+  function removeRewardToken(address rewardToken) external onlyOwner {
+    require(_rewardTokens.contains(rewardToken), 'Reward token does not exist');
+    _rewardTokens.remove(rewardToken);
+
+    emit RewardTokenRemoved(rewardToken);
+  }
+
+  function fundWithRewardToken(
+    address rewardToken,
+    address source,
+    uint256 amount
+  ) external onlyOwner {
+    require(_rewardTokens.contains(rewardToken), 'Reward token does not exist');
+    IERC20(rewardToken).safeTransferFrom(source, address(this), amount);
   }
 }
