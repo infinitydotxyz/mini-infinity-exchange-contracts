@@ -2,8 +2,6 @@
 pragma solidity ^0.8.0;
 
 enum FeeParty {
-  PROTOCOL,
-  SAFU_FUND,
   CREATORS,
   COLLECTORS,
   CURATORS

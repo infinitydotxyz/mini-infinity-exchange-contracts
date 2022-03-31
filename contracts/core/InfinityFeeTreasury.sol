@@ -11,7 +11,7 @@ import {IMerkleDistributor} from '../interfaces/IMerkleDistributor.sol';
 
 /**
  * @title InfinityFeeTreasury
- * @notice allocates and disburses fees to all parties: protocol/safu fund/creators/curators/collectors
+ * @notice allocates and disburses fees to all parties: creators/curators/collectors
  */
 contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownable {
   using SafeERC20 for IERC20;
@@ -21,8 +21,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   address public CREATOR_FEE_MANAGER;
   address public COLLECTOR_FEE_MANAGER;
 
-  uint16 public PROTOCOL_FEE_BPS = 50;
-  uint16 public SAFU_FEE_BPS = 50;
   uint16 public CURATOR_FEE_BPS = 75;
 
   uint16 BRONZE_FEE_DISCOUNT_BPS = 1000;
@@ -30,8 +28,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   uint16 GOLD_FEE_DISCOUNT_BPS = 3000;
   uint16 PLATINUM_FEE_DISCOUNT_BPS = 4000;
 
-  event ProtocolFeesClaimed(address destination, address currency, uint256 amount);
-  event SafuFeesClaimed(address destination, address currency, uint256 amount);
   event CreatorFeesClaimed(address indexed user, address currency, uint256 amount);
   event CuratorFeesClaimed(address indexed user, address currency, uint256 amount);
   event CollectorFeesClaimed(address indexed collection, address currency, uint256 amount);
@@ -40,8 +36,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   event CreatorFeeManagerUpdated(address manager);
   event CollectorFeeManagerUpdated(address manager);
 
-  event ProtocolFeeUpdated(uint16 newBps);
-  event SafuFeeUpdated(uint16 newBps);
   event CuratorFeeUpdated(uint16 newBps);
   event FeeDiscountUpdated(StakeLevel level, uint16 newBps);
 
@@ -54,9 +48,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     uint256 amount
   );
 
-  // currency address to amounts
-  mapping(address => uint256) public protocolFees;
-  mapping(address => uint256) public safuFees;
   // creator address to currency to amount
   mapping(address => mapping(address => uint256)) public creatorFees;
   // currency to amount
@@ -94,11 +85,8 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     // token staker discount
     uint16 feeDiscountBps = _getFeeDiscountBps(seller);
 
-    // protocol and safu fund fee
-    uint256 totalFees = _allocateFeesToProtocolAndSafuFund(execComplication, amount, currency, feeDiscountBps);
-
     // creator fee
-    totalFees += _allocateFeesToCreators(execComplication, collection, tokenId, amount, currency);
+    uint256 totalFees = _allocateFeesToCreators(execComplication, collection, tokenId, amount, currency);
 
     // curator fee
     totalFees += _allocateFeesToCurators(collection, tokenId, amount, currency, feeDiscountBps);
@@ -190,23 +178,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     return 0;
   }
 
-  /**
-   * @notice allocates protocol and safu fund fees and returns the disbursed amount
-   */
-  function _allocateFeesToProtocolAndSafuFund(
-    address execComplication,
-    uint256 amount,
-    address currency,
-    uint16 feeDiscountBps
-  ) internal returns (uint256) {
-    uint256 protocolFeeAmount = (_calculateProtocolFee(execComplication, amount) * feeDiscountBps) / 10000;
-    uint256 safuFeeAmount = (((SAFU_FEE_BPS * amount) / 10000) * feeDiscountBps) / 10000;
-    // update storage
-    protocolFees[currency] += protocolFeeAmount;
-    safuFees[currency] += safuFeeAmount;
-    return protocolFeeAmount + safuFeeAmount;
-  }
-
   function _allocateFeesToCreators(
     address execComplication,
     address collection,
@@ -266,26 +237,16 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
         partyFees += feeAmount;
         emit FeeDistributed(partyName, collection, tokenId, feeRecipients[i], currency, feeAmount);
       } else if (feeRecipients[i] == address(0) && feeAmount != 0) {
-        // if collection is not setup, send coll fees to protocol
-        protocolFees[currency] += feeAmount;
+        // if collection is not setup, send coll fees to curators
+        curatorFees[currency] += feeAmount;
         partyFees += feeAmount;
-        emit FeeDistributed(FeeParty.PROTOCOL, collection, tokenId, feeRecipients[i], currency, feeAmount);
+        emit FeeDistributed(FeeParty.CURATORS, collection, tokenId, feeRecipients[i], currency, feeAmount);
       }
       unchecked {
         ++i;
       }
     }
     return partyFees;
-  }
-
-  /**
-   * @notice Calculate protocol fee for an execution complication
-   * @param execComplication complication
-   * @param amount amount to transfer
-   */
-  function _calculateProtocolFee(address execComplication, uint256 amount) internal view returns (uint256) {
-    uint256 protocolFee = IComplication(execComplication).getProtocolFee();
-    return (protocolFee * amount) / 10000;
   }
 
   function _verifyAsm(
@@ -331,20 +292,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   // ================================================= ADMIN FUNCTIONS ==================================================
 
-  function claimProtocolFees(address currency, address destination) external onlyOwner {
-    require(protocolFees[currency] > 0, 'Fees: No protocol fees to claim');
-    protocolFees[currency] = 0;
-    IERC20(currency).safeTransfer(destination, protocolFees[currency]);
-    emit ProtocolFeesClaimed(destination, currency, protocolFees[currency]);
-  }
-
-  function claimSafuFees(address currency, address destination) external onlyOwner {
-    require(safuFees[currency] > 0, 'Fees: No safu fees to claim');
-    safuFees[currency] = 0;
-    IERC20(currency).safeTransfer(destination, safuFees[currency]);
-    emit SafuFeesClaimed(destination, currency, safuFees[currency]);
-  }
-
   function updateStakingContractAddress(address _stakerContract) external onlyOwner {
     STAKER_CONTRACT = _stakerContract;
     emit StakerContractUpdated(_stakerContract);
@@ -358,16 +305,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   function updateCollectorFeeManager(address manager) external onlyOwner {
     COLLECTOR_FEE_MANAGER = manager;
     emit CollectorFeeManagerUpdated(manager);
-  }
-
-  function updateProtocolFees(uint16 bps) external onlyOwner {
-    PROTOCOL_FEE_BPS = bps;
-    emit ProtocolFeeUpdated(bps);
-  }
-
-  function updateSafuFees(uint16 bps) external onlyOwner {
-    SAFU_FEE_BPS = bps;
-    emit SafuFeeUpdated(bps);
   }
 
   function updateCuratorFees(uint16 bps) external onlyOwner {

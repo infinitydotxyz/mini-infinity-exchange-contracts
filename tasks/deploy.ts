@@ -54,14 +54,14 @@ task('deployAll', 'Deploy all contracts')
 
     const obComplication = await run('deployOBComplication', {
       verify: args.verify,
-      protocolfee: '200',
+      protocolfee: '0',
       errorbound: '1000000000',
       utilslib: utilsLib.address
     });
 
     const privateSaleComplication = await run('deployPrivateSaleComplication', {
       verify: args.verify,
-      protocolfee: '200',
+      protocolfee: '0',
       errorbound: '1000000000',
       utilslib: utilsLib.address
     });
