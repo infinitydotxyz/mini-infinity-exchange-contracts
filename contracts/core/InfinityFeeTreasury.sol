@@ -71,6 +71,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     COLLECTOR_FEE_MANAGER = _collectorFeeManager;
   }
 
+  fallback() external payable {}
+
+  receive() external payable {}
+
   function allocateFees(
     address seller,
     address buyer,
@@ -291,6 +295,19 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   }
 
   // ================================================= ADMIN FUNCTIONS ==================================================
+
+  function rescueTokens(
+    address destination,
+    address currency,
+    uint256 amount
+  ) external onlyOwner {
+    IERC20(currency).safeTransfer(destination, amount);
+  }
+
+  function rescueETH(address destination) external payable onlyOwner {
+    (bool sent, ) = destination.call{value: msg.value}('');
+    require(sent, 'Failed to send Ether');
+  }
 
   function updateStakingContractAddress(address _stakerContract) external onlyOwner {
     STAKER_CONTRACT = _stakerContract;

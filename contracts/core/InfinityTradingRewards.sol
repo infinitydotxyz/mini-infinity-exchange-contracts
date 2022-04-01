@@ -30,6 +30,7 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable {
   event RewardStaked(address indexed user, address currency, uint256 amount);
   event RewardTokenAdded(address indexed rewardToken);
   event RewardTokenRemoved(address indexed rewardToken);
+  event Funded(address rewardToken, address source, uint256 amount);
 
   constructor(
     address _infinityExchange,
@@ -185,5 +186,6 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable {
   ) external onlyOwner {
     require(_rewardTokens.contains(rewardToken), 'Reward token does not exist');
     IERC20(rewardToken).safeTransferFrom(source, address(this), amount);
+    emit Funded(rewardToken, source, amount);
   }
 }
