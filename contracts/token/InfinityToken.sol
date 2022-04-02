@@ -19,7 +19,7 @@ contract InfinityToken is
   bytes32 public constant EPOCH_INFLATION = keccak256('Inflation');
   bytes32 public constant EPOCH_DURATION = keccak256('EpochDuration');
   bytes32 public constant EPOCH_CLIFF = keccak256('Cliff');
-  bytes32 public constant MAX_EPOCHS = keccak256('TotalEpochs');
+  bytes32 public constant MAX_EPOCHS = keccak256('MaxEpochs');
 
   /* storage */
   uint256 public currentEpochTimestamp;
