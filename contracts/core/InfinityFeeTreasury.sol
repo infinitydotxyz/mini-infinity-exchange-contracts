@@ -23,10 +23,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   uint16 public CURATOR_FEE_BPS = 75;
 
-  uint16 BRONZE_FEE_DISCOUNT_BPS = 1000;
-  uint16 SILVER_FEE_DISCOUNT_BPS = 2000;
-  uint16 GOLD_FEE_DISCOUNT_BPS = 3000;
-  uint16 PLATINUM_FEE_DISCOUNT_BPS = 4000;
+  uint16 BRONZE_FEE_DISCOUNT_BPS;
+  uint16 SILVER_FEE_DISCOUNT_BPS;
+  uint16 GOLD_FEE_DISCOUNT_BPS;
+  uint16 PLATINUM_FEE_DISCOUNT_BPS;
 
   event CreatorFeesClaimed(address indexed user, address currency, uint256 amount);
   event CuratorFeesClaimed(address indexed user, address currency, uint256 amount);
@@ -83,11 +83,15 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
-    address execComplication
+    address execComplication,
+    bool feeDiscountEnabled
   ) external override {
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     // token staker discount
-    uint16 feeDiscountBps = _getFeeDiscountBps(seller);
+    uint16 feeDiscountBps;
+    if (feeDiscountEnabled) {
+      feeDiscountBps = _getFeeDiscountBps(seller);
+    }
 
     // creator fee
     uint256 totalFees = _allocateFeesToCreators(execComplication, collection, tokenId, amount, currency);

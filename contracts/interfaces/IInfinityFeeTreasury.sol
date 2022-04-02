@@ -12,7 +12,8 @@ interface IInfinityFeeTreasury {
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
-    address execComplication
+    address execComplication,
+    bool feeDiscountEnabled
   ) external;
 
   function claimCreatorFees(address currency) external;

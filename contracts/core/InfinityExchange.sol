@@ -133,17 +133,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     emit CancelMultipleOrders(msg.sender, orderNonces);
   }
 
-  /**
-   * @notice Matches orders
-   * @param sells sell orders
-   * @param buys buy orders
-   * @param tradingRewards whether to update rewards; this is a gas optimization
-   */
   function matchOrders(
     OrderTypes.Order[] calldata sells,
     OrderTypes.Order[] calldata buys,
     OrderTypes.Order[] calldata constructs,
-    bool tradingRewards
+    bool tradingRewards,
+    bool feeDiscountEnabled
   ) external override nonReentrant {
     // check pre-conditions
     require(sells.length == buys.length, 'Match orders: mismatched lengths');
@@ -156,7 +151,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       uint256[] memory amounts;
       // execute orders one by one
       for (uint256 i = 0; i < sells.length; ) {
-        (sellers[i], buyers[i], currencies[i], amounts[i]) = _matchOrders(sells[i], buys[i], constructs[i]);
+        (sellers[i], buyers[i], currencies[i], amounts[i]) = _matchOrders(
+          sells[i],
+          buys[i],
+          constructs[i],
+          feeDiscountEnabled
+        );
         unchecked {
           ++i;
         }
@@ -164,7 +164,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       infinityTradingRewards.updateRewards(sellers, buyers, currencies, amounts);
     } else {
       for (uint256 i = 0; i < sells.length; ) {
-        _matchOrders(sells[i], buys[i], constructs[i]);
+        _matchOrders(sells[i], buys[i], constructs[i], feeDiscountEnabled);
         unchecked {
           ++i;
         }
@@ -172,21 +172,17 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     }
   }
 
-  /**
-   * @notice Takes orders
-   * @param makerOrders maker orders
-   * @param takerOrders taker orders
-   */
   function takeOrders(
     OrderTypes.Order[] calldata makerOrders,
     OrderTypes.Order[] calldata takerOrders,
-    bool tradingRewards
+    bool tradingRewards,
+    bool feeDiscountEnabled
   ) external override nonReentrant {
     // check pre-conditions
     require(makerOrders.length == takerOrders.length, 'Take Orders: mismatched lengths');
     // execute orders one by one
     for (uint256 i = 0; i < makerOrders.length; ) {
-      _takeOrders(makerOrders[i], takerOrders[i]);
+      _takeOrders(makerOrders[i], takerOrders[i], feeDiscountEnabled);
       unchecked {
         ++i;
       }
@@ -199,7 +195,11 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       uint256[] memory amounts;
       // execute orders one by one
       for (uint256 i = 0; i < makerOrders.length; ) {
-        (sellers[i], buyers[i], currencies[i], amounts[i]) = _takeOrders(makerOrders[i], takerOrders[i]);
+        (sellers[i], buyers[i], currencies[i], amounts[i]) = _takeOrders(
+          makerOrders[i],
+          takerOrders[i],
+          feeDiscountEnabled
+        );
         unchecked {
           ++i;
         }
@@ -207,7 +207,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       infinityTradingRewards.updateRewards(sellers, buyers, currencies, amounts);
     } else {
       for (uint256 i = 0; i < makerOrders.length; ) {
-        _takeOrders(makerOrders[i], takerOrders[i]);
+        _takeOrders(makerOrders[i], takerOrders[i], feeDiscountEnabled);
         unchecked {
           ++i;
         }
@@ -245,7 +245,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _matchOrders(
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
-    OrderTypes.Order calldata constructed
+    OrderTypes.Order calldata constructed,
+    bool feeDiscountEnabled
   )
     internal
     returns (
@@ -257,6 +258,25 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   {
     bytes32 sellOrderHash = sell.hash();
     bytes32 buyOrderHash = buy.hash();
+    return _matchOrdersStackDeep(sellOrderHash, buyOrderHash, sell, buy, constructed, feeDiscountEnabled);
+  }
+
+  function _matchOrdersStackDeep(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed,
+    bool feeDiscountEnabled
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
     // if this order is not valid, just return and continue with other orders
     if (!_verifyOrders(sellOrderHash, buyOrderHash, sell, buy, constructed)) {
       return (address(0), address(0), address(0), 0);
@@ -272,11 +292,16 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         sell.constraints[6],
         buy.constraints[6],
         sell.constraints[5],
-        constructed
+        constructed,
+        feeDiscountEnabled
       );
   }
 
-  function _takeOrders(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
+  function _takeOrders(
+    OrderTypes.Order calldata makerOrder,
+    OrderTypes.Order calldata takerOrder,
+    bool feeDiscountEnabled
+  )
     internal
     returns (
       address,
@@ -296,30 +321,68 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     // exec order
     bool isTakerSell = takerOrder.isSellOrder;
     if (isTakerSell) {
-      return
-        _execOrder(
-          takerOrderHash,
-          makerOrderHash,
-          takerOrder.signer,
-          makerOrder.signer,
-          takerOrder.constraints[6],
-          makerOrder.constraints[6],
-          takerOrder.constraints[5],
-          takerOrder
-        );
+      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, feeDiscountEnabled);
     } else {
-      return
-        _execOrder(
-          makerOrderHash,
-          takerOrderHash,
-          makerOrder.signer,
-          takerOrder.signer,
-          makerOrder.constraints[6],
-          takerOrder.constraints[6],
-          makerOrder.constraints[5],
-          takerOrder
-        );
+      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, feeDiscountEnabled);
     }
+  }
+
+  function _execTakerSellOrder(
+    bytes32 takerOrderHash,
+    bytes32 makerOrderHash,
+    OrderTypes.Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
+    bool feeDiscountEnabled
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    return
+      _execOrder(
+        takerOrderHash,
+        makerOrderHash,
+        takerOrder.signer,
+        makerOrder.signer,
+        takerOrder.constraints[6],
+        makerOrder.constraints[6],
+        takerOrder.constraints[5],
+        takerOrder,
+        feeDiscountEnabled
+      );
+  }
+
+  function _execTakerBuyOrder(
+    bytes32 takerOrderHash,
+    bytes32 makerOrderHash,
+    OrderTypes.Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
+    bool feeDiscountEnabled
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    return
+      _execOrder(
+        makerOrderHash,
+        takerOrderHash,
+        makerOrder.signer,
+        takerOrder.signer,
+        makerOrder.constraints[6],
+        takerOrder.constraints[6],
+        makerOrder.constraints[5],
+        takerOrder,
+        feeDiscountEnabled
+      );
   }
 
   function _verifyOrders(
@@ -402,7 +465,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 sellNonce,
     uint256 buyNonce,
     uint256 minBpsToSeller,
-    OrderTypes.Order calldata constructed
+    OrderTypes.Order calldata constructed,
+    bool feeDiscountEnabled
   )
     internal
     returns (
@@ -424,7 +488,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       amount,
       constructed.execParams[1],
       minBpsToSeller,
-      constructed.execParams[0]
+      constructed.execParams[0],
+      feeDiscountEnabled
     );
 
     _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, amount);
@@ -459,7 +524,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
-    address complication
+    address complication,
+    bool feeDiscountEnabled
   ) internal {
     for (uint256 i = 0; i < nfts.length; ) {
       OrderTypes.OrderItem calldata item = nfts[i];
@@ -468,7 +534,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       // transfer NFTs
       _batchTransferNFTs(seller, buyer, nfts);
       // transfer fees
-      _transferFees(seller, buyer, item, amount, currency, minBpsToSeller, complication);
+      _transferFees(seller, buyer, item, amount, currency, minBpsToSeller, complication, feeDiscountEnabled);
       unchecked {
         ++i;
       }
@@ -532,7 +598,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
-    address complication
+    address complication,
+    bool feeDiscountEnabled
   ) internal {
     // transfer fees
     for (uint256 i = 0; i < item.tokens.length; ) {
@@ -544,7 +611,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         amount,
         currency,
         minBpsToSeller,
-        complication
+        complication,
+        feeDiscountEnabled
       );
       unchecked {
         ++i;

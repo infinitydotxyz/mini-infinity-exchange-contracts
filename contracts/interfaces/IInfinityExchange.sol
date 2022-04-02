@@ -7,13 +7,15 @@ interface IInfinityExchange {
   function takeOrders(
     OrderTypes.Order[] calldata makerOrders,
     OrderTypes.Order[] calldata takerOrders,
-    bool tradingRewards
+    bool tradingRewards,
+    bool feeDiscountEnabled
   ) external;
 
   function matchOrders(
     OrderTypes.Order[] calldata sells,
     OrderTypes.Order[] calldata buys,
     OrderTypes.Order[] calldata constructs,
-    bool tradingRewards
+    bool tradingRewards,
+    bool feeDiscountEnabled
   ) external;
 }
