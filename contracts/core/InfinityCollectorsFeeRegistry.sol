@@ -5,9 +5,9 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IFeeRegistry} from '../interfaces/IFeeRegistry.sol';
 
 /**
- * @title CollectorsFeeRegistry
+ * @title InfinityCollectorsFeeRegistry
  */
-contract CollectorsFeeRegistry is IFeeRegistry, Ownable {
+contract InfinityCollectorsFeeRegistry is IFeeRegistry, Ownable {
   address COLLECTORS_FEE_MANAGER;
   struct FeeInfo {
     address setter;

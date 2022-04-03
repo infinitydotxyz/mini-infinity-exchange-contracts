@@ -6,10 +6,10 @@ import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
- * @title OrderBookComplication
+ * @title InfinityOrderBookComplication
  * @notice Complication to execute orderbook orders
  */
-contract OrderBookComplication is IComplication, Ownable {
+contract InfinityOrderBookComplication is IComplication, Ownable {
   using OrderTypes for OrderTypes.Order;
   using OrderTypes for OrderTypes.OrderItem;
 

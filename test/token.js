@@ -39,14 +39,11 @@ describe('Infinity Token', function () {
     await token.deployed();
   });
 
-  // beforeEach(async () => {
-
-  // });
-
   describe('Setup', () => {
     it('Should init properly', async function () {
       expect(await token.name()).to.equal('Infinity');
       expect(await token.symbol()).to.equal('NFT');
+      expect(await token.decimals()).to.equal(18);
       expect(await token.getAdmin()).to.equal(signers[0].address);
       expect(await token.getTimelock()).to.equal(TIMELOCK);
       expect(await token.getInflation()).to.equal(INFLATION);

@@ -7,9 +7,6 @@ import { erc20Abi } from '../abi/erc20';
 import { erc721Abi } from '../abi/erc721';
 require('dotenv').config();
 
-const DAY = 24 * 60 * 60;
-//const DAY = 1
-
 const WETH_ADDRESS = undefined; // todo: change this to the address of WETH contract;
 
 let mock721Address1 = '';
@@ -17,6 +14,24 @@ let mock721Address2 = '';
 let mock721Address3 = '';
 let mock20Address = '';
 let nftTokenAddress = '';
+
+const MINUTE = 60;
+const HOUR = MINUTE * 60;
+const DAY = HOUR * 24;
+const MONTH = DAY * 30;
+const YEAR = MONTH * 12;
+const UNIT = toBN(1e18);
+const INFLATION = toBN(300_000_000).mul(UNIT); // 40m
+const EPOCH_DURATION = YEAR;
+const CLIFF = toBN(3);
+const CLIFF_PERIOD = CLIFF.mul(YEAR);
+const MAX_EPOCHS = 6;
+const TIMELOCK = 30 * DAY;
+const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT); // 1b
+
+function toBN(val: string | number) {
+  return BigNumber.from(val.toString());
+}
 
 task('runAllInteractions', 'Run all interactions').setAction(async (args, { ethers, run, network }) => {
   await run('sendAssetsToTest');
@@ -30,7 +45,15 @@ task('deployAll', 'Deploy all contracts')
     const mock20 = await run('deployMock20', { verify: args.verify });
     mock20Address = mock20.address;
 
-    const nftToken = await run('deployInfinityToken', { verify: args.verify });
+    const nftToken = await run('deployInfinityToken', {
+      verify: args.verify,
+      inflation: INFLATION.toString(),
+      epochduration: EPOCH_DURATION.toString(),
+      cliff: CLIFF_PERIOD.toString(),
+      maxepochs: MAX_EPOCHS.toString(),
+      timelock: TIMELOCK.toString(),
+      supply: INITIAL_SUPPLY.toString()
+    });
     nftTokenAddress = nftToken.address;
 
     const mock721a = await run('deployMock721', { verify: args.verify, name: 'Mock721A', symbol: 'MCKA' });
@@ -113,7 +136,7 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
   .addParam('inflation', 'per epoch inflation')
   .addParam('epochduration', 'epoch duration in days')
   .addParam('cliff', 'initial cliff in days')
-  .addParam('totalepochs', 'total number of epochs')
+  .addParam('maxepochs', 'max number of epochs')
   .addParam('timelock', 'timelock duration in days')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run }) => {
@@ -125,7 +148,7 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
       parseEther(args.inflation),
       BigNumber.from(args.epochduration).mul(DAY),
       BigNumber.from(args.cliff).mul(DAY),
-      args.totalepochs,
+      args.maxepochs,
       BigNumber.from(args.timelock).mul(DAY),
       parseEther(args.supply)
     ];
@@ -141,7 +164,7 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
 
     console.log('Validating deployment');
 
-    expect(await infinityToken.balanceOf(args.treasurer)).to.be.eq(parseEther(args.supply));
+    expect(await infinityToken.balanceOf(signer.address)).to.be.eq(parseEther(args.supply));
     expect(await infinityToken.getAdmin()).to.be.eq(signer.address);
     expect(await infinityToken.getTimelock()).to.be.eq(BigNumber.from(args.timelock).mul(DAY));
     expect(await infinityToken.getInflation()).to.be.eq(parseEther(args.inflation));
@@ -157,6 +180,8 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
         constructorArguments: tokenArgs
       });
     }
+
+    return infinityToken;
   });
 
 task('deployMock721', 'Deploy')
@@ -190,8 +215,8 @@ task('deployCurrencyRegistry', 'Deploy')
     // get signer
     const signer = (await ethers.getSigners())[0];
     const currencyRegistry = await deployContract(
-      'CurrencyRegistry',
-      await ethers.getContractFactory('CurrencyRegistry'),
+      'InfinityCurrencyRegistry',
+      await ethers.getContractFactory('InfinityCurrencyRegistry'),
       signer
     );
 
@@ -201,7 +226,7 @@ task('deployCurrencyRegistry', 'Deploy')
       await currencyRegistry.deployTransaction.wait(5);
       await run('verify:verify', {
         address: currencyRegistry.address,
-        contract: 'contracts/core/CurrencyRegistry.sol:CurrencyRegistry'
+        contract: 'contracts/core/InfinityCurrencyRegistry.sol:InfinityCurrencyRegistry'
       });
     }
     return currencyRegistry;
@@ -213,8 +238,8 @@ task('deployComplicationRegistry', 'Deploy')
     // get signer
     const signer = (await ethers.getSigners())[0];
     const complicationRegistry = await deployContract(
-      'ComplicationRegistry',
-      await ethers.getContractFactory('ComplicationRegistry'),
+      'InfinityComplicationRegistry',
+      await ethers.getContractFactory('InfinityComplicationRegistry'),
       signer
     );
 
@@ -224,7 +249,7 @@ task('deployComplicationRegistry', 'Deploy')
       await complicationRegistry.deployTransaction.wait(5);
       await run('verify:verify', {
         address: complicationRegistry.address,
-        contract: 'contracts/core/ComplicationRegistry.sol:ComplicationRegistry'
+        contract: 'contracts/core/InfinityComplicationRegistry.sol:InfinityComplicationRegistry'
       });
     }
     return complicationRegistry;
@@ -272,8 +297,8 @@ task('deployOBComplication', 'Deploy')
     // get signer
     const signer = (await ethers.getSigners())[0];
     const obComplication = await deployContract(
-      'OrderBookComplication',
-      await ethers.getContractFactory('OrderBookComplication', {
+      'InfinityOrderBookComplication',
+      await ethers.getContractFactory('InfinityOrderBookComplication', {
         libraries: {
           Utils: args.utilslib
         }
@@ -288,7 +313,7 @@ task('deployOBComplication', 'Deploy')
       await obComplication.deployTransaction.wait(5);
       await run('verify:verify', {
         address: obComplication.address,
-        contract: 'contracts/core/OrderBookComplication.sol:OrderBookComplication',
+        contract: 'contracts/core/InfinityOrderBookComplication.sol:InfinityOrderBookComplication',
         constructorArguments: [args.protocolfee, args.errorbound]
       });
     }
@@ -304,8 +329,8 @@ task('deployPrivateSaleComplication', 'Deploy')
     // get signer
     const signer = (await ethers.getSigners())[0];
     const privateSaleComplication = await deployContract(
-      'PrivateSaleComplication',
-      await ethers.getContractFactory('PrivateSaleComplication', {
+      'InfinityPrivateSaleComplication',
+      await ethers.getContractFactory('InfinityPrivateSaleComplication', {
         libraries: {
           Utils: args.utilslib
         }
@@ -320,7 +345,7 @@ task('deployPrivateSaleComplication', 'Deploy')
       await privateSaleComplication.deployTransaction.wait(5);
       await run('verify:verify', {
         address: privateSaleComplication.address,
-        contract: 'contracts/core/PrivateSaleComplication.sol:PrivateSaleComplication',
+        contract: 'contracts/core/InfinityPrivateSaleComplication.sol:InfinityPrivateSaleComplication',
         constructorArguments: [args.protocolfee, args.errorbound]
       });
     }

@@ -6,10 +6,10 @@ import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet
 import {ICurrencyRegistry} from '../interfaces/ICurrencyRegistry.sol';
 
 /**
- * @title CurrencyRegistry
+ * @title InfinityCurrencyRegistry
  * @notice allows adding/removing currencies for trading on the Infinity exchange.
  */
-contract CurrencyRegistry is ICurrencyRegistry, Ownable {
+contract InfinityCurrencyRegistry is ICurrencyRegistry, Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   EnumerableSet.AddressSet private _whitelistedCurrencies;

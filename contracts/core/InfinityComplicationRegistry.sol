@@ -6,10 +6,10 @@ import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet
 import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
 
 /**
- * @title ComplicationRegistry
+ * @title InfinityComplicationRegistry
  * @notice allows adding/removing complications for trading on the Infinity exchange
  */
-contract ComplicationRegistry is IComplicationRegistry, Ownable {
+contract InfinityComplicationRegistry is IComplicationRegistry, Ownable {
   using EnumerableSet for EnumerableSet.AddressSet;
 
   EnumerableSet.AddressSet private _whitelistedComplications;

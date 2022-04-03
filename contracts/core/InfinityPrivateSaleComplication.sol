@@ -6,10 +6,10 @@ import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
 /**
- * @title PrivateSaleComplication
+ * @title InfinityPrivateSaleComplication
  * @notice Complication that specifies an order that can only be executed by a specific address
  */
-contract PrivateSaleComplication is IComplication, Ownable {
+contract InfinityPrivateSaleComplication is IComplication, Ownable {
   using OrderTypes for OrderTypes.Order;
   using OrderTypes for OrderTypes.OrderItem;
 

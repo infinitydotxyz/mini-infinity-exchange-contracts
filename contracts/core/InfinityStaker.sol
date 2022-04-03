@@ -7,7 +7,7 @@ import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IStaker, Duration, StakeLevel} from '../interfaces/IStaker.sol';
 import 'hardhat/console.sol'; // todo: remove this
 
-contract Staker is IStaker, Ownable, Pausable {
+contract InfinityStaker is IStaker, Ownable, Pausable {
   using SafeERC20 for IERC20;
   mapping(address => mapping(Duration => uint256)) public userstakedAmounts;
   address INFINITY_TOKEN;
