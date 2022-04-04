@@ -231,7 +231,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function verifyOrderSig(OrderTypes.Order calldata order) external view returns (bool) {
     // Verify the validity of the signature
     (bytes32 r, bytes32 s, uint8 v) = abi.decode(order.sig, (bytes32, bytes32, uint8));
-    return SignatureChecker.verify(order.hash(), order.signer, r, s, v, DOMAIN_SEPARATOR);
+    return SignatureChecker.verify(_hash(order), order.signer, r, s, v, DOMAIN_SEPARATOR);
   }
 
   // ====================================================== INTERNAL FUNCTIONS ================================================
@@ -250,8 +250,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       uint256
     )
   {
-    bytes32 sellOrderHash = sell.hash();
-    bytes32 buyOrderHash = buy.hash();
+    bytes32 sellOrderHash = _hash(sell);
+    bytes32 buyOrderHash = _hash(buy);
     return _matchOrdersStackDeep(sellOrderHash, buyOrderHash, sell, buy, constructed, feeDiscountEnabled);
   }
 
@@ -305,8 +305,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     )
   {
     console.log('taking order');
-    bytes32 makerOrderHash = makerOrder.hash();
-    bytes32 takerOrderHash = takerOrder.hash();
+    bytes32 makerOrderHash = _hash(makerOrder);
+    bytes32 takerOrderHash = _hash(takerOrder);
 
     // if this order is not valid, just return and continue with other orders
     if (!_verifyTakeOrders(makerOrderHash, makerOrder, takerOrder)) {
@@ -648,6 +648,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         ++i;
       }
     }
+  }
+
+  function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {
+    // keccak256("Order(bool isSellOrder,address signer,bytes32 dataHash,bytes extraParams)")
+    bytes32 ORDER_HASH = 0x1bb57a2a1a64ebe03163e0964007805cfa2a9b6c0ee67005d6dcdd1bc46265dc;
+    return
+      keccak256(abi.encode(ORDER_HASH, order.isSellOrder, order.signer, order.dataHash, keccak256(order.extraParams)));
   }
 
   // ====================================================== ADMIN FUNCTIONS ======================================================

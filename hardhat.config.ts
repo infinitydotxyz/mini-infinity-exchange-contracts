@@ -1,6 +1,7 @@
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-waffle';
+import 'hardhat-gas-reporter';
 
 import './tasks/deploy';
 import './tasks/interactions';
@@ -40,7 +41,8 @@ export default {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 1 // todo: set to 99999999
+            runs: 99999999
+            // runs: 1 // todo: set to 99999999
           }
         }
       }
