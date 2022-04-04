@@ -25,7 +25,6 @@ describe('Exchange', function () {
     currencyRegistry,
     complicationRegistry,
     obComplication,
-    privateSaleComplication,
     infinityTreasury,
     infinityStaker,
     infinityTradingRewards,
@@ -137,18 +136,6 @@ describe('Exchange', function () {
       [0, 1_000_000]
     );
 
-    // private sale complication
-    privateSaleComplication = await deployContract(
-      'InfinityPrivateSaleComplication',
-      await ethers.getContractFactory('InfinityPrivateSaleComplication', {
-        libraries: {
-          Utils: utils.address
-        }
-      }),
-      signer1,
-      [0, 1_000_000]
-    );
-
     // Infinity treasury
     infinityTreasury = signer1.address;
 
@@ -223,7 +210,6 @@ describe('Exchange', function () {
 
     // add complications to registry
     await complicationRegistry.addComplication(obComplication.address);
-    await complicationRegistry.addComplication(privateSaleComplication.address);
 
     // set infinity fee treasury on exchange
     await exchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);

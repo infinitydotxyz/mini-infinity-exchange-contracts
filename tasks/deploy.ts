@@ -42,9 +42,6 @@ task('deployAll', 'Deploy all contracts')
   .setAction(async (args, { ethers, run, network }) => {
     const utilsLib = await run('deployUtils', { verify: args.verify });
 
-    const mock20 = await run('deployMock20', { verify: args.verify });
-    mock20Address = mock20.address;
-
     const nftToken = await run('deployInfinityToken', {
       verify: args.verify,
       inflation: INFLATION.toString(),
@@ -71,18 +68,11 @@ task('deployAll', 'Deploy all contracts')
       verify: args.verify,
       currencyregistry: currencyRegistry.address,
       complicationregistry: complicationRegistry.address,
-      wethaddress: WETH_ADDRESS ?? mock20.address,
+      wethaddress: WETH_ADDRESS ?? nftTokenAddress,
       utilslib: utilsLib.address
     });
 
     const obComplication = await run('deployOBComplication', {
-      verify: args.verify,
-      protocolfee: '0',
-      errorbound: '1000000000',
-      utilslib: utilsLib.address
-    });
-
-    const privateSaleComplication = await run('deployPrivateSaleComplication', {
       verify: args.verify,
       protocolfee: '0',
       errorbound: '1000000000',
@@ -318,38 +308,6 @@ task('deployOBComplication', 'Deploy')
       });
     }
     return obComplication;
-  });
-
-task('deployPrivateSaleComplication', 'Deploy')
-  .addFlag('verify', 'verify contracts on etherscan')
-  .addParam('protocolfee', 'protocol fee')
-  .addParam('errorbound', 'error bound')
-  .addParam('utilslib', 'utils lib address')
-  .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
-    const privateSaleComplication = await deployContract(
-      'InfinityPrivateSaleComplication',
-      await ethers.getContractFactory('InfinityPrivateSaleComplication', {
-        libraries: {
-          Utils: args.utilslib
-        }
-      }),
-      signer,
-      [args.protocolfee, args.errorbound]
-    );
-
-    // verify source
-    if (args.verify) {
-      console.log('Verifying source on etherscan');
-      await privateSaleComplication.deployTransaction.wait(5);
-      await run('verify:verify', {
-        address: privateSaleComplication.address,
-        contract: 'contracts/core/InfinityPrivateSaleComplication.sol:InfinityPrivateSaleComplication',
-        constructorArguments: [args.protocolfee, args.errorbound]
-      });
-    }
-    return privateSaleComplication;
   });
 
 // ============================================== interactions and tests ==============================================

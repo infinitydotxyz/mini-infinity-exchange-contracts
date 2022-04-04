@@ -8,8 +8,6 @@ import {ICurrencyRegistry} from '../interfaces/ICurrencyRegistry.sol';
 import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
-import {INFTTransferManager} from '../interfaces/INFTTransferManager.sol';
-import {INFTTransferSelector} from '../interfaces/INFTTransferSelector.sol';
 import {IInfinityFeeTreasury} from '../interfaces/IInfinityFeeTreasury.sol';
 import {IInfinityTradingRewards} from '../interfaces/IInfinityTradingRewards.sol';
 import {SignatureChecker} from '../libs/SignatureChecker.sol';
@@ -55,7 +53,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   ICurrencyRegistry public currencyRegistry;
   IComplicationRegistry public complicationRegistry;
-  INFTTransferSelector public nftTransferSelector; //todo: remove this, event and admin func
   IInfinityFeeTreasury public infinityFeeTreasury;
   IInfinityTradingRewards public infinityTradingRewards;
 
@@ -66,7 +63,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
   event NewCurrencyRegistry(address indexed currencyRegistry);
   event NewComplicationRegistry(address indexed complicationRegistry);
-  event NewNFTTransferSelector(address indexed nftTransferSelector);
   event NewInfinityFeeTreasury(address indexed infinityFeeTreasury);
 
   event OrderFulfilled(
@@ -674,16 +670,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     require(_complicationRegistry != address(0), 'Owner: Cannot be 0x0');
     complicationRegistry = IComplicationRegistry(_complicationRegistry);
     emit NewComplicationRegistry(_complicationRegistry);
-  }
-
-  /**
-   * @notice Update transfer selector NFT
-   * @param _nftTransferSelector new transfer selector address
-   */
-  function updateNFTTransferSelector(address _nftTransferSelector) external onlyOwner {
-    require(_nftTransferSelector != address(0), 'Owner: Cannot be 0x0');
-    nftTransferSelector = INFTTransferSelector(_nftTransferSelector);
-    emit NewNFTTransferSelector(_nftTransferSelector);
   }
 
   /**
