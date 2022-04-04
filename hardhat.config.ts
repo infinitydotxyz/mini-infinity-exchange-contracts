@@ -40,7 +40,7 @@ export default {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 999999
+            runs: 1 // todo: set to 99999999
           }
         }
       }

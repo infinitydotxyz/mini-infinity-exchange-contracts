@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IInfinityFeeTreasury {
-  function getFeeDiscountBps(address user) external view returns (uint16);
+  function getEffectiveFeeBps(address user) external view returns (uint16);
 
   function allocateFees(
     address seller,

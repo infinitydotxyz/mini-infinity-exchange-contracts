@@ -90,11 +90,11 @@ export const infinityExchangeAbi = [
       {
         indexed: true,
         internalType: 'address',
-        name: 'infinityFeeDistributor',
+        name: 'infinityFeeTreasury',
         type: 'address'
       }
     ],
-    name: 'NewInfinityFeeDistributor',
+    name: 'NewInfinityFeeTreasury',
     type: 'event'
   },
   {
@@ -157,14 +157,26 @@ export const infinityExchangeAbi = [
             type: 'address'
           },
           {
-            internalType: 'uint256[]',
-            name: 'tokenIds',
-            type: 'uint256[]'
+            components: [
+              {
+                internalType: 'uint256',
+                name: 'tokenId',
+                type: 'uint256'
+              },
+              {
+                internalType: 'uint256',
+                name: 'numTokens',
+                type: 'uint256'
+              }
+            ],
+            internalType: 'struct OrderTypes.TokenInfo[]',
+            name: 'tokens',
+            type: 'tuple[]'
           }
         ],
         indexed: false,
-        internalType: 'struct OrderTypes.Item[]',
-        name: 'items',
+        internalType: 'struct OrderTypes.OrderItem[]',
+        name: 'nfts',
         type: 'tuple[]'
       },
       {
@@ -225,6 +237,53 @@ export const infinityExchangeAbi = [
   {
     inputs: [
       {
+        internalType: 'address',
+        name: 'from',
+        type: 'address'
+      },
+      {
+        internalType: 'address',
+        name: 'to',
+        type: 'address'
+      },
+      {
+        components: [
+          {
+            internalType: 'address',
+            name: 'collection',
+            type: 'address'
+          },
+          {
+            components: [
+              {
+                internalType: 'uint256',
+                name: 'tokenId',
+                type: 'uint256'
+              },
+              {
+                internalType: 'uint256',
+                name: 'numTokens',
+                type: 'uint256'
+              }
+            ],
+            internalType: 'struct OrderTypes.TokenInfo[]',
+            name: 'tokens',
+            type: 'tuple[]'
+          }
+        ],
+        internalType: 'struct OrderTypes.OrderItem[]',
+        name: 'items',
+        type: 'tuple[]'
+      }
+    ],
+    name: 'batchTransferNFTs',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
         internalType: 'uint256',
         name: 'minNonce',
         type: 'uint256'
@@ -276,10 +335,23 @@ export const infinityExchangeAbi = [
   },
   {
     inputs: [],
-    name: 'infinityFeeDistributor',
+    name: 'infinityFeeTreasury',
     outputs: [
       {
-        internalType: 'contract IInfinityFeeDistributor',
+        internalType: 'contract IInfinityFeeTreasury',
+        name: '',
+        type: 'address'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [],
+    name: 'infinityTradingRewards',
+    outputs: [
+      {
+        internalType: 'contract IInfinityTradingRewards',
         name: '',
         type: 'address'
       }
@@ -343,12 +415,24 @@ export const infinityExchangeAbi = [
                 type: 'address'
               },
               {
-                internalType: 'uint256[]',
-                name: 'tokenIds',
-                type: 'uint256[]'
+                components: [
+                  {
+                    internalType: 'uint256',
+                    name: 'tokenId',
+                    type: 'uint256'
+                  },
+                  {
+                    internalType: 'uint256',
+                    name: 'numTokens',
+                    type: 'uint256'
+                  }
+                ],
+                internalType: 'struct OrderTypes.TokenInfo[]',
+                name: 'tokens',
+                type: 'tuple[]'
               }
             ],
-            internalType: 'struct OrderTypes.Item[]',
+            internalType: 'struct OrderTypes.OrderItem[]',
             name: 'nfts',
             type: 'tuple[]'
           },
@@ -402,12 +486,24 @@ export const infinityExchangeAbi = [
                 type: 'address'
               },
               {
-                internalType: 'uint256[]',
-                name: 'tokenIds',
-                type: 'uint256[]'
+                components: [
+                  {
+                    internalType: 'uint256',
+                    name: 'tokenId',
+                    type: 'uint256'
+                  },
+                  {
+                    internalType: 'uint256',
+                    name: 'numTokens',
+                    type: 'uint256'
+                  }
+                ],
+                internalType: 'struct OrderTypes.TokenInfo[]',
+                name: 'tokens',
+                type: 'tuple[]'
               }
             ],
-            internalType: 'struct OrderTypes.Item[]',
+            internalType: 'struct OrderTypes.OrderItem[]',
             name: 'nfts',
             type: 'tuple[]'
           },
@@ -461,12 +557,24 @@ export const infinityExchangeAbi = [
                 type: 'address'
               },
               {
-                internalType: 'uint256[]',
-                name: 'tokenIds',
-                type: 'uint256[]'
+                components: [
+                  {
+                    internalType: 'uint256',
+                    name: 'tokenId',
+                    type: 'uint256'
+                  },
+                  {
+                    internalType: 'uint256',
+                    name: 'numTokens',
+                    type: 'uint256'
+                  }
+                ],
+                internalType: 'struct OrderTypes.TokenInfo[]',
+                name: 'tokens',
+                type: 'tuple[]'
               }
             ],
-            internalType: 'struct OrderTypes.Item[]',
+            internalType: 'struct OrderTypes.OrderItem[]',
             name: 'nfts',
             type: 'tuple[]'
           },
@@ -489,6 +597,16 @@ export const infinityExchangeAbi = [
         internalType: 'struct OrderTypes.Order[]',
         name: 'constructs',
         type: 'tuple[]'
+      },
+      {
+        internalType: 'bool',
+        name: 'tradingRewards',
+        type: 'bool'
+      },
+      {
+        internalType: 'bool',
+        name: 'feeDiscountEnabled',
+        type: 'bool'
       }
     ],
     name: 'matchOrders',
@@ -561,12 +679,24 @@ export const infinityExchangeAbi = [
                 type: 'address'
               },
               {
-                internalType: 'uint256[]',
-                name: 'tokenIds',
-                type: 'uint256[]'
+                components: [
+                  {
+                    internalType: 'uint256',
+                    name: 'tokenId',
+                    type: 'uint256'
+                  },
+                  {
+                    internalType: 'uint256',
+                    name: 'numTokens',
+                    type: 'uint256'
+                  }
+                ],
+                internalType: 'struct OrderTypes.TokenInfo[]',
+                name: 'tokens',
+                type: 'tuple[]'
               }
             ],
-            internalType: 'struct OrderTypes.Item[]',
+            internalType: 'struct OrderTypes.OrderItem[]',
             name: 'nfts',
             type: 'tuple[]'
           },
@@ -620,12 +750,24 @@ export const infinityExchangeAbi = [
                 type: 'address'
               },
               {
-                internalType: 'uint256[]',
-                name: 'tokenIds',
-                type: 'uint256[]'
+                components: [
+                  {
+                    internalType: 'uint256',
+                    name: 'tokenId',
+                    type: 'uint256'
+                  },
+                  {
+                    internalType: 'uint256',
+                    name: 'numTokens',
+                    type: 'uint256'
+                  }
+                ],
+                internalType: 'struct OrderTypes.TokenInfo[]',
+                name: 'tokens',
+                type: 'tuple[]'
               }
             ],
-            internalType: 'struct OrderTypes.Item[]',
+            internalType: 'struct OrderTypes.OrderItem[]',
             name: 'nfts',
             type: 'tuple[]'
           },
@@ -648,6 +790,16 @@ export const infinityExchangeAbi = [
         internalType: 'struct OrderTypes.Order[]',
         name: 'takerOrders',
         type: 'tuple[]'
+      },
+      {
+        internalType: 'bool',
+        name: 'tradingRewards',
+        type: 'bool'
+      },
+      {
+        internalType: 'bool',
+        name: 'feeDiscountEnabled',
+        type: 'bool'
       }
     ],
     name: 'takeOrders',
@@ -698,11 +850,11 @@ export const infinityExchangeAbi = [
     inputs: [
       {
         internalType: 'address',
-        name: '_infinityFeeDistributor',
+        name: '_infinityFeeTreasury',
         type: 'address'
       }
     ],
-    name: 'updateInfinityFeeDistributor',
+    name: 'updateInfinityFeeTreasury',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function'
@@ -771,12 +923,24 @@ export const infinityExchangeAbi = [
                 type: 'address'
               },
               {
-                internalType: 'uint256[]',
-                name: 'tokenIds',
-                type: 'uint256[]'
+                components: [
+                  {
+                    internalType: 'uint256',
+                    name: 'tokenId',
+                    type: 'uint256'
+                  },
+                  {
+                    internalType: 'uint256',
+                    name: 'numTokens',
+                    type: 'uint256'
+                  }
+                ],
+                internalType: 'struct OrderTypes.TokenInfo[]',
+                name: 'tokens',
+                type: 'tuple[]'
               }
             ],
-            internalType: 'struct OrderTypes.Item[]',
+            internalType: 'struct OrderTypes.OrderItem[]',
             name: 'nfts',
             type: 'tuple[]'
           },
