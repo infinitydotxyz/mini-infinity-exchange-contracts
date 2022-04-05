@@ -30,9 +30,7 @@ describe('Exchange', function () {
     infinityFeeTreasury,
     infinityCreatorsFeeRegistry,
     mockRoyaltyEngine,
-    infinityCreatorsFeeManager,
-    infinityCollectorsFeeRegistry,
-    infinityCollectorsFeeManager;
+    infinityCreatorsFeeManager;
 
   const buyOrders = [];
   const sellOrders = [];
@@ -150,13 +148,6 @@ describe('Exchange', function () {
       signer1
     );
 
-    // Infinity Collectors Fee Registry
-    infinityCollectorsFeeRegistry = await deployContract(
-      'InfinityCollectorsFeeRegistry',
-      await ethers.getContractFactory('InfinityCollectorsFeeRegistry'),
-      signer1
-    );
-
     // Infinity Creators Fee Manager
     mockRoyaltyEngine = await deployContract(
       'MockRoyaltyEngine',
@@ -172,14 +163,6 @@ describe('Exchange', function () {
       [mockRoyaltyEngine.address, infinityCreatorsFeeRegistry.address]
     );
 
-    // Infinity Collectors Fee Manager
-    infinityCollectorsFeeManager = await deployContract(
-      'InfinityCollectorsFeeManager',
-      await ethers.getContractFactory('InfinityCollectorsFeeManager'),
-      signer1,
-      [infinityCollectorsFeeRegistry.address]
-    );
-
     // Infinity Fee Treasury
     infinityFeeTreasury = await deployContract(
       'InfinityFeeTreasury',
@@ -188,8 +171,7 @@ describe('Exchange', function () {
       [
         exchange.address,
         infinityStaker.address,
-        infinityCreatorsFeeManager.address,
-        infinityCollectorsFeeManager.address
+        infinityCreatorsFeeManager.address
       ]
     );
 

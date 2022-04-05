@@ -24,6 +24,4 @@ interface IInfinityFeeTreasury {
     bytes32 expectedMerkleRoot,
     bytes32[] calldata merkleProof
   ) external;
-
-  function claimCollectorFees(address currency) external;
 }

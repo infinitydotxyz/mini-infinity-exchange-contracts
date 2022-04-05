@@ -12,7 +12,7 @@ import 'hardhat/console.sol';
 
 /**
  * @title InfinityFeeTreasury
- * @notice allocates and disburses fees to all parties: creators/curators/collectors
+ * @notice allocates and disburses fees to all parties: creators/curators
  */
 contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownable {
   using SafeERC20 for IERC20;
@@ -20,7 +20,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   address public INFINITY_EXCHANGE;
   address public STAKER_CONTRACT;
   address public CREATOR_FEE_MANAGER;
-  address public COLLECTOR_FEE_MANAGER;
 
   uint16 public CURATOR_FEE_BPS = 150;
 
@@ -31,7 +30,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   event CreatorFeesClaimed(address indexed user, address currency, uint256 amount);
   event CuratorFeesClaimed(address indexed user, address currency, uint256 amount);
-  event CollectorFeesClaimed(address indexed collection, address currency, uint256 amount);
 
   event StakerContractUpdated(address stakingContract);
   event CreatorFeeManagerUpdated(address manager);
@@ -53,8 +51,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   mapping(address => mapping(address => uint256)) public creatorFees;
   // currency to amount
   mapping(address => uint256) public curatorFees;
-  // collection fee share treasury contract address to currency to amount
-  mapping(address => mapping(address => uint256)) public collectorFees;
   // currency address to root
   mapping(address => bytes32) public merkleRoots;
   // user to currency to claimed amount
@@ -63,13 +59,11 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   constructor(
     address _infinityExchange,
     address _stakerContract,
-    address _creatorFeeManager,
-    address _collectorFeeManager
+    address _creatorFeeManager
   ) {
     INFINITY_EXCHANGE = _infinityExchange;
     STAKER_CONTRACT = _stakerContract;
     CREATOR_FEE_MANAGER = _creatorFeeManager;
-    COLLECTOR_FEE_MANAGER = _collectorFeeManager;
   }
 
   fallback() external payable {}
@@ -100,9 +94,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
     // curator fee
     totalFees += _allocateFeesToCurators(collection, tokenId, amount, currency, effectiveFeeBps);
-
-    // collector fee
-    totalFees += _allocateFeesToCollectors(execComplication, collection, tokenId, amount, currency, effectiveFeeBps);
 
     // transfer fees to contract
     IERC20(currency).safeTransferFrom(buyer, address(this), totalFees);
@@ -140,13 +131,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
       IERC20(currency).safeTransfer(msg.sender, amount);
       emit CuratorFeesClaimed(msg.sender, currency, amount);
     }
-  }
-
-  function claimCollectorFees(address currency) external {
-    require(collectorFees[msg.sender][currency] > 0, 'Fees: No collector fees to claim');
-    collectorFees[msg.sender][currency] = 0;
-    IERC20(currency).safeTransfer(msg.sender, collectorFees[msg.sender][currency]);
-    emit CollectorFeesClaimed(msg.sender, currency, collectorFees[msg.sender][currency]);
   }
 
   function verify(
@@ -234,40 +218,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     return curatorsFee;
   }
 
-  function _allocateFeesToCollectors(
-    address execComplication,
-    address collection,
-    uint256 tokenId,
-    uint256 amount,
-    address currency,
-    uint16 effectiveFeeBps
-  ) internal returns (uint256) {
-    // console.log('allocating fees to collectors');
-    IFeeManager feeManager = IFeeManager(COLLECTOR_FEE_MANAGER);
-    (FeeParty partyName, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
-      .calcFeesAndGetRecipients(execComplication, collection, tokenId, amount);
-
-    uint256 collectorsFee = 0;
-    for (uint256 i = 0; i < feeRecipients.length; ) {
-      uint256 feeAmount = (feeAmounts[i] * effectiveFeeBps) / 10000;
-      if (feeRecipients[i] != address(0) && feeAmount != 0) {
-        collectorFees[feeRecipients[i]][currency] += feeAmount;
-        collectorsFee += feeAmount;
-        emit FeeDistributed(partyName, collection, tokenId, feeRecipients[i], currency, feeAmount);
-      } else if (feeRecipients[i] == address(0) && feeAmount != 0) {
-        // if collection is not setup, send coll fees to curators
-        curatorFees[currency] += feeAmount;
-        collectorsFee += feeAmount;
-        emit FeeDistributed(FeeParty.CURATORS, collection, tokenId, feeRecipients[i], currency, feeAmount);
-      }
-      unchecked {
-        ++i;
-      }
-    }
-    // console.log('collectorsFee:', collectorsFee);
-    return collectorsFee;
-  }
-
   function _verifyAsm(
     bytes32[] calldata proof,
     bytes32 root,
@@ -332,11 +282,6 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   function updateCreatorFeeManager(address manager) external onlyOwner {
     CREATOR_FEE_MANAGER = manager;
     emit CreatorFeeManagerUpdated(manager);
-  }
-
-  function updateCollectorFeeManager(address manager) external onlyOwner {
-    COLLECTOR_FEE_MANAGER = manager;
-    emit CollectorFeeManagerUpdated(manager);
   }
 
   function updateCuratorFees(uint16 bps) external onlyOwner {
