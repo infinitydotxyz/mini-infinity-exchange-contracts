@@ -646,22 +646,17 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   ) internal {
     // console.log('transfering fees');
     // transfer fees
-    for (uint256 i = 0; i < item.tokens.length; ) {
-      infinityFeeTreasury.allocateFees(
-        seller,
-        buyer,
-        item.collection,
-        item.tokens[i].tokenId,
-        amount,
-        currency,
-        minBpsToSeller,
-        complication,
-        feeDiscountEnabled
-      );
-      unchecked {
-        ++i;
-      }
-    }
+    infinityFeeTreasury.allocateFees(
+      seller,
+      buyer,
+      item.collection,
+      item.tokens[0].tokenId, // just to comply with IERC2981 and royaltyregistry
+      amount,
+      currency,
+      minBpsToSeller,
+      complication,
+      feeDiscountEnabled
+    );
   }
 
   function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {

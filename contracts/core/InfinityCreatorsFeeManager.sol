@@ -13,7 +13,6 @@ import {IFeeRegistry} from '../interfaces/IFeeRegistry.sol';
  * @notice handles creator fees aka royalties
  */
 contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
-  // https://eips.ethereum.org/EIPS/eip-2981
   bytes4 public constant INTERFACE_ID_ERC721 = 0x80ac58cd;
   bytes4 public constant INTERFACE_ID_ERC1155 = 0xd9b67a26;
   bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
