@@ -55,7 +55,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       _getCurrentPrice(takerOrder)
     );
     bool isAmountValid = _arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice, ERROR_BOUND);
-    bool numItemsValid = makerOrder.constraints[0] == takerOrder.constraints[0];
+    bool numItemsValid = _areTakerNumItemsValid(makerOrder, takerOrder);
     bool itemsIntersect = _checkItemsIntersect(makerOrder, takerOrder);
 
     return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
@@ -98,6 +98,23 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     return
       _arePricesWithinErrorBound(currentConstructedPrice, currentBuyPrice, ERROR_BOUND) &&
       _arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
+  }
+
+  function _areTakerNumItemsValid(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
+    internal
+    pure
+    returns (bool)
+  {
+    bool numItemsEqual = makerOrder.constraints[0] == takerOrder.constraints[0];
+    uint256 numTakerItems = 0;
+    for (uint256 i = 0; i < takerOrder.nfts.length; ) {
+      unchecked {
+        numTakerItems += takerOrder.nfts[i].tokens.length;
+        ++i;
+      }
+    }
+    bool numTakerItemsMatch = takerOrder.constraints[0] == numTakerItems;
+    return numItemsEqual && numTakerItemsMatch;
   }
 
   function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {

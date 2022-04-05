@@ -204,6 +204,8 @@ export async function approveERC20(
       const allowance = BigNumber.from(await contract.allowance(user, infinityFeeTreasuryAddress));
       if (allowance.lt(price)) {
         await contract.approve(infinityFeeTreasuryAddress, constants.MaxUint256);
+      } else {
+        console.log('ERC20 approval already granted');
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -305,7 +307,7 @@ export async function constructOBOrder(
     for (const token of tokens) {
       encodedTokens += token.tokenId.toString() + token.numTokens.toString();
     }
-    const encodedTokensHash = keccak256(defaultAbiCoder.encode(['string'],[encodedTokens]));
+    const encodedTokensHash = keccak256(defaultAbiCoder.encode(['string'], [encodedTokens]));
     encodedItems += defaultAbiCoder.encode(['address', 'bytes32'], [collection, encodedTokensHash]);
   }
   const encodedItemsHash = keccak256(defaultAbiCoder.encode(['string'], [encodedItems]));

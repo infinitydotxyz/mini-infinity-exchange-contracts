@@ -12,7 +12,7 @@ const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
 const { erc20Abi } = require('../abi/erc20');
 
-describe('Exchange', function () {
+describe('Exchange_Maker_Buy_Taker_Sell', function () {
   let signers,
     signer1,
     signer2,
@@ -33,7 +33,6 @@ describe('Exchange', function () {
     infinityCreatorsFeeManager;
 
   const buyOrders = [];
-  const sellOrders = [];
 
   let signer1Balance = toBN(0);
   let signer2Balance = toBN(0);
@@ -56,6 +55,10 @@ describe('Exchange', function () {
   const MAX_EPOCHS = 6;
   const TIMELOCK = 30 * DAY;
   const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT); // 1b
+
+  const totalNFTSupply = 100;
+  const numNFTsToTransfer = 50;
+  const numNFTsLeft = totalNFTSupply - numNFTsToTransfer;
 
   function toBN(val) {
     return ethers.BigNumber.from(val.toString());
@@ -187,7 +190,7 @@ describe('Exchange', function () {
 
     // send assets
     await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < numNFTsToTransfer; i++) {
       await mock721Contract1.transferFrom(signer1.address, signer2.address, i);
       await mock721Contract2.transferFrom(signer1.address, signer2.address, i);
       await mock721Contract3.transferFrom(signer1.address, signer2.address, i);
@@ -204,14 +207,14 @@ describe('Exchange', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
       expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
-      expect(await mock721Contract1.balanceOf(signer1.address)).to.equal(300);
-      expect(await mock721Contract1.balanceOf(signer2.address)).to.equal(200);
+      expect(await mock721Contract1.balanceOf(signer1.address)).to.equal(numNFTsLeft);
+      expect(await mock721Contract1.balanceOf(signer2.address)).to.equal(numNFTsToTransfer);
 
-      expect(await mock721Contract2.balanceOf(signer1.address)).to.equal(300);
-      expect(await mock721Contract2.balanceOf(signer2.address)).to.equal(200);
+      expect(await mock721Contract2.balanceOf(signer1.address)).to.equal(numNFTsLeft);
+      expect(await mock721Contract2.balanceOf(signer2.address)).to.equal(numNFTsToTransfer);
 
-      expect(await mock721Contract3.balanceOf(signer1.address)).to.equal(300);
-      expect(await mock721Contract3.balanceOf(signer2.address)).to.equal(200);
+      expect(await mock721Contract3.balanceOf(signer1.address)).to.equal(numNFTsLeft);
+      expect(await mock721Contract3.balanceOf(signer2.address)).to.equal(numNFTsToTransfer);
     });
   });
 
@@ -452,6 +455,10 @@ describe('Exchange', function () {
       const chainId = network.config.chainId;
       const nfts = [
         {
+          collection: mock721Contract1.address,
+          tokens: []
+        },
+        {
           collection: mock721Contract2.address,
           tokens: []
         },
@@ -537,7 +544,7 @@ describe('Exchange', function () {
         chainId,
         isSellOrder: false,
         signerAddress: user.address,
-        numItems: 10,
+        numItems: 12,
         startPrice: ethers.utils.parseEther('5'),
         endPrice: ethers.utils.parseEther('5'),
         startTime: nowSeconds(),
@@ -554,27 +561,7 @@ describe('Exchange', function () {
     });
   });
 
-  // ================================================== MAKE SELL ORDERS ==================================================
-
-  // one specific collection, one specific token, min price
-
-  // one specific collection, multiple specific tokens, min aggregate price
-
-  // one specific collection, any one token, min price
-
-  // one specific collection, any multiple tokens, min aggregate price, max number of tokens
-
-  // multiple specific collections, multiple specific tokens per collection, min aggregate price
-
-  // multiple specific collections, any multiple tokens per collection, min aggregate price, max aggregate number of tokens
-
-  // any collection, any one token, min price
-
-  // any collection, any multiple tokens, min aggregate price, max aggregate number of tokens
-
-  // ================================================== MATCH ORDERS ==================================================
-
-  // ================================================== TAKE ORDERS ===================================================
+  // ================================================== TAKE BUY ORDERS ===================================================
   describe('Take_OneCollectionOneTokenBuy', () => {
     it('Should take valid order', async function () {
       const buyOrder = buyOrders[++numTakeOrders];
@@ -847,14 +834,6 @@ describe('Exchange', function () {
             {
               tokenId: 8,
               numTokens: 1
-            },
-            {
-              tokenId: 9,
-              numTokens: 1
-            },
-            {
-              tokenId: 10,
-              numTokens: 1
             }
           ]
         };
@@ -1027,10 +1006,6 @@ describe('Exchange', function () {
               {
                 tokenId: 21,
                 numTokens: 1
-              },
-              {
-                tokenId: 22,
-                numTokens: 1
               }
             ]
           };
@@ -1040,14 +1015,6 @@ describe('Exchange', function () {
             tokens: [
               {
                 tokenId: 10,
-                numTokens: 1
-              },
-              {
-                tokenId: 11,
-                numTokens: 1
-              },
-              {
-                tokenId: 12,
                 numTokens: 1
               }
             ]
@@ -1062,10 +1029,6 @@ describe('Exchange', function () {
               },
               {
                 tokenId: 11,
-                numTokens: 1
-              },
-              {
-                tokenId: 12,
                 numTokens: 1
               }
             ]
@@ -1368,6 +1331,4 @@ describe('Exchange', function () {
       }
     });
   });
-
-  // ================================================== CANCEL ORDERS =================================================
 });
