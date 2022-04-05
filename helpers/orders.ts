@@ -222,6 +222,8 @@ export async function approveERC721(user: string, items: OrderItem[], signer: Js
       const isApprovedForAll = await contract.isApprovedForAll(user, exchange);
       if (!isApprovedForAll) {
         await contract.setApprovalForAll(exchange, true);
+      } else {
+        console.log('Already approved for all');
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,12 +303,12 @@ export async function constructOBOrder(
     const tokens = item.tokens;
     let encodedTokens = '';
     for (const token of tokens) {
-      encodedTokens += defaultAbiCoder.encode(['uint256', 'uint256'], [token.tokenId, token.numTokens]);
+      encodedTokens += token.tokenId.toString() + token.numTokens.toString();
     }
-    const encodedTokensHash = keccak256(encodedTokens);
+    const encodedTokensHash = keccak256(defaultAbiCoder.encode(['string'],[encodedTokens]));
     encodedItems += defaultAbiCoder.encode(['address', 'bytes32'], [collection, encodedTokensHash]);
   }
-  const encodedItemsHash = keccak256(encodedItems);
+  const encodedItemsHash = keccak256(defaultAbiCoder.encode(['string'], [encodedItems]));
 
   const execParams = [order.execParams.complicationAddress, order.execParams.currencyAddress];
   const execParamsHash = keccak256(defaultAbiCoder.encode(['address', 'address'], execParams));

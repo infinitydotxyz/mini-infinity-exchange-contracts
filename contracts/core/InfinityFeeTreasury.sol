@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import {IInfinityFeeTreasury} from '../interfaces/IInfinityFeeTreasury.sol';
+import {IInfinityFeeTreasury, OrderTypes} from '../interfaces/IInfinityFeeTreasury.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {IStaker, StakeLevel} from '../interfaces/IStaker.sol';
@@ -66,8 +66,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   function allocateFees(
     address seller,
     address buyer,
-    address collection,
-    uint256 tokenId,
+    OrderTypes.OrderItem[] calldata items,
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
@@ -83,7 +82,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     }
 
     // creator fee
-    uint256 totalFees = _allocateFeesToCreators(execComplication, collection, tokenId, amount, currency);
+    uint256 totalFees = _allocateFeesToCreators(execComplication, items, amount, currency);
 
     // curator fee
     totalFees += _allocateFeesToCurators(amount, currency, effectiveFeeBps);
@@ -100,7 +99,14 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     // transfer final amount (post-fees) to seller
     IERC20(currency).safeTransferFrom(buyer, seller, remainingAmount);
 
-    emit FeeAllocated(collection, currency, totalFees);
+    // emit events
+    for (uint256 i = 0; i < items.length; ) {
+      // fee allocated per collection is simply totalFeel divided by number of collections in the order
+      emit FeeAllocated(items[i].collection, currency, totalFees / items.length);
+      unchecked {
+        ++i;
+      }
+    }
   }
 
   function claimCreatorFees(address currency) external {
@@ -172,24 +178,32 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   function _allocateFeesToCreators(
     address execComplication,
-    address collection,
-    uint256 tokenId,
+    OrderTypes.OrderItem[] calldata items,
     uint256 amount,
     address currency
   ) internal returns (uint256) {
     // console.log('allocating fees to creators');
-    IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
-    (, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager
-      .calcFeesAndGetRecipients(execComplication, collection, tokenId, amount);
-
     uint256 creatorsFee = 0;
-    for (uint256 i = 0; i < feeRecipients.length; ) {
-      if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
-        creatorFees[feeRecipients[i]][currency] += feeAmounts[i];
-        creatorsFee += feeAmounts[i];
+    IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
+    for (uint256 h = 0; h < items.length; ) {
+      (, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager.calcFeesAndGetRecipients(
+        execComplication,
+        items[h].collection,
+        0, // to comply with ierc2981 and royalty registry
+        amount
+      );
+
+      for (uint256 i = 0; i < feeRecipients.length; ) {
+        if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
+          creatorFees[feeRecipients[i]][currency] += feeAmounts[i];
+          creatorsFee += feeAmounts[i];
+        }
+        unchecked {
+          ++i;
+        }
       }
       unchecked {
-        ++i;
+        ++h;
       }
     }
     // console.log('creatorsFee:', creatorsFee);

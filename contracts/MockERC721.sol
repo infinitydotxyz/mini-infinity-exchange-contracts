@@ -7,7 +7,7 @@ contract MockERC721 is ERC721URIStorage {
   uint256 numMints = 0;
 
   constructor(string memory name, string memory symbol) ERC721(name, symbol) {
-    for (uint256 i = 0; i < 50; i++) {
+    for (uint256 i = 0; i < 500; i++) {
       _safeMint(msg.sender, numMints++);
     }
   }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import {OrderTypes} from '../libs/OrderTypes.sol';
 
 interface IInfinityFeeTreasury {
   function getEffectiveFeeBps(address user) external view returns (uint16);
@@ -7,8 +8,7 @@ interface IInfinityFeeTreasury {
   function allocateFees(
     address seller,
     address buyer,
-    address collection,
-    uint256 tokenId,
+    OrderTypes.OrderItem[] calldata items,
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
