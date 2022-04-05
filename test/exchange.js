@@ -17,7 +17,6 @@ describe('Exchange', function () {
     signer1,
     signer2,
     token,
-    utils,
     exchange,
     mock721Contract1,
     mock721Contract2,
@@ -81,9 +80,6 @@ describe('Exchange', function () {
       tokenArgs
     );
 
-    // utils
-    utils = await deployContract('Utils', await ethers.getContractFactory('Utils'), signer1);
-
     // NFT contracts
     mock721Contract1 = await deployContract('MockERC721', await ethers.getContractFactory('MockERC721'), signer1, [
       'Mock NFT 1',
@@ -115,11 +111,7 @@ describe('Exchange', function () {
     // Exchange
     exchange = await deployContract(
       'InfinityExchange',
-      await ethers.getContractFactory('InfinityExchange', {
-        libraries: {
-          Utils: utils.address
-        }
-      }),
+      await ethers.getContractFactory('InfinityExchange'),
       signer1,
       [currencyRegistry.address, complicationRegistry.address, token.address]
     );
@@ -127,11 +119,7 @@ describe('Exchange', function () {
     // OB complication
     obComplication = await deployContract(
       'InfinityOrderBookComplication',
-      await ethers.getContractFactory('InfinityOrderBookComplication', {
-        libraries: {
-          Utils: utils.address
-        }
-      }),
+      await ethers.getContractFactory('InfinityOrderBookComplication'),
       signer1,
       [0, 1_000_000]
     );
