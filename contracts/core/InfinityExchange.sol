@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+
+import {OrderTypes} from '../libs/OrderTypes.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {ICurrencyRegistry} from '../interfaces/ICurrencyRegistry.sol';
@@ -43,6 +45,8 @@ NFTNFTNFT...........................................NFTNFTNFT
 
 */
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
+  using OrderTypes for OrderTypes.Order;
+  using OrderTypes for OrderTypes.OrderItem;
 
   address public immutable WETH;
   bytes32 public immutable DOMAIN_SEPARATOR;
@@ -68,7 +72,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     address indexed buyer,
     address indexed complication, // address of the complication that defines the execution
     address currency, // token address of the transacting currency
-    OrderItem[] nfts, // nfts sold; todo: check actual output
+    OrderTypes.OrderItem[] nfts, // nfts sold; todo: check actual output
     uint256 amount // amount spent on the order
   );
 
@@ -129,9 +133,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   function matchOrders(
-    Order[] calldata sells,
-    Order[] calldata buys,
-    Order[] calldata constructs,
+    OrderTypes.Order[] calldata sells,
+    OrderTypes.Order[] calldata buys,
+    OrderTypes.Order[] calldata constructs,
     bool tradingRewards,
     bool feeDiscountEnabled
   ) external override nonReentrant {
@@ -168,8 +172,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   function takeOrders(
-    Order[] calldata makerOrders,
-    Order[] calldata takerOrders,
+    OrderTypes.Order[] calldata makerOrders,
+    OrderTypes.Order[] calldata takerOrders,
     bool tradingRewards,
     bool feeDiscountEnabled
   ) external override nonReentrant {
@@ -208,7 +212,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function batchTransferNFTs(
     address from,
     address to,
-    OrderItem[] calldata items
+    OrderTypes.OrderItem[] calldata items
   ) external {
     _batchTransferNFTs(from, to, items);
   }
@@ -224,7 +228,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     return !_isUserOrderNonceExecutedOrCancelled[user][nonce] && nonce > userMinOrderNonce[user];
   }
 
-  function verifyOrderSig(Order calldata order) external view returns (bool) {
+  function verifyOrderSig(OrderTypes.Order calldata order) external view returns (bool) {
     // Verify the validity of the signature
     (bytes32 r, bytes32 s, uint8 v) = abi.decode(order.sig, (bytes32, bytes32, uint8));
     return SignatureChecker.verify(_hash(order), order.signer, r, s, v, DOMAIN_SEPARATOR);
@@ -233,9 +237,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   // ====================================================== INTERNAL FUNCTIONS ================================================
 
   function _matchOrders(
-    Order calldata sell,
-    Order calldata buy,
-    Order calldata constructed,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed,
     bool feeDiscountEnabled
   )
     internal
@@ -254,9 +258,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _matchOrdersStackDeep(
     bytes32 sellOrderHash,
     bytes32 buyOrderHash,
-    Order calldata sell,
-    Order calldata buy,
-    Order calldata constructed,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed,
     bool feeDiscountEnabled
   )
     internal
@@ -288,8 +292,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   function _takeOrders(
-    Order calldata makerOrder,
-    Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
+    OrderTypes.Order calldata takerOrder,
     bool feeDiscountEnabled
   )
     internal
@@ -322,8 +326,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _execTakerSellOrder(
     bytes32 takerOrderHash,
     bytes32 makerOrderHash,
-    Order calldata takerOrder,
-    Order calldata makerOrder,
+    OrderTypes.Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
     bool feeDiscountEnabled
   )
     internal
@@ -352,8 +356,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _execTakerBuyOrder(
     bytes32 takerOrderHash,
     bytes32 makerOrderHash,
-    Order calldata takerOrder,
-    Order calldata makerOrder,
+    OrderTypes.Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
     bool feeDiscountEnabled
   )
     internal
@@ -382,9 +386,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _verifyOrders(
     bytes32 sellOrderHash,
     bytes32 buyOrderHash,
-    Order calldata sell,
-    Order calldata buy,
-    Order calldata constructed
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
   ) internal view returns (bool) {
     // console.log('verifying match orders');
     bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
@@ -398,8 +402,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   function _verifyTakeOrders(
     bytes32 makerOrderHash,
-    Order calldata maker,
-    Order calldata taker
+    OrderTypes.Order calldata maker,
+    OrderTypes.Order calldata taker
   ) internal view returns (bool) {
     // console.log('verifying take orders');
     bool msgSenderIsTaker = msg.sender == taker.signer;
@@ -422,7 +426,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param order the order
    * @param orderHash computed hash of the order
    */
-  function _isOrderValid(Order calldata order, bytes32 orderHash) internal view returns (bool) {
+  function _isOrderValid(OrderTypes.Order calldata order, bytes32 orderHash) internal view returns (bool) {
     return
       _orderValidity(
         order.signer,
@@ -469,7 +473,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 sellNonce,
     uint256 buyNonce,
     uint256 minBpsToSeller,
-    Order calldata constructed,
+    OrderTypes.Order calldata constructed,
     bool feeDiscountEnabled
   )
     internal
@@ -502,7 +506,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     return (seller, buyer, constructed.execParams[1], amount);
   }
 
-  function _getCurrentPrice(Order calldata order) internal view returns (uint256) {
+  function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
     (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
     (uint256 startTime, uint256 endTime) = (order.constraints[3], order.constraints[4]);
     uint256 duration = endTime - startTime;
@@ -521,7 +525,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 buyOrderHash,
     address seller,
     address buyer,
-    Order calldata constructed,
+    OrderTypes.Order calldata constructed,
     uint256 amount
   ) internal {
     emit OrderFulfilled(
@@ -539,7 +543,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _transferNFTsAndFees(
     address seller,
     address buyer,
-    OrderItem[] calldata nfts,
+    OrderTypes.OrderItem[] calldata nfts,
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
@@ -548,7 +552,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   ) internal {
     // console.log('transfering nfts and fees');
     for (uint256 i = 0; i < nfts.length; ) {
-      OrderItem calldata item = nfts[i];
+      OrderTypes.OrderItem calldata item = nfts[i];
       address[] memory collections = new address[](1);
       collections[0] = item.collection;
       // transfer NFTs
@@ -564,11 +568,11 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _batchTransferNFTs(
     address from,
     address to,
-    OrderItem[] calldata nfts
+    OrderTypes.OrderItem[] calldata nfts
   ) internal {
     // console.log('batch transfering nfts');
     for (uint256 i = 0; i < nfts.length; ) {
-      OrderItem calldata item = nfts[i];
+      OrderTypes.OrderItem calldata item = nfts[i];
       // transfer NFTs
       for (uint256 j = 0; j < item.tokens.length; ) {
         _transferNFTs(from, to, item);
@@ -591,7 +595,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _transferNFTs(
     address from,
     address to,
-    OrderItem calldata item
+    OrderTypes.OrderItem calldata item
   ) internal {
     // console.log('transfering nfts from');
     // console.log(from);
@@ -607,7 +611,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _transferERC721s(
     address from,
     address to,
-    OrderItem calldata item
+    OrderTypes.OrderItem calldata item
   ) internal {
     for (uint256 i = 0; i < item.tokens.length; ) {
       IERC721(item.collection).safeTransferFrom(from, to, item.tokens[i].tokenId);
@@ -620,7 +624,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _transferERC1155s(
     address from,
     address to,
-    OrderItem calldata item
+    OrderTypes.OrderItem calldata item
   ) internal {
     for (uint256 i = 0; i < item.tokens.length; ) {
       IERC1155(item.collection).safeTransferFrom(from, to, item.tokens[i].tokenId, item.tokens[i].numTokens, '');
@@ -633,7 +637,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function _transferFees(
     address seller,
     address buyer,
-    OrderItem calldata item,
+    OrderTypes.OrderItem calldata item,
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
@@ -660,7 +664,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     }
   }
 
-  function _hash(Order calldata order) internal pure returns (bytes32) {
+  function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {
     // keccak256("Order(bool isSellOrder,address signer,bytes32 dataHash,bytes extraParams)")
     bytes32 ORDER_HASH = 0x1bb57a2a1a64ebe03163e0964007805cfa2a9b6c0ee67005d6dcdd1bc46265dc;
     return

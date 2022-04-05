@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+
+import {OrderTypes} from '../libs/OrderTypes.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
@@ -8,6 +10,8 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
  * @notice Complication to execute orderbook orders
  */
 contract InfinityOrderBookComplication is IComplication, Ownable {
+  using OrderTypes for OrderTypes.Order;
+  using OrderTypes for OrderTypes.OrderItem;
 
   uint256 public immutable PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei
@@ -25,9 +29,9 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   }
 
   function canExecOrder(
-    Order calldata sell,
-    Order calldata buy,
-    Order calldata constructed
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
   ) external view returns (bool) {
     bool isTimeValid = _isTimeValid(sell, buy);
     bool isAmountValid = _isAmountValid(sell, buy, constructed);
@@ -37,7 +41,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
   }
 
-  function canExecTakeOrder(Order calldata makerOrder, Order calldata takerOrder)
+  function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     external
     view
     returns (bool)
@@ -72,7 +76,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
 
   // ============================================== INTERNAL FUNCTIONS ===================================================
 
-  function _isTimeValid(Order calldata sell, Order calldata buy) internal view returns (bool) {
+  function _isTimeValid(OrderTypes.Order calldata sell, OrderTypes.Order calldata buy) internal view returns (bool) {
     (uint256 sellStartTime, uint256 sellEndTime) = (sell.constraints[3], sell.constraints[4]);
     (uint256 buyStartTime, uint256 buyEndTime) = (buy.constraints[3], buy.constraints[4]);
     bool isSellTimeValid = sellStartTime <= block.timestamp && sellEndTime >= block.timestamp;
@@ -82,9 +86,9 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   }
 
   function _isAmountValid(
-    Order calldata sell,
-    Order calldata buy,
-    Order calldata constructed
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
   ) internal view returns (bool) {
     (uint256 currentSellPrice, uint256 currentBuyPrice, uint256 currentConstructedPrice) = (
       _getCurrentPrice(sell),
@@ -96,7 +100,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       _arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
   }
 
-  function _getCurrentPrice(Order calldata order) internal view returns (uint256) {
+  function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
     (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
     (uint256 startTime, uint256 endTime) = (order.constraints[3], order.constraints[4]);
     uint256 duration = endTime - startTime;
@@ -126,7 +130,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     }
   }
 
-  function _checkItemsIntersect(Order calldata makerOrder, Order calldata takerOrder)
+  function _checkItemsIntersect(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     internal
     pure
     returns (bool)
@@ -162,7 +166,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     return numCollsMatched == takerOrder.nfts.length;
   }
 
-  function _checkTokenIdsIntersect(OrderItem calldata makerItem, OrderItem calldata takerItem)
+  function _checkTokenIdsIntersect(OrderTypes.OrderItem calldata makerItem, OrderTypes.OrderItem calldata takerItem)
     internal
     pure
     returns (bool)

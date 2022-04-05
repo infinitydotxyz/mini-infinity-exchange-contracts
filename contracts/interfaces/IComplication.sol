@@ -1,47 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {OrderTypes} from '../libs/OrderTypes.sol';
+
 interface IComplication {
-  struct TokenInfo {
-    uint256 tokenId;
-    uint256 numTokens;
-  }
-
-  struct OrderItem {
-    address collection;
-    TokenInfo[] tokens;
-  }
-
-  struct Order {
-    // is order sell or buy
-    bool isSellOrder;
-    address signer;
-    bytes32 dataHash;
-    // total length: 7
-    // in order:
-    // numItems - min/max number of items in the order
-    // start and end prices in wei
-    // start and end times in block.timestamp
-    // minBpsToSeller
-    // nonce
-    uint256[] constraints;
-    // collections and tokenIds
-    OrderItem[] nfts;
-    // address of complication for trade execution (e.g. OrderBook), address of the currency (e.g., WETH)
-    address[] execParams;
-    // additional parameters like rarities, private sale buyer etc
-    bytes extraParams;
-    // uint8 v: parameter (27 or 28), bytes32 r, bytes32 s
-    bytes sig;
-  }
-
   function canExecOrder(
-    Order calldata sell,
-    Order calldata buy,
-    Order calldata constructed
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
   ) external view returns (bool);
 
-  function canExecTakeOrder(Order calldata makerOrder, Order calldata takerOrder)
+  function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     external
     view
     returns (bool);
