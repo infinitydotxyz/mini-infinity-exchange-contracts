@@ -16,8 +16,9 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
   let signers,
     signer1,
     signer2,
+    signer3,
     token,
-    exchange,
+    infinityExchange,
     mock721Contract1,
     mock721Contract2,
     mock721Contract3,
@@ -69,7 +70,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     signers = await ethers.getSigners();
     signer1 = signers[0];
     signer2 = signers[1];
-
+    signer3 = signers[2];
     // token
     const tokenArgs = [
       signer1.address,
@@ -116,10 +117,11 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     );
 
     // Exchange
-    exchange = await deployContract('InfinityExchange', await ethers.getContractFactory('InfinityExchange'), signer1, [
+    infinityExchange = await deployContract('InfinityExchange', await ethers.getContractFactory('InfinityExchange'), signer1, [
       currencyRegistry.address,
       complicationRegistry.address,
-      token.address
+      token.address,
+      signer3.address
     ]);
 
     // OB complication
@@ -146,7 +148,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
       'InfinityTradingRewards',
       await ethers.getContractFactory('contracts/core/InfinityTradingRewards.sol:InfinityTradingRewards'),
       signer1,
-      [exchange.address, infinityStaker.address, token.address]
+      [infinityExchange.address, infinityStaker.address, token.address]
     );
 
     // Infinity Creator Fee Registry
@@ -176,7 +178,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
       'InfinityFeeTreasury',
       await ethers.getContractFactory('InfinityFeeTreasury'),
       signer1,
-      [exchange.address, infinityStaker.address, infinityCreatorsFeeManager.address]
+      [infinityExchange.address, infinityStaker.address, infinityCreatorsFeeManager.address]
     );
 
     // add currencies to registry
@@ -186,7 +188,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     await complicationRegistry.addComplication(obComplication.address);
 
     // set infinity fee treasury on exchange
-    await exchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
+    await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
 
     // send assets
     await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
@@ -257,7 +259,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -304,7 +306,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -343,7 +345,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -382,7 +384,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -440,7 +442,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -487,7 +489,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -521,7 +523,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -555,7 +557,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -566,7 +568,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -591,7 +593,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -610,7 +612,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -638,7 +640,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -663,7 +665,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -682,7 +684,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -710,7 +712,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -751,7 +753,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -773,7 +775,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -801,7 +803,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -854,7 +856,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -876,7 +878,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -904,7 +906,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -929,7 +931,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -951,7 +953,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -979,7 +981,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -1054,7 +1056,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -1076,7 +1078,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -1104,7 +1106,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -1142,7 +1144,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -1164,7 +1166,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -1192,7 +1194,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     it('Should take valid order', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -1286,7 +1288,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -1308,7 +1310,7 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {

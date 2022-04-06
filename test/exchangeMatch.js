@@ -6,7 +6,8 @@ const {
   signOBOrder,
   getCurrentSignedOrderPrice,
   approveERC721,
-  approveERC20
+  approveERC20,
+  getCurrentOrderPrice
 } = require('../helpers/orders');
 const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
@@ -118,12 +119,12 @@ describe('Exchange_Match', function () {
     );
 
     // Exchange
-    infinityExchange = await deployContract('InfinityExchange', await ethers.getContractFactory('InfinityExchange'), signer1, [
-      currencyRegistry.address,
-      complicationRegistry.address,
-      token.address,
-      signer3.address
-    ]);
+    infinityExchange = await deployContract(
+      'InfinityExchange',
+      await ethers.getContractFactory('InfinityExchange'),
+      signer1,
+      [currencyRegistry.address, complicationRegistry.address, token.address, signer3.address]
+    );
 
     // OB complication
     obComplication = await deployContract(
@@ -253,14 +254,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -300,14 +308,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -339,14 +354,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -378,14 +400,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -436,14 +465,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -483,14 +519,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -517,14 +560,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -551,14 +601,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('5'),
         endPrice: ethers.utils.parseEther('5'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer1,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -596,14 +653,26 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+
+      // approve currency (required for automatic execution)
+      const salePrice = getCurrentOrderPrice(order);
+      await approveERC20(user.address, execParams.currencyAddress, salePrice, signer2, infinityFeeTreasury.address);
+
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -643,14 +712,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -682,14 +758,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -721,14 +804,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -779,14 +869,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -826,14 +923,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -860,14 +964,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('1'),
         endPrice: ethers.utils.parseEther('1'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -894,14 +1005,21 @@ describe('Exchange_Match', function () {
         startPrice: ethers.utils.parseEther('5'),
         endPrice: ethers.utils.parseEther('5'),
         startTime: nowSeconds(),
-        endTime: nowSeconds().add(10 * 60),
+        endTime: nowSeconds().add(24 * 60 * 60),
         minBpsToSeller: 9000,
         nonce,
         nfts,
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -938,6 +1056,15 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
       expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
+      const gasEstimate = await infinityExchange
+        .connect(signer3)
+        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
+      console.log('gasEstimate', gasEstimate);
+      const gasPrice = await signer3.provider.getGasPrice();
+      console.log('gasPrice', gasPrice);
+      const gasCost = gasEstimate.mul(gasPrice);
+      console.log('gasCost', gasCost.toString());
+
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
 
@@ -958,7 +1085,10 @@ describe('Exchange_Match', function () {
       signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
       signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+      const sellerBalance1 = parseFloat(ethers.utils.formatEther(await token.balanceOf(signer2.address)));
+      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
+      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
     });
   });
 

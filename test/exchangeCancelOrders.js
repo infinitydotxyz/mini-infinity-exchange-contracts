@@ -16,8 +16,9 @@ describe('Exchange_Cancel_Orders', function () {
   let signers,
     signer1,
     signer2,
+    signer3,
     token,
-    exchange,
+    infinityExchange,
     mock721Contract1,
     mock721Contract2,
     mock721Contract3,
@@ -71,6 +72,7 @@ describe('Exchange_Cancel_Orders', function () {
     signers = await ethers.getSigners();
     signer1 = signers[0];
     signer2 = signers[1];
+    signer3 = signers[2];
 
     // token
     const tokenArgs = [
@@ -118,11 +120,12 @@ describe('Exchange_Cancel_Orders', function () {
     );
 
     // Exchange
-    exchange = await deployContract('InfinityExchange', await ethers.getContractFactory('InfinityExchange'), signer1, [
-      currencyRegistry.address,
-      complicationRegistry.address,
-      token.address
-    ]);
+    infinityExchange = await deployContract(
+      'InfinityExchange',
+      await ethers.getContractFactory('InfinityExchange'),
+      signer1,
+      [currencyRegistry.address, complicationRegistry.address, token.address, signer3.address]
+    );
 
     // OB complication
     obComplication = await deployContract(
@@ -148,7 +151,7 @@ describe('Exchange_Cancel_Orders', function () {
       'InfinityTradingRewards',
       await ethers.getContractFactory('contracts/core/InfinityTradingRewards.sol:InfinityTradingRewards'),
       signer1,
-      [exchange.address, infinityStaker.address, token.address]
+      [infinityExchange.address, infinityStaker.address, token.address]
     );
 
     // Infinity Creator Fee Registry
@@ -178,7 +181,7 @@ describe('Exchange_Cancel_Orders', function () {
       'InfinityFeeTreasury',
       await ethers.getContractFactory('InfinityFeeTreasury'),
       signer1,
-      [exchange.address, infinityStaker.address, infinityCreatorsFeeManager.address]
+      [infinityExchange.address, infinityStaker.address, infinityCreatorsFeeManager.address]
     );
 
     // add currencies to registry
@@ -188,7 +191,7 @@ describe('Exchange_Cancel_Orders', function () {
     await complicationRegistry.addComplication(obComplication.address);
 
     // set infinity fee treasury on exchange
-    await exchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
+    await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
 
     // send assets
     await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
@@ -259,7 +262,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -306,7 +316,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -345,7 +362,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -384,7 +408,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -442,7 +473,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -489,7 +527,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -523,7 +568,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -557,7 +609,14 @@ describe('Exchange_Cancel_Orders', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, exchange, infinityFeeTreasury.address);
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
       expect(signedOrder).to.not.be.undefined;
       orders.push(signedOrder);
     });
@@ -570,19 +629,19 @@ describe('Exchange_Cancel_Orders', function () {
       const nonce = sellOrder.constraints[6];
 
       // nonce valid before cancel
-      let isValid = await exchange.isNonceValid(signer2.address, nonce);
+      let isValid = await infinityExchange.isNonceValid(signer2.address, nonce);
       expect(isValid).to.be.true;
 
       // cancel order
-      await exchange.connect(signer2).cancelMultipleOrders([nonce]);
+      await infinityExchange.connect(signer2).cancelMultipleOrders([nonce]);
 
       // invalid after cancel
-      isValid = await exchange.isNonceValid(signer2.address, nonce);
+      isValid = await infinityExchange.isNonceValid(signer2.address, nonce);
       expect(isValid).to.be.false;
 
       // order can't be fulfilled once canceled
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -607,7 +666,7 @@ describe('Exchange_Cancel_Orders', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -626,7 +685,7 @@ describe('Exchange_Cancel_Orders', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
         // try to perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -655,22 +714,22 @@ describe('Exchange_Cancel_Orders', function () {
       const nonce2 = sellOrder2.constraints[6];
 
       // nonces valid before cancel
-      let isValid = await exchange.isNonceValid(signer2.address, nonce1);
+      let isValid = await infinityExchange.isNonceValid(signer2.address, nonce1);
       expect(isValid).to.be.true;
-      isValid = await exchange.isNonceValid(signer2.address, nonce2);
+      isValid = await infinityExchange.isNonceValid(signer2.address, nonce2);
       expect(isValid).to.be.true;
 
       // cancel orders
-      await exchange.connect(signer2).cancelMultipleOrders([nonce1, nonce2]);
+      await infinityExchange.connect(signer2).cancelMultipleOrders([nonce1, nonce2]);
 
       // invalid after cancel
-      isValid = await exchange.isNonceValid(signer2.address, nonce1);
+      isValid = await infinityExchange.isNonceValid(signer2.address, nonce1);
       expect(isValid).to.be.false;
-      isValid = await exchange.isNonceValid(signer2.address, nonce2);
+      isValid = await infinityExchange.isNonceValid(signer2.address, nonce2);
       expect(isValid).to.be.false;
 
       // should not cancel already canceled orders
-      await expect(exchange.connect(signer2).cancelMultipleOrders([nonce1, nonce2])).to.be.revertedWith(
+      await expect(infinityExchange.connect(signer2).cancelMultipleOrders([nonce1, nonce2])).to.be.revertedWith(
         'Cancel: Nonce already executed or cancelled'
       );
     });
@@ -681,7 +740,7 @@ describe('Exchange_Cancel_Orders', function () {
       const sellOrder = orders[++numTakeOrders];
       const nonce = sellOrder.constraints[6];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -734,7 +793,7 @@ describe('Exchange_Cancel_Orders', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -753,7 +812,7 @@ describe('Exchange_Cancel_Orders', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -775,7 +834,7 @@ describe('Exchange_Cancel_Orders', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // try canceling
-        await expect(exchange.connect(signer2).cancelMultipleOrders([nonce])).to.be.revertedWith(
+        await expect(infinityExchange.connect(signer2).cancelMultipleOrders([nonce])).to.be.revertedWith(
           'Cancel: Nonce already executed or cancelled'
         );
       }
@@ -788,20 +847,20 @@ describe('Exchange_Cancel_Orders', function () {
       const nonce = sellOrder.constraints[6];
 
       // nonce valid before cancel
-      let isValid = await exchange.isNonceValid(signer2.address, nonce);
+      let isValid = await infinityExchange.isNonceValid(signer2.address, nonce);
       expect(isValid).to.be.true;
 
       // try canceling a big nonce
-      await expect(exchange.connect(signer2).cancelAllOrders(1000001)).to.be.revertedWith('Cancel: Too many');
+      await expect(infinityExchange.connect(signer2).cancelAllOrders(1000001)).to.be.revertedWith('Cancel: Too many');
 
       // cancel all orders
-      await exchange.connect(signer2).cancelAllOrders(minCancelNonce);
+      await infinityExchange.connect(signer2).cancelAllOrders(minCancelNonce);
       // min order nonce should be 100
-      let newMinOrderNonce = await exchange.userMinOrderNonce(signer2.address);
+      let newMinOrderNonce = await infinityExchange.userMinOrderNonce(signer2.address);
       expect(newMinOrderNonce).to.equal(minCancelNonce);
 
       // invalid after cancel
-      isValid = await exchange.isNonceValid(signer2.address, nonce);
+      isValid = await infinityExchange.isNonceValid(signer2.address, nonce);
       expect(isValid).to.be.false;
     });
   });
@@ -810,7 +869,7 @@ describe('Exchange_Cancel_Orders', function () {
     it('Should not execute order', async function () {
       const sellOrder = orders[++numTakeOrders];
       const chainId = network.config.chainId;
-      const contractAddress = exchange.address;
+      const contractAddress = infinityExchange.address;
       const isSellOrder = false;
       const dataHash = sellOrder.dataHash;
       const constraints = sellOrder.constraints;
@@ -837,7 +896,7 @@ describe('Exchange_Cancel_Orders', function () {
         sig
       };
 
-      const isSigValid = await exchange.verifyOrderSig(buyOrder);
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
       if (!isSigValid) {
         console.error('take order signature is invalid');
       } else {
@@ -856,7 +915,7 @@ describe('Exchange_Cancel_Orders', function () {
         expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
-        await exchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
         // owners after sale
         for (const item of nfts) {
@@ -881,18 +940,18 @@ describe('Exchange_Cancel_Orders', function () {
     it('Should cancel higher nonces', async function () {
       // try canceling higher nonces; should not revert
       await expect(
-        exchange.connect(signer2).cancelMultipleOrders([minCancelNonce + 1, minCancelNonce + 2])
+        infinityExchange.connect(signer2).cancelMultipleOrders([minCancelNonce + 1, minCancelNonce + 2])
       ).to.not.be.revertedWith('Cancel: Nonce too low');
       // min order nonce should still be 100
-      let newMinOrderNonce = await exchange.userMinOrderNonce(signer2.address);
+      let newMinOrderNonce = await infinityExchange.userMinOrderNonce(signer2.address);
       expect(newMinOrderNonce).to.equal(minCancelNonce);
 
-      await exchange.connect(signer2).cancelAllOrders(minCancelNonce + 1);
-      newMinOrderNonce = await exchange.userMinOrderNonce(signer2.address);
+      await infinityExchange.connect(signer2).cancelAllOrders(minCancelNonce + 1);
+      newMinOrderNonce = await infinityExchange.userMinOrderNonce(signer2.address);
       expect(newMinOrderNonce).to.equal(minCancelNonce + 1);
 
-      await exchange.connect(signer2).cancelAllOrders(minCancelNonce + 3);
-      newMinOrderNonce = await exchange.userMinOrderNonce(signer2.address);
+      await infinityExchange.connect(signer2).cancelAllOrders(minCancelNonce + 3);
+      newMinOrderNonce = await infinityExchange.userMinOrderNonce(signer2.address);
       expect(newMinOrderNonce).to.equal(minCancelNonce + 3);
     });
   });

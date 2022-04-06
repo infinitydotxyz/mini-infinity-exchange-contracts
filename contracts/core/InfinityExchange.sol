@@ -410,6 +410,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
     bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
     bool executionValid = IComplication(sell.execParams[0]).canExecOrder(sell, buy, constructed);
+    console.log('sidesMatch', sidesMatch);
+    console.log('complicationsMatch', complicationsMatch);
+    console.log('currenciesMatch', currenciesMatch);
+    console.log('sellOrderValid', sellOrderValid);
+    console.log('buyOrderValid', buyOrderValid);
+    console.log('executionValid', executionValid);
     return sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid && executionValid;
   }
 
@@ -425,12 +431,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool currenciesMatch = maker.execParams[1] == taker.execParams[1];
     bool makerOrderValid = _isOrderValid(maker, makerOrderHash);
     bool executionValid = IComplication(maker.execParams[0]).canExecTakeOrder(maker, taker);
-    console.log(msgSenderIsTaker);
-    console.log(sidesMatch);
-    console.log(complicationsMatch);
-    console.log(currenciesMatch);
-    console.log(makerOrderValid);
-    console.log(executionValid);
+    console.log('msgSenderIsTaker', msgSenderIsTaker);
+    console.log('sidesMatch', sidesMatch);
+    console.log('complicationsMatch', complicationsMatch);
+    console.log('currenciesMatch', currenciesMatch);
+    console.log('makerOrderValid', makerOrderValid);
+    console.log('executionValid', executionValid);
     return msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid;
   }
 

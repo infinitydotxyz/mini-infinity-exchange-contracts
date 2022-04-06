@@ -116,7 +116,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     address matchExecutor,
     address weth
   ) external override {
-    // console.log('refunding gas fees');
+    console.log('refunding gas fees');
     require(msg.sender == INFINITY_EXCHANGE, 'Gas fee refund: Only Infinity exchange');
     for (uint256 i = 0; i < sells.length;) {
       _refundMatchExecutionGasFee(startGas, sells[i].signer, matchExecutor, weth);
@@ -132,9 +132,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     address matchExecutor,
     address weth
   ) internal {
-    // console.log('refunding gas fees for sale executed on behalf of', seller);
+    console.log('refunding gas fees to executor for sale executed on behalf of', seller);
     // todo: check weth transfer gas cost
     uint256 gasCost = (startGas - gasleft() + 30000) * tx.gasprice;
+    console.log('gasCost:', gasCost);
     IERC20(weth).safeTransferFrom(seller, matchExecutor, gasCost);
   }
 

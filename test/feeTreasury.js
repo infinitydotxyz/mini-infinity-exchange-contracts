@@ -51,7 +51,6 @@ describe('FeeTreasury', function () {
     root = merkleTree.getHexRoot();
 
     const InfinityToken = await ethers.getContractFactory('InfinityToken');
-    let now = (await signers[0].provider.getBlock('latest')).timestamp;
     token = await InfinityToken.deploy(
       signers[0].address,
       INFLATION.toString(),
@@ -59,8 +58,7 @@ describe('FeeTreasury', function () {
       CLIFF_PERIOD.toString(),
       MAX_EPOCHS.toString(),
       TIMELOCK.toString(),
-      INITIAL_SUPPLY.toString(),
-      now
+      INITIAL_SUPPLY.toString()
     );
     await token.deployed();
 
