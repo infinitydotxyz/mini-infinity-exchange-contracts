@@ -110,10 +110,11 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param minNonce minimum user nonce
    */
   function cancelAllOrders(uint256 minNonce) external {
+    console.log('user min order nonce', msg.sender, userMinOrderNonce[msg.sender]);
+    console.log('new min order nonce', msg.sender, minNonce);
     require(minNonce > userMinOrderNonce[msg.sender], 'Cancel: Nonce too low');
     require(minNonce < userMinOrderNonce[msg.sender] + 1000000, 'Cancel: Too many');
     userMinOrderNonce[msg.sender] = minNonce;
-
     emit CancelAllOrders(msg.sender, minNonce);
   }
 
@@ -123,12 +124,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    */
   function cancelMultipleOrders(uint256[] calldata orderNonces) external {
     require(orderNonces.length > 0, 'Cancel: Cannot be empty');
-
+    console.log('user min order nonce', msg.sender, userMinOrderNonce[msg.sender]);
     for (uint256 i = 0; i < orderNonces.length; i++) {
-      require(orderNonces[i] >= userMinOrderNonce[msg.sender], 'Cancel: Nonce too low');
+      console.log('order nonce', orderNonces[i]);
+      require(orderNonces[i] > userMinOrderNonce[msg.sender], 'Cancel: Nonce too low');
+      require(!_isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]], 'Cancel: Nonce already executed or cancelled');
       _isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
     }
-
     emit CancelMultipleOrders(msg.sender, orderNonces);
   }
 
