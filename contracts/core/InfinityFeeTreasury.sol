@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IInfinityFeeTreasury, OrderTypes} from '../interfaces/IInfinityFeeTreasury.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {IStaker, StakeLevel} from '../interfaces/IStaker.sol';
@@ -14,7 +15,7 @@ import 'hardhat/console.sol';
  * @title InfinityFeeTreasury
  * @notice allocates and disburses fees to all parties: creators/curators
  */
-contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownable {
+contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownable, ReentrancyGuard {
   using SafeERC20 for IERC20;
 
   address public INFINITY_EXCHANGE;
@@ -109,7 +110,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     }
   }
 
-  function claimCreatorFees(address currency) external {
+  function claimCreatorFees(address currency) external override nonReentrant {
     require(creatorFees[msg.sender][currency] > 0, 'Fees: No creator fees to claim');
     creatorFees[msg.sender][currency] = 0;
     IERC20(currency).safeTransfer(msg.sender, creatorFees[msg.sender][currency]);
@@ -121,7 +122,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     uint256 cumulativeAmount,
     bytes32 expectedMerkleRoot,
     bytes32[] calldata merkleProof
-  ) external override {
+  ) external override nonReentrant {
     // process
     _processClaim(currency, cumulativeAmount, expectedMerkleRoot, merkleProof);
 
