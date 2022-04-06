@@ -16,6 +16,13 @@ interface IInfinityFeeTreasury {
     bool feeDiscountEnabled
   ) external;
 
+  function refundMatchExecutionGasFee(
+    uint256 startGas,
+    OrderTypes.Order[] calldata sells,
+    address matchExecutor,
+    address weth
+  ) external;
+
   function claimCreatorFees(address currency) external;
 
   function claimCuratorFees(

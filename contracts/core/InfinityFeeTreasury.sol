@@ -110,6 +110,34 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     }
   }
 
+  function refundMatchExecutionGasFee(
+    uint256 startGas,
+    OrderTypes.Order[] calldata sells,
+    address matchExecutor,
+    address weth
+  ) external override {
+    // console.log('refunding gas fees');
+    require(msg.sender == INFINITY_EXCHANGE, 'Gas fee refund: Only Infinity exchange');
+    for (uint256 i = 0; i < sells.length;) {
+      _refundMatchExecutionGasFee(startGas, sells[i].signer, matchExecutor, weth);
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _refundMatchExecutionGasFee(
+    uint256 startGas,
+    address seller,
+    address matchExecutor,
+    address weth
+  ) internal {
+    // console.log('refunding gas fees for sale executed on behalf of', seller);
+    // todo: check weth transfer gas cost
+    uint256 gasCost = (startGas - gasleft() + 30000) * tx.gasprice;
+    IERC20(weth).safeTransferFrom(seller, matchExecutor, gasCost);
+  }
+
   function claimCreatorFees(address currency) external override nonReentrant {
     require(creatorFees[msg.sender][currency] > 0, 'Fees: No creator fees to claim');
     creatorFees[msg.sender][currency] = 0;

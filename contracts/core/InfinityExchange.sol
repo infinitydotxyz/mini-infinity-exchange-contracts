@@ -133,7 +133,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     for (uint256 i = 0; i < orderNonces.length; i++) {
       console.log('order nonce', orderNonces[i]);
       require(orderNonces[i] > userMinOrderNonce[msg.sender], 'Cancel: Nonce too low');
-      require(!_isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]], 'Cancel: Nonce already executed or cancelled');
+      require(
+        !_isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]],
+        'Cancel: Nonce already executed or cancelled'
+      );
       _isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
     }
     emit CancelMultipleOrders(msg.sender, orderNonces);
@@ -146,6 +149,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool tradingRewards,
     bool feeDiscountEnabled
   ) external override nonReentrant {
+    uint256 startGas = gasleft();
     // check pre-conditions
     require(sells.length == buys.length, 'Match orders: mismatched lengths');
     require(sells.length == constructs.length, 'Match orders: mismatched lengths');
@@ -176,6 +180,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         }
       }
     }
+    // refund gas to match executor
+    infinityFeeTreasury.refundMatchExecutionGasFee(startGas, sells, matchExecutor, WETH);
   }
 
   function takeOrders(
