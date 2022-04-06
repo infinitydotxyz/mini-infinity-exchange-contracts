@@ -35,7 +35,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   ) external view returns (bool) {
     bool isTimeValid = _isTimeValid(sell, buy);
     bool isAmountValid = _isAmountValid(sell, buy, constructed);
-    bool numItemsValid = constructed.constraints[0] >= buy.constraints[0] && buy.constraints[0] <= sell.constraints[0];
+    bool numItemsValid = _areNumItemsValid(sell, buy, constructed);
     bool itemsIntersect = _checkItemsIntersect(sell, constructed) && _checkItemsIntersect(buy, constructed);
 
     return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
@@ -100,12 +100,60 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       _arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
   }
 
+  function _areNumItemsValid(
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
+  ) internal pure returns (bool) {
+    bool numItemsWithinBounds = constructed.constraints[0] >= buy.constraints[0] &&
+      buy.constraints[0] <= sell.constraints[0];
+
+    uint256 numSellItems = 0;
+    for (uint256 i = 0; i < sell.nfts.length; ) {
+      unchecked {
+        numSellItems += sell.nfts[i].tokens.length;
+        ++i;
+      }
+    }
+    bool numSellItemsMatch = sell.constraints[0] == numSellItems;
+
+    uint256 numBuyItems = 0;
+    for (uint256 i = 0; i < buy.nfts.length; ) {
+      unchecked {
+        numBuyItems += buy.nfts[i].tokens.length;
+        ++i;
+      }
+    }
+    bool numBuyItemsMatch = buy.constraints[0] == numBuyItems;
+
+    uint256 numConstructedItems = 0;
+    for (uint256 i = 0; i < constructed.nfts.length; ) {
+      unchecked {
+        numConstructedItems += constructed.nfts[i].tokens.length;
+        ++i;
+      }
+    }
+    bool numConstructedItemsMatch = constructed.constraints[0] == numConstructedItems;
+
+    return numItemsWithinBounds && numSellItemsMatch && numBuyItemsMatch && numConstructedItemsMatch;
+  }
+
   function _areTakerNumItemsValid(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     internal
     pure
     returns (bool)
   {
     bool numItemsEqual = makerOrder.constraints[0] == takerOrder.constraints[0];
+
+    uint256 numMakerItems = 0;
+    for (uint256 i = 0; i < makerOrder.nfts.length; ) {
+      unchecked {
+        numMakerItems += makerOrder.nfts[i].tokens.length;
+        ++i;
+      }
+    }
+    bool numMakerItemsMatch = makerOrder.constraints[0] == numMakerItems;
+
     uint256 numTakerItems = 0;
     for (uint256 i = 0; i < takerOrder.nfts.length; ) {
       unchecked {
@@ -114,7 +162,8 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       }
     }
     bool numTakerItemsMatch = takerOrder.constraints[0] == numTakerItems;
-    return numItemsEqual && numTakerItemsMatch;
+
+    return numItemsEqual && numMakerItemsMatch && numTakerItemsMatch;
   }
 
   function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {

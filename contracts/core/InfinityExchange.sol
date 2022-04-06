@@ -58,12 +58,14 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   mapping(address => uint256) public userMinOrderNonce;
   mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceExecutedOrCancelled;
+  address matchExecutor;
 
-  event CancelAllOrders(address indexed user, uint256 newMinNonce);
-  event CancelMultipleOrders(address indexed user, uint256[] orderNonces);
-  event NewCurrencyRegistry(address indexed currencyRegistry);
-  event NewComplicationRegistry(address indexed complicationRegistry);
-  event NewInfinityFeeTreasury(address indexed infinityFeeTreasury);
+  event CancelAllOrders(address user, uint256 newMinNonce);
+  event CancelMultipleOrders(address user, uint256[] orderNonces);
+  event NewCurrencyRegistry(address currencyRegistry);
+  event NewComplicationRegistry(address complicationRegistry);
+  event NewInfinityFeeTreasury(address infinityFeeTreasury);
+  event NewMatchExecutor(address matchExecutor);
 
   event OrderFulfilled(
     bytes32 sellOrderHash, // hash of the sell order
@@ -81,11 +83,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param _currencyRegistry currency manager address
    * @param _complicationRegistry execution manager address
    * @param _WETH wrapped ether address (for other chains, use wrapped native asset)
+   * @param _matchExecutor executor address for matches
    */
   constructor(
     address _currencyRegistry,
     address _complicationRegistry,
-    address _WETH
+    address _WETH,
+    address _matchExecutor
   ) {
     // Calculate the domain separator
     DOMAIN_SEPARATOR = keccak256(
@@ -101,6 +105,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     currencyRegistry = ICurrencyRegistry(_currencyRegistry);
     complicationRegistry = IComplicationRegistry(_complicationRegistry);
     WETH = _WETH;
+    matchExecutor = _matchExecutor;
   }
 
   // =================================================== USER FUNCTIONS =======================================================
@@ -682,5 +687,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     require(_infinityFeeTreasury != address(0), 'Owner: Cannot be 0x0');
     infinityFeeTreasury = IInfinityFeeTreasury(_infinityFeeTreasury);
     emit NewInfinityFeeTreasury(_infinityFeeTreasury);
+  }
+
+  function updateMatchExecutor(address _matchExecutor) external onlyOwner {
+    matchExecutor = _matchExecutor;
+    emit NewMatchExecutor(_matchExecutor);
   }
 }
