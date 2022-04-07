@@ -8,12 +8,12 @@ interface IComplication {
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
-  ) external view returns (bool);
+  ) external view returns (bool, uint256);
 
   function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     external
     view
-    returns (bool);
+    returns (bool, uint256);
 
   function getProtocolFee() external view returns (uint256);
 }

@@ -265,15 +265,24 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   {
     bytes32 sellOrderHash = _hash(sell);
     bytes32 buyOrderHash = _hash(buy);
-    return _matchOrdersStackDeep(sellOrderHash, buyOrderHash, sell, buy, constructed, feeDiscountEnabled);
+
+    // if this order is not valid, just return and continue with other orders
+    (bool orderVerified, uint256 execPrice) = _verifyOrders(sellOrderHash, buyOrderHash, sell, buy, constructed);
+    if (!orderVerified) {
+      console.log('skipping invalid order');
+      return (address(0), address(0), address(0), 0);
+    }
+
+    return _execMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed, execPrice, feeDiscountEnabled);
   }
 
-  function _matchOrdersStackDeep(
+  function _execMatchOrders(
     bytes32 sellOrderHash,
     bytes32 buyOrderHash,
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed,
+    uint256 execPrice,
     bool feeDiscountEnabled
   )
     internal
@@ -284,11 +293,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       uint256
     )
   {
-    // if this order is not valid, just return and continue with other orders
-    if (!_verifyOrders(sellOrderHash, buyOrderHash, sell, buy, constructed)) {
-      return (address(0), address(0), address(0), 0);
-    }
-
     // exec order
     return
       _execOrder(
@@ -300,6 +304,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         buy.constraints[6],
         sell.constraints[5],
         constructed,
+        execPrice,
         feeDiscountEnabled
       );
   }
@@ -322,17 +327,38 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 takerOrderHash = _hash(takerOrder);
 
     // if this order is not valid, just return and continue with other orders
-    if (!_verifyTakeOrders(makerOrderHash, makerOrder, takerOrder)) {
+    (bool orderVerified, uint256 execPrice) = _verifyTakeOrders(makerOrderHash, makerOrder, takerOrder);
+    if (!orderVerified) {
       console.log('skipping invalid order');
       return (address(0), address(0), address(0), 0);
     }
 
     // exec order
+    return _exectakeOrders(makerOrderHash, takerOrderHash, makerOrder, takerOrder, execPrice, feeDiscountEnabled);
+  }
+
+  function _exectakeOrders(
+    bytes32 makerOrderHash,
+    bytes32 takerOrderHash,
+    OrderTypes.Order calldata makerOrder,
+    OrderTypes.Order calldata takerOrder,
+    uint256 execPrice,
+    bool feeDiscountEnabled
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    // exec order
     bool isTakerSell = takerOrder.isSellOrder;
     if (isTakerSell) {
-      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, feeDiscountEnabled);
+      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice, feeDiscountEnabled);
     } else {
-      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, feeDiscountEnabled);
+      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice, feeDiscountEnabled);
     }
   }
 
@@ -341,6 +367,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 makerOrderHash,
     OrderTypes.Order calldata takerOrder,
     OrderTypes.Order calldata makerOrder,
+    uint256 execPrice,
     bool feeDiscountEnabled
   )
     internal
@@ -362,6 +389,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         makerOrder.constraints[6],
         takerOrder.constraints[5],
         takerOrder,
+        execPrice,
         feeDiscountEnabled
       );
   }
@@ -371,6 +399,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 makerOrderHash,
     OrderTypes.Order calldata takerOrder,
     OrderTypes.Order calldata makerOrder,
+    uint256 execPrice,
     bool feeDiscountEnabled
   )
     internal
@@ -392,6 +421,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         takerOrder.constraints[6],
         makerOrder.constraints[5],
         takerOrder,
+        execPrice,
         feeDiscountEnabled
       );
   }
@@ -402,42 +432,48 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
-  ) internal view returns (bool) {
+  ) internal view returns (bool, uint256) {
     console.log('verifying match orders');
     bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
     bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
     bool currenciesMatch = sell.execParams[1] == buy.execParams[1];
     bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
     bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
-    bool executionValid = IComplication(sell.execParams[0]).canExecOrder(sell, buy, constructed);
+    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecOrder(sell, buy, constructed);
     console.log('sidesMatch', sidesMatch);
     console.log('complicationsMatch', complicationsMatch);
     console.log('currenciesMatch', currenciesMatch);
     console.log('sellOrderValid', sellOrderValid);
     console.log('buyOrderValid', buyOrderValid);
     console.log('executionValid', executionValid);
-    return sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid && executionValid;
+    return (
+      sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid && executionValid,
+      execPrice
+    );
   }
 
   function _verifyTakeOrders(
     bytes32 makerOrderHash,
     OrderTypes.Order calldata maker,
     OrderTypes.Order calldata taker
-  ) internal view returns (bool) {
+  ) internal view returns (bool, uint256) {
     console.log('verifying take orders');
     bool msgSenderIsTaker = msg.sender == taker.signer;
     bool sidesMatch = (maker.isSellOrder && !taker.isSellOrder) || (!maker.isSellOrder && taker.isSellOrder);
     bool complicationsMatch = maker.execParams[0] == taker.execParams[0];
     bool currenciesMatch = maker.execParams[1] == taker.execParams[1];
     bool makerOrderValid = _isOrderValid(maker, makerOrderHash);
-    bool executionValid = IComplication(maker.execParams[0]).canExecTakeOrder(maker, taker);
+    (bool executionValid, uint256 execPrice) = IComplication(maker.execParams[0]).canExecTakeOrder(maker, taker);
     console.log('msgSenderIsTaker', msgSenderIsTaker);
     console.log('sidesMatch', sidesMatch);
     console.log('complicationsMatch', complicationsMatch);
     console.log('currenciesMatch', currenciesMatch);
     console.log('makerOrderValid', makerOrderValid);
     console.log('executionValid', executionValid);
-    return msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid;
+    return (
+      msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid,
+      execPrice
+    );
   }
 
   /**
@@ -493,6 +529,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 buyNonce,
     uint256 minBpsToSeller,
     OrderTypes.Order calldata constructed,
+    uint256 execPrice,
     bool feeDiscountEnabled
   )
     internal
@@ -504,7 +541,6 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     )
   {
     console.log('executing order');
-    uint256 amount = _getCurrentPrice(constructed);
     // Update order execution status to true (prevents replay)
     _isUserOrderNonceExecutedOrCancelled[seller][sellNonce] = true;
     _isUserOrderNonceExecutedOrCancelled[buyer][buyNonce] = true;
@@ -513,16 +549,16 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       seller,
       buyer,
       constructed.nfts,
-      amount,
+      execPrice,
       constructed.execParams[1],
       minBpsToSeller,
       constructed.execParams[0],
       feeDiscountEnabled
     );
 
-    _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, amount);
+    _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, execPrice);
 
-    return (seller, buyer, constructed.execParams[1], amount);
+    return (seller, buyer, constructed.execParams[1], execPrice);
   }
 
   function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {

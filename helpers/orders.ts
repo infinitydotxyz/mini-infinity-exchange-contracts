@@ -67,14 +67,26 @@ export const getCurrentOrderPrice = (order: OBOrder): BigNumber => {
   const startPrice = BigNumber.from(order.startPrice);
   const endPrice = BigNumber.from(order.endPrice);
   const duration = endTime.sub(startTime);
-  let priceDiff = startPrice.sub(endPrice);
+  let priceDiff = BigNumber.from(0);
+  if (startPrice.gt(endPrice)) {
+    priceDiff = startPrice.sub(endPrice);
+  } else {
+    priceDiff = endPrice.sub(startPrice);
+  }
   if (priceDiff.eq(0) || duration.eq(0)) {
     return startPrice;
   }
   const elapsedTime = BigNumber.from(nowSeconds()).sub(startTime);
-  const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.div(duration);
-  priceDiff = priceDiff.mul(portion);
-  return startPrice.sub(priceDiff);
+  const precision = 10000;
+  const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.mul(precision).div(duration);
+  priceDiff = priceDiff.mul(portion).div(precision);
+  let currentPrice = BigNumber.from(0);
+  if (startPrice.gt(endPrice)) {
+    currentPrice = startPrice.sub(priceDiff);
+  } else {
+    currentPrice = startPrice.add(priceDiff);
+  }
+  return currentPrice;
 };
 
 export const getCurrentSignedOrderPrice = (order: SignedOBOrder): BigNumber => {
@@ -83,14 +95,55 @@ export const getCurrentSignedOrderPrice = (order: SignedOBOrder): BigNumber => {
   const startTime = BigNumber.from(order.constraints[3]);
   const endTime = BigNumber.from(order.constraints[4]);
   const duration = endTime.sub(startTime);
-  let priceDiff = startPrice.sub(endPrice);
+  let priceDiff = BigNumber.from(0);
+  if (startPrice.gt(endPrice)) {
+    priceDiff = startPrice.sub(endPrice);
+  } else {
+    priceDiff = endPrice.sub(startPrice);
+  }
   if (priceDiff.eq(0) || duration.eq(0)) {
     return startPrice;
   }
   const elapsedTime = BigNumber.from(nowSeconds()).sub(startTime);
-  const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.div(duration);
-  priceDiff = priceDiff.mul(portion);
-  return startPrice.sub(priceDiff);
+  const precision = 10000;
+  const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.mul(precision).div(duration);
+  priceDiff = priceDiff.mul(portion).div(precision);
+  let currentPrice = BigNumber.from(0);
+  if (startPrice.gt(endPrice)) {
+    currentPrice = startPrice.sub(priceDiff);
+  } else {
+    currentPrice = startPrice.add(priceDiff);
+  }
+  return currentPrice;
+};
+
+export const calculateSignedOrderPriceAt = (timestamp: BigNumber, order: SignedOBOrder): BigNumber => {
+  const startPrice = BigNumber.from(order.constraints[1]);
+  const endPrice = BigNumber.from(order.constraints[2]);
+  const startTime = BigNumber.from(order.constraints[3]);
+  const endTime = BigNumber.from(order.constraints[4]);
+  const duration = endTime.sub(startTime);
+  let priceDiff = BigNumber.from(0);
+  if (startPrice.gt(endPrice)) {
+    priceDiff = startPrice.sub(endPrice);
+  } else {
+    priceDiff = endPrice.sub(startPrice);
+  }
+  if (priceDiff.eq(0) || duration.eq(0)) {
+    return startPrice;
+  }
+  const elapsedTime = BigNumber.from(timestamp).sub(startTime);
+  console.log('======elapsedTime======', elapsedTime);
+  const precision = 10000;
+  const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.mul(precision).div(duration);
+  priceDiff = priceDiff.mul(portion).div(precision);
+  let currentPrice = BigNumber.from(0);
+  if (startPrice.gt(endPrice)) {
+    currentPrice = startPrice.sub(priceDiff);
+  } else {
+    currentPrice = startPrice.add(priceDiff);
+  }
+  return currentPrice;
 };
 
 // Orderbook orders
@@ -135,7 +188,7 @@ export async function isOrderValid(
   const startTime = BigNumber.from(order.startTime);
   const endTime = BigNumber.from(order.endTime);
   const now = nowSeconds();
-  if (now.lt(startTime) || now.gt(endTime)) {
+  if (now.gt(endTime)) {
     console.error('Order timestamps are not valid');
     return false;
   }

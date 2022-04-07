@@ -15,7 +15,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   using OrderTypes for OrderTypes.OrderItem;
 
   uint256 public immutable PROTOCOL_FEE;
-  uint256 public ERROR_BOUND; // error bound for prices in wei
+  uint256 public ERROR_BOUND; // error bound for prices in wei; todo: check if this is reqd
 
   event NewErrorbound(uint256 errorBound);
 
@@ -33,23 +33,23 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
-  ) external view returns (bool) {
+  ) external view returns (bool, uint256) {
     console.log('running canExecOrder in InfinityOrderBookComplication');
     bool isTimeValid = _isTimeValid(sell, buy);
-    bool isAmountValid = _isAmountValid(sell, buy, constructed);
+    (bool isAmountValid, uint256 execPrice) = _isAmountValid(sell, buy, constructed);
     bool numItemsValid = _areNumItemsValid(sell, buy, constructed);
     bool itemsIntersect = _checkItemsIntersect(sell, constructed) && _checkItemsIntersect(buy, constructed);
     console.log('isTimeValid', isTimeValid);
     console.log('isAmountValid', isAmountValid);
     console.log('numItemsValid', numItemsValid);
     console.log('itemsIntersect', itemsIntersect);
-    return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
+    return (isTimeValid && isAmountValid && numItemsValid && itemsIntersect, execPrice);
   }
 
   function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     external
     view
-    returns (bool)
+    returns (bool, uint256)
   {
     console.log('running canExecTakeOrder in InfinityOrderBookComplication');
     // check timestamps
@@ -60,7 +60,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       _getCurrentPrice(makerOrder),
       _getCurrentPrice(takerOrder)
     );
-    bool isAmountValid = _arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice, ERROR_BOUND);
+    bool isAmountValid = _arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice);
     bool numItemsValid = _areTakerNumItemsValid(makerOrder, takerOrder);
     bool itemsIntersect = _checkItemsIntersect(makerOrder, takerOrder);
     console.log('isTimeValid', isTimeValid);
@@ -68,7 +68,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     console.log('numItemsValid', numItemsValid);
     console.log('itemsIntersect', itemsIntersect);
 
-    return isTimeValid && isAmountValid && numItemsValid && itemsIntersect;
+    return (isTimeValid && isAmountValid && numItemsValid && itemsIntersect, currentTakerPrice);
   }
 
   /**
@@ -96,19 +96,18 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     return isSellTimeValid && isBuyTimeValid;
   }
 
+  // todo: make this function public
   function _isAmountValid(
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
-  ) internal view returns (bool) {
+  ) internal view returns (bool, uint256) {
     (uint256 currentSellPrice, uint256 currentBuyPrice, uint256 currentConstructedPrice) = (
       _getCurrentPrice(sell),
       _getCurrentPrice(buy),
       _getCurrentPrice(constructed)
     );
-    return
-      _arePricesWithinErrorBound(currentConstructedPrice, currentBuyPrice, ERROR_BOUND) &&
-      _arePricesWithinErrorBound(currentBuyPrice, currentSellPrice, ERROR_BOUND);
+    return (currentBuyPrice >= currentSellPrice && currentConstructedPrice <= currentSellPrice, currentConstructedPrice);
   }
 
   function _areNumItemsValid(
@@ -154,28 +153,49 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
 
   function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
     (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
+    console.log('startPrice', startPrice, 'endPrice', endPrice);
     (uint256 startTime, uint256 endTime) = (order.constraints[3], order.constraints[4]);
+    console.log('startTime', startTime, 'endTime', endTime);
+    console.log('block.timestamp', block.timestamp);
     uint256 duration = endTime - startTime;
-    uint256 priceDiff = startPrice - endPrice;
+    console.log('duration', duration);
+    uint256 priceDiff;
+    if (startPrice > endPrice) {
+      priceDiff = startPrice - endPrice;
+    } else {
+      priceDiff = endPrice - startPrice;
+    }
     if (priceDiff == 0 || duration == 0) {
       return startPrice;
     }
     uint256 elapsedTime = block.timestamp - startTime;
-    uint256 portion = elapsedTime > duration ? 1 : elapsedTime / duration;
-    priceDiff = priceDiff * portion;
-    return startPrice - priceDiff;
+    console.log('elapsedTime', elapsedTime);
+    uint256 PRECISION = 10**4; // precision for division; similar to bps
+    uint256 portionBps = elapsedTime > duration ? 1 : ((elapsedTime * PRECISION) / duration);
+    console.log('portion', portionBps);
+    priceDiff = (priceDiff * portionBps) / PRECISION;
+    console.log('priceDiff', priceDiff);
+    uint256 currentPrice;
+    if (startPrice > endPrice) {
+      currentPrice = startPrice - priceDiff;
+    } else {
+      currentPrice = startPrice + priceDiff;
+    }
+    console.log('current price', currentPrice);
+    return currentPrice;
   }
 
   function _arePricesWithinErrorBound(
     uint256 price1,
-    uint256 price2,
-    uint256 errorBound
-  ) internal pure returns (bool) {
+    uint256 price2
+  ) internal view returns (bool) {
+    console.log('price1', price1, 'price2', price2);
+    console.log('ERROR_BOUND', ERROR_BOUND);
     if (price1 == price2) {
       return true;
-    } else if (price1 > price2 && price1 - price2 <= errorBound) {
+    } else if (price1 > price2 && price1 - price2 <= ERROR_BOUND) {
       return true;
-    } else if (price2 > price1 && price2 - price1 <= errorBound) {
+    } else if (price2 > price1 && price2 - price1 <= ERROR_BOUND) {
       return true;
     } else {
       return false;
