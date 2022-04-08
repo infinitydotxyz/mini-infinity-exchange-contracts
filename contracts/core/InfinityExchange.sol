@@ -243,7 +243,15 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
   function verifyOrderSig(OrderTypes.Order calldata order) external view returns (bool) {
     // Verify the validity of the signature
+    console.log('verifying order signature');
     (bytes32 r, bytes32 s, uint8 v) = abi.decode(order.sig, (bytes32, bytes32, uint8));
+    console.log('domain sep:');
+    console.logBytes32(DOMAIN_SEPARATOR);
+    console.log('signature:');
+    console.logBytes32(r);
+    console.logBytes32(s);
+    console.log(v);
+    console.log('signer', order.signer);
     return SignatureChecker.verify(_hash(order), order.signer, r, s, v, DOMAIN_SEPARATOR);
   }
 
@@ -698,11 +706,61 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     );
   }
 
-  function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {
-    // keccak256("Order(bool isSellOrder,address signer,bytes32 dataHash,bytes extraParams)")
-    bytes32 ORDER_HASH = 0x1bb57a2a1a64ebe03163e0964007805cfa2a9b6c0ee67005d6dcdd1bc46265dc;
-    return
-      keccak256(abi.encode(ORDER_HASH, order.isSellOrder, order.signer, order.dataHash, keccak256(order.extraParams)));
+  function _hash(OrderTypes.Order calldata order) internal view returns (bytes32) {
+    // keccak256('Order(bool isSellOrder,address signer,uint256[] constraints,OrderItem[] nfts,address[] execParams,bytes extraParams)OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)')
+    bytes32 ORDER_HASH = 0x7bcfb5a29031e6b8d34ca1a14dd0a1f5cb11b20f755bb2a31ee3c4b143477e4a;
+    bytes32 orderHash = keccak256(
+      abi.encode(
+        ORDER_HASH,
+        order.isSellOrder,
+        order.signer,
+        keccak256(abi.encodePacked(order.constraints)),
+        _nftsHash(order.nfts),
+        keccak256(abi.encodePacked(order.execParams)),
+        keccak256(order.extraParams)
+      )
+    );
+    console.log('order hash:');
+    console.logBytes32(orderHash);
+    return orderHash;
+  }
+
+  function _nftsHash(OrderTypes.OrderItem[] calldata nfts) internal view returns (bytes32) {
+    // keccak256('OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)')
+    console.log('calculating nfts hash');
+    bytes32 ORDER_ITEM_HASH = 0xf73f37e9f570369ceaab59cef16249ae1c0ad1afd592d656afac0be6f63b87e0;
+    bytes32[] memory hashes = new bytes32[](nfts.length);
+    console.log('nfts length', nfts.length);
+    for (uint256 i = 0; i < nfts.length; ) {
+      bytes32 hash = keccak256(abi.encode(ORDER_ITEM_HASH, nfts[i].collection, _tokensHash(nfts[i].tokens)));
+      hashes[i] = hash;
+      unchecked {
+        ++i;
+      }
+    }
+    bytes32 nftsHash = keccak256(abi.encodePacked(hashes));
+    console.log('nfts hash:');
+    console.logBytes32(nftsHash);
+    return nftsHash;
+  }
+
+  function _tokensHash(OrderTypes.TokenInfo[] calldata tokens) internal view returns (bytes32) {
+    // keccak256('TokenInfo(uint256 tokenId,uint256 numTokens)')
+    console.log('calculating tokens hash');
+    bytes32 TOKEN_INFO_HASH = 0x88f0bd19d14f8b5d22c0605a15d9fffc285ebc8c86fb21139456d305982906f1;
+    bytes32[] memory hashes = new bytes32[](tokens.length);
+    console.log('tokens length:', tokens.length);
+    for (uint256 i = 0; i < tokens.length; ) {
+      bytes32 hash = keccak256(abi.encode(TOKEN_INFO_HASH, tokens[i].tokenId, tokens[i].numTokens));
+      hashes[i] = hash;
+      unchecked {
+        ++i;
+      }
+    }
+    bytes32 tokensHash = keccak256(abi.encodePacked(hashes));
+    console.log('tokens hash:');
+    console.logBytes32(tokensHash);
+    return tokensHash;
   }
 
   // ====================================================== ADMIN FUNCTIONS ======================================================

@@ -6,7 +6,8 @@ const {
   signOBOrder,
   getCurrentSignedOrderPrice,
   approveERC721,
-  approveERC20
+  approveERC20,
+  signFormattedOrder
 } = require('../helpers/orders');
 const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
@@ -626,7 +627,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const nfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -636,11 +637,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -700,7 +700,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const nfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -710,11 +710,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -774,7 +773,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const buyOrderNfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -800,11 +799,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -864,7 +862,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const buyOrderNfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -902,11 +900,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -966,7 +963,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const nfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -976,11 +973,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -1040,7 +1036,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const buyOrderNfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -1100,11 +1096,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -1164,7 +1159,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const buyOrderNfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -1188,11 +1183,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -1252,7 +1246,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const buyOrderNfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -1332,11 +1326,10 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,

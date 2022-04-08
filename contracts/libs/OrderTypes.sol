@@ -19,7 +19,6 @@ library OrderTypes {
     // is order sell or buy
     bool isSellOrder;
     address signer;
-    bytes32 dataHash;
     // total length: 7
     // in order:
     // numItems - min/max number of items in the order

@@ -50,7 +50,6 @@ export interface OBOrder {
 export interface SignedOBOrder {
   isSellOrder: boolean;
   signer: string;
-  dataHash: BytesLike;
   constraints: BigNumberish[];
   nfts: OrderItem[];
   execParams: string[];
@@ -167,15 +166,18 @@ export async function prepareOBOrder(
     return undefined;
   }
 
-  // construct order
-  const constructedOBOrder = await constructOBOrder(chainId, infinityExchange.address, signer, order);
+  // sign order
+  const signedOBOrder = await signOBOrder(chainId, infinityExchange.address, order, signer);
 
   console.log('Verifying signature');
-  const isSigValid = await infinityExchange.verifyOrderSig(constructedOBOrder);
+  const isSigValid = await infinityExchange.verifyOrderSig(signedOBOrder);
   if (!isSigValid) {
+    console.error('Signature is invalid');
     return undefined;
+  } else {
+    console.log('Signature is valid');
   }
-  return constructedOBOrder;
+  return signedOBOrder;
 }
 
 export async function isOrderValid(
@@ -317,12 +319,12 @@ export async function checkERC721Ownership(user: User, contract: Contract, token
   return true;
 }
 
-export async function constructOBOrder(
+export async function signOBOrder(
   chainId: BigNumberish,
   contractAddress: string,
-  signer: JsonRpcSigner,
-  order: OBOrder
-): Promise<SignedOBOrder> {
+  order: OBOrder,
+  signer: JsonRpcSigner
+): Promise<SignedOBOrder | undefined> {
   const domain = {
     name: 'InfinityExchange',
     version: '1',
@@ -334,10 +336,22 @@ export async function constructOBOrder(
     Order: [
       { name: 'isSellOrder', type: 'bool' },
       { name: 'signer', type: 'address' },
-      { name: 'dataHash', type: 'bytes32' },
+      { name: 'constraints', type: 'uint256[]' },
+      { name: 'nfts', type: 'OrderItem[]' },
+      { name: 'execParams', type: 'address[]' },
       { name: 'extraParams', type: 'bytes' }
+    ],
+    OrderItem: [
+      { name: 'collection', type: 'address' },
+      { name: 'tokens', type: 'TokenInfo[]' }
+    ],
+    TokenInfo: [
+      { name: 'tokenId', type: 'uint256' },
+      { name: 'numTokens', type: 'uint256' }
     ]
   };
+
+  // _getCalculatedDigest(chainId, contractAddress, order);
 
   const constraints = [
     order.numItems,
@@ -348,56 +362,38 @@ export async function constructOBOrder(
     order.minBpsToSeller,
     order.nonce
   ];
-  const constraintsHash = keccak256(
-    defaultAbiCoder.encode(['uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256'], constraints)
-  );
-
-  let encodedItems = '';
-  for (const item of order.nfts) {
-    const collection = item.collection;
-    const tokens = item.tokens;
-    let encodedTokens = '';
-    for (const token of tokens) {
-      encodedTokens += token.tokenId.toString() + token.numTokens.toString();
-    }
-    const encodedTokensHash = keccak256(defaultAbiCoder.encode(['string'], [encodedTokens]));
-    encodedItems += defaultAbiCoder.encode(['address', 'bytes32'], [collection, encodedTokensHash]);
-  }
-  const encodedItemsHash = keccak256(defaultAbiCoder.encode(['string'], [encodedItems]));
-
   const execParams = [order.execParams.complicationAddress, order.execParams.currencyAddress];
-  const execParamsHash = keccak256(defaultAbiCoder.encode(['address', 'address'], execParams));
-
-  const dataHash = keccak256(
-    defaultAbiCoder.encode(['bytes32', 'bytes32', 'bytes32'], [constraintsHash, encodedItemsHash, execParamsHash])
-  );
-
   const extraParams = defaultAbiCoder.encode(['address'], [order.extraParams.buyer ?? NULL_ADDRESS]);
 
-  // sign order
-  const sig = await signOBOrder(chainId, contractAddress, order.isSellOrder, signer, dataHash, extraParams);
-  const signedOrder: SignedOBOrder = {
+  const orderToSign = {
     isSellOrder: order.isSellOrder,
     signer: order.signerAddress,
-    dataHash,
-    extraParams,
-    nfts: order.nfts,
     constraints,
+    nfts: order.nfts,
     execParams,
-    sig
+    extraParams
   };
 
-  // return
-  return signedOrder;
+  // _printTypeEncodedData(domain, types, orderToSign);
+
+  // sign order
+  try {
+    console.log('Signing order');
+    const sig = await signer._signTypedData(domain, types, orderToSign);
+    const splitSig = splitSignature(sig ?? '');
+    const encodedSig = defaultAbiCoder.encode(['bytes32', 'bytes32', 'uint8'], [splitSig.r, splitSig.s, splitSig.v]);
+    const signedOrder: SignedOBOrder = { ...orderToSign, sig: encodedSig };
+    return signedOrder;
+  } catch (e) {
+    console.error('Error signing order', e);
+  }
 }
 
-export async function signOBOrder(
+export async function signFormattedOrder(
   chainId: BigNumberish,
   contractAddress: string,
-  isSellOrder: boolean,
-  signer: JsonRpcSigner,
-  dataHash: BytesLike,
-  extraParams: BytesLike
+  order: SignedOBOrder,
+  signer: JsonRpcSigner
 ): Promise<string> {
   const domain = {
     name: 'InfinityExchange',
@@ -410,16 +406,29 @@ export async function signOBOrder(
     Order: [
       { name: 'isSellOrder', type: 'bool' },
       { name: 'signer', type: 'address' },
-      { name: 'dataHash', type: 'bytes32' },
+      { name: 'constraints', type: 'uint256[]' },
+      { name: 'nfts', type: 'OrderItem[]' },
+      { name: 'execParams', type: 'address[]' },
       { name: 'extraParams', type: 'bytes' }
+    ],
+    OrderItem: [
+      { name: 'collection', type: 'address' },
+      { name: 'tokens', type: 'TokenInfo[]' }
+    ],
+    TokenInfo: [
+      { name: 'tokenId', type: 'uint256' },
+      { name: 'numTokens', type: 'uint256' }
     ]
   };
 
+  // remove sig
   const orderToSign = {
-    isSellOrder,
-    signer: await signer.getAddress(),
-    dataHash,
-    extraParams
+    isSellOrder: order.isSellOrder,
+    signer: order.signer,
+    constraints: order.constraints,
+    nfts: order.nfts,
+    execParams: order.execParams,
+    extraParams: order.extraParams
   };
 
   // sign order
@@ -427,6 +436,7 @@ export async function signOBOrder(
     console.log('Signing order');
     const sig = await signer._signTypedData(domain, types, orderToSign);
     const splitSig = splitSignature(sig ?? '');
+    // console.log('splitSig', splitSig);
     const encodedSig = defaultAbiCoder.encode(['bytes32', 'bytes32', 'uint8'], [splitSig.r, splitSig.s, splitSig.v]);
     return encodedSig;
   } catch (e) {
@@ -434,4 +444,138 @@ export async function signOBOrder(
   }
 
   return '';
+}
+
+// ================================= Below functions are for reference & testing only =====================================
+// ================================= Below functions are for reference & testing only =====================================
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _getCalculatedDigest(chainId: BigNumberish, exchangeAddr: string, order: OBOrder): BytesLike {
+  const fnSign =
+    'Order(bool isSellOrder,address signer,uint256[] constraints,OrderItem[] nfts,address[] execParams,bytes extraParams)OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)';
+  const orderTypeHash = solidityKeccak256(['string'], [fnSign]);
+  console.log('Order type hash', orderTypeHash);
+
+  const constraints = [
+    order.numItems,
+    order.startPrice,
+    order.endPrice,
+    order.startTime,
+    order.endTime,
+    order.minBpsToSeller,
+    order.nonce
+  ];
+  const execParams = [order.execParams.complicationAddress, order.execParams.currencyAddress];
+  const extraParams = defaultAbiCoder.encode(['address'], [order.extraParams.buyer ?? NULL_ADDRESS]);
+
+  const constraintsHash = keccak256(
+    defaultAbiCoder.encode(['uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256'], constraints)
+  );
+  console.log('constraints hash', constraintsHash);
+  const nftsHash = _getNftsHash(order.nfts);
+  const execParamsHash = keccak256(defaultAbiCoder.encode(['address', 'address'], execParams));
+  console.log('execParamsHash', execParamsHash);
+
+  const calcEncode = defaultAbiCoder.encode(
+    ['bytes32', 'bool', 'address', 'bytes32', 'bytes32', 'bytes32', 'bytes32'],
+    [
+      orderTypeHash,
+      order.isSellOrder,
+      order.signerAddress,
+      constraintsHash,
+      nftsHash,
+      execParamsHash,
+      keccak256(extraParams)
+    ]
+  );
+  // console.log('Calculated encode', calcEncode);
+  const orderHash = keccak256(calcEncode);
+
+  // console.log('calculated orderHash', orderHash);
+  const digest = _getDigest(chainId, exchangeAddr, orderHash);
+  console.log('calculated digest', digest);
+  return digest;
+}
+
+function _getNftsHash(nfts: OrderItem[]): BytesLike {
+  const fnSign = 'OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)';
+  const typeHash = solidityKeccak256(['string'], [fnSign]);
+  console.log('Order item type hash', typeHash);
+
+  const hashes = [];
+  for (const nft of nfts) {
+    const hash = keccak256(
+      defaultAbiCoder.encode(['bytes32', 'uint256', 'bytes32'], [typeHash, nft.collection, _getTokensHash(nft.tokens)])
+    );
+    hashes.push(hash);
+  }
+  const encodeTypeArray = hashes.map((hash) => 'bytes32');
+  const nftsHash = keccak256(defaultAbiCoder.encode(encodeTypeArray, hashes));
+  console.log('nftsHash', nftsHash);
+  return nftsHash;
+}
+
+function _getTokensHash(tokens: TokenInfo[]): BytesLike {
+  const fnSign = 'TokenInfo(uint256 tokenId,uint256 numTokens)';
+  const typeHash = solidityKeccak256(['string'], [fnSign]);
+  console.log('Token info type hash', typeHash);
+
+  const hashes = [];
+  for (const token of tokens) {
+    const hash = keccak256(
+      defaultAbiCoder.encode(['bytes32', 'uint256', 'uint256'], [typeHash, token.tokenId, token.numTokens])
+    );
+    hashes.push(hash);
+  }
+  const encodeTypeArray = hashes.map((hash) => 'bytes32');
+  const tokensHash = keccak256(defaultAbiCoder.encode(encodeTypeArray, hashes));
+  console.log('tokensHash', tokensHash);
+  return tokensHash;
+}
+
+function _getDigest(chainId: BigNumberish, exchangeAddr: BytesLike | string, orderHash: string | BytesLike): BytesLike {
+  const domainSeparator = _getDomainSeparator(chainId, exchangeAddr);
+  return solidityKeccak256(['string', 'bytes32', 'bytes32'], ['\x19\x01', domainSeparator, orderHash]);
+}
+
+function _getDomainSeparator(chainId: BigNumberish, exchangeAddr: BytesLike): BytesLike {
+  const domainSeparator = keccak256(
+    defaultAbiCoder.encode(
+      ['bytes32', 'bytes32', 'bytes32', 'uint256', 'address'],
+      [
+        solidityKeccak256(
+          ['string'],
+          ['EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)']
+        ),
+        solidityKeccak256(['string'], ['InfinityExchange']),
+        solidityKeccak256(['string'], ['1']), // for versionId = 1
+        chainId,
+        exchangeAddr
+      ]
+    )
+  );
+  console.log('domainSeparator:', domainSeparator);
+  return domainSeparator;
+}
+
+function _printTypeEncodedData(domain: any, types: any, orderToSign: any) {
+  console.log('===========================================================');
+  const domainSeparator = _TypedDataEncoder.hashDomain(domain);
+  const typedDataEncoder = _TypedDataEncoder.from(types);
+  const primaryType = typedDataEncoder.primaryType;
+  const primary = typedDataEncoder.encodeType(primaryType);
+  const hashedType = solidityKeccak256(['string'], [primary]);
+  // console.log('print primary type:', primaryType);
+  console.log('print type hash:', hashedType);
+  console.log('print domain separator:', domainSeparator);
+  // console.log('order to sign', orderToSign);
+  // const payload = _TypedDataEncoder.getPayload(domain, types, orderToSign);
+  // console.log('print payload:', payload);
+  // const encodedData = typedDataEncoder.encode(orderToSign);
+  // const hashedEncoded = typedDataEncoder.hash(orderToSign);
+  // console.log('print encoded typed data:', encodedData);
+  // console.log('print typed data hash:', hashedEncoded);
+
+  const orderDigest = _TypedDataEncoder.hash(domain, types, orderToSign);
+  console.log('print typed data digest', orderDigest);
 }

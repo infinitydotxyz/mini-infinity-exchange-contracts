@@ -1098,7 +1098,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const nfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1108,12 +1108,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,
@@ -1172,7 +1171,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const buyOrderNfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1198,12 +1197,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,
@@ -1262,7 +1260,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const buyOrderNfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1300,12 +1298,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,
@@ -1364,7 +1361,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const nfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1374,12 +1371,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,
@@ -1438,7 +1434,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const buyOrderNfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1498,12 +1494,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,
@@ -1562,7 +1557,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const buyOrderNfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1586,12 +1581,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,
@@ -1650,7 +1644,7 @@ describe('Exchange_Match', function () {
   //     const chainId = network.config.chainId;
   //     const contractAddress = exchange.address;
   //     const isSellOrder = true;
-  //     const dataHash = buyOrder.dataHash;
+  //
   //     const constraints = buyOrder.constraints;
   //     const buyOrderNfts = buyOrder.nfts;
   //     const execParams = buyOrder.execParams;
@@ -1730,12 +1724,11 @@ describe('Exchange_Match', function () {
   //     await approveERC721(signer2.address, nfts, signer2, exchange.address);
 
   //     // sign order
-  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+  //     const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2);
   //     const sellOrder = {
   //       isSellOrder,
   //       signer: signer2.address,
-  //       dataHash,
-  //       extraParams,
+  // extraParams,
   //       nfts,
   //       constraints,
   //       execParams,

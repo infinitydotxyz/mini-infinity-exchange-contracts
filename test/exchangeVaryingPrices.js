@@ -8,7 +8,8 @@ const {
   approveERC721,
   approveERC20,
   getCurrentOrderPrice,
-  calculateSignedOrderPriceAt
+  calculateSignedOrderPriceAt,
+  signFormattedOrder
 } = require('../helpers/orders');
 const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
@@ -560,7 +561,7 @@ describe('Exchange_Varying_Prices', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const nfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -570,11 +571,10 @@ describe('Exchange_Varying_Prices', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -654,7 +654,7 @@ describe('Exchange_Varying_Prices', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = true;
-      const dataHash = buyOrder.dataHash;
+
       const constraints = buyOrder.constraints;
       const buyOrderNfts = buyOrder.nfts;
       const execParams = buyOrder.execParams;
@@ -714,11 +714,10 @@ describe('Exchange_Varying_Prices', function () {
       await approveERC721(signer2.address, nfts, signer2, infinityExchange.address);
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer2, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer2);
       const sellOrder = {
         isSellOrder,
         signer: signer2.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -799,18 +798,17 @@ describe('Exchange_Varying_Prices', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = false;
-      const dataHash = sellOrder.dataHash;
+
       const constraints = sellOrder.constraints;
       const nfts = sellOrder.nfts;
       const execParams = sellOrder.execParams;
       const extraParams = sellOrder.extraParams;
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer1, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -887,7 +885,7 @@ describe('Exchange_Varying_Prices', function () {
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
       const isSellOrder = false;
-      const dataHash = sellOrder.dataHash;
+
       const constraints = sellOrder.constraints;
       const sellOrderNfts = sellOrder.nfts;
       const execParams = sellOrder.execParams;
@@ -949,11 +947,10 @@ describe('Exchange_Varying_Prices', function () {
       console.log('current salePrice', ethers.utils.formatEther(salePrice.toString()));
 
       // sign order
-      const sig = await signOBOrder(chainId, contractAddress, isSellOrder, signer1, dataHash, extraParams);
+      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
-        dataHash,
         extraParams,
         nfts,
         constraints,
@@ -1213,11 +1210,10 @@ describe('Exchange_Varying_Prices', function () {
     it('Should match due to price overlap', async function () {
       const buyOrder = buyOrders[3];
       const sellOrder = sellOrders[3];
-      const sellOrderNfts = sellOrder.nfts;
 
       // form matching nfts
       const nfts = [];
-      for (const sellOrderNft of sellOrderNfts) {
+      for (const sellOrderNft of sellOrder.nfts) {
         const collection = sellOrderNft.collection;
         const nft = {
           collection,
@@ -1244,7 +1240,7 @@ describe('Exchange_Varying_Prices', function () {
       }
 
       // form order
-      const constructedOrder = sellOrder;
+      const constructedOrder = { ...sellOrder };
       constructedOrder.nfts = nfts;
 
       // owners before sale

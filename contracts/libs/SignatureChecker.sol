@@ -23,7 +23,7 @@ library SignatureChecker {
     bytes32 r,
     bytes32 s,
     uint8 v
-  ) internal pure returns (address) {
+  ) internal view returns (address) {
     // https://ethereum.stackexchange.com/questions/83174/is-it-best-practice-to-check-signature-malleability-in-ecrecover
     // https://crypto.iacr.org/2019/affevents/wac/medias/Heninger-BiasedNonceSense.pdf
     require(
@@ -36,7 +36,7 @@ library SignatureChecker {
     // If the signature is valid (and not malleable), return the signer address
     address signer = ecrecover(hashed, v, r, s);
     require(signer != address(0), 'Signature: Invalid signer');
-
+    console.log('Recovered Signer:', signer);
     return signer;
   }
 
@@ -61,6 +61,8 @@ library SignatureChecker {
     // \x19\x01 is the standardized encoding prefix
     // https://eips.ethereum.org/EIPS/eip-712#specification
     bytes32 digest = keccak256(abi.encodePacked('\x19\x01', domainSeparator, orderHash));
+    console.log('digest:');
+    console.logBytes32(digest);
     if (Address.isContract(signer)) {
       // 0x1626ba7e is the interfaceId for signature contracts (see IERC1271)
       return IERC1271(signer).isValidSignature(digest, abi.encodePacked(r, s, v)) == 0x1626ba7e;

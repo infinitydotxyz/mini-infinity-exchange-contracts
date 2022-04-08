@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx hardhat test --grep Exchange",
+    "test": "npx hardhat test --grep Exchange_Invalid",
     "build": "rimraf artifacts && rimraf cache && npx hardhat compile --force"
   },
   "repository": {
