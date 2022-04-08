@@ -220,7 +220,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
         execComplication,
         items[h].collection,
         0, // to comply with ierc2981 and royalty registry
-        amount
+        amount / items.length // amount per collection on avg
       );
 
       for (uint256 i = 0; i < feeRecipients.length; ) {

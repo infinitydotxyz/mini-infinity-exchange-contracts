@@ -38,7 +38,7 @@ contract InfinityCreatorsFeeRegistry is IFeeRegistry, Ownable {
     address setter,
     address[] calldata destinations,
     uint16[] calldata bpsSplits
-  ) external override onlyOwner {
+  ) external override {
     require(msg.sender == CREATORS_FEE_MANAGER, 'Creators Fee Registry: Only creators fee manager');
     _creatorsFeeInfo[collection] = FeeInfo({setter: setter, destinations: destinations, bpsSplits: bpsSplits});
     emit CreatorsFeeUpdate(collection, setter, destinations, bpsSplits);

@@ -98,7 +98,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
       }
     }
 
-    require(msg.sender == owner() || msg.sender == collAdmin, 'Unauthorized');
+    require(msg.sender == owner() || msg.sender == collAdmin, 'unauthorized');
     // check total bps
     uint32 totalBps = 0;
     for (uint256 i = 0; i < bpsSplits.length; ) {
@@ -107,7 +107,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
         ++i;
       }
     }
-    require(totalBps < MAX_CREATOR_FEE_BPS, 'bps too high');
+    require(totalBps <= MAX_CREATOR_FEE_BPS, 'bps too high');
 
     // setup
     IFeeRegistry(CREATORS_FEE_REGISTRY).registerFeeDestinations(collection, msg.sender, feeDestinations, bpsSplits);
