@@ -1075,7 +1075,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
   });
 
   describe('RageQuit to bronze level', () => {
-    it('Should unstake', async function () {
+    it('Should rage quit', async function () {
       await infinityStaker.rageQuit();
       expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(0);
     });
@@ -1177,8 +1177,9 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
         const salePrice = getCurrentSignedOrderPrice(buyOrder);
 
         // balance before sale
+        // signer 1 stuff commented due to rage quit, testing which is beyind the scope of this specific test
         // expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        // expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
         // perform exchange
         await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
@@ -1197,10 +1198,11 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
         const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
         totalCuratorFees = totalCuratorFees.add(fee);
         expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
+        // signer 1 stuff commented due to rage quit, testing which is beyind the scope of this specific test
         // signer1Balance = signer1Balance.sub(salePrice);
-        // signer2Balance = signer2Balance.add(salePrice.sub(fee));
+        signer2Balance = signer2Balance.add(salePrice.sub(fee));
         // expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        // expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
     });
   });

@@ -5,11 +5,16 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IStaker, Duration, StakeLevel} from '../interfaces/IStaker.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import 'hardhat/console.sol'; // todo: remove this
 
-contract InfinityStaker is IStaker, Ownable, Pausable {
+contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
   using SafeERC20 for IERC20;
-  mapping(address => mapping(Duration => uint256)) public userstakedAmounts;
+  struct StakeAmount {
+    uint256 amount;
+    uint256 timestamp;
+  }
+  mapping(address => mapping(Duration => StakeAmount)) public userstakedAmounts;
   address INFINITY_TOKEN;
   address INFINITY_TREASURY;
   uint16 public BRONZE_STAKE_LEVEL = 1000;
@@ -44,7 +49,8 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     require(IERC20(INFINITY_TOKEN).balanceOf(user) >= amount, 'insufficient balance to stake');
 
     // update storage
-    userstakedAmounts[user][duration] += amount;
+    userstakedAmounts[user][duration].amount += amount;
+    userstakedAmounts[user][duration].timestamp = block.timestamp;
     // perform transfer
     IERC20(INFINITY_TOKEN).safeTransferFrom(user, address(this), amount);
     // emit event
@@ -58,33 +64,40 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     Duration newDuration
   ) external override whenNotPaused {
     require(amount != 0, 'amount cant be 0');
-    require(userstakedAmounts[user][oldDuration] >= amount, 'insufficient staked amount to change duration');
+    require(userstakedAmounts[user][oldDuration].amount >= amount, 'insufficient staked amount to change duration');
     require(newDuration > oldDuration, 'new duration must be greater than old duration');
 
     // update storage
-    userstakedAmounts[user][oldDuration] -= amount;
-    userstakedAmounts[user][newDuration] += amount;
+    userstakedAmounts[user][oldDuration].amount -= amount;
+    userstakedAmounts[user][newDuration].amount += amount;
+    // only update timestamp for new duration
+    userstakedAmounts[user][newDuration].timestamp = block.timestamp;
     // emit event
     emit DurationChanged(user, amount, oldDuration, newDuration);
   }
 
-  function unstake(address user, uint256 amount) external override whenNotPaused {
+  function unstake(address user, uint256 amount) external override nonReentrant whenNotPaused {
     require(amount != 0, 'stake amount cant be 0');
-    require(userstakedAmounts[user][Duration.NONE] >= amount, 'insufficient balance to unstake');
+    uint256 noVesting = userstakedAmounts[user][Duration.NONE].amount;
+    uint256 vestedThreeMonths = _getVestedAmount(user, Duration.THREE_MONTHS);
+    uint256 vestedsixMonths = _getVestedAmount(user, Duration.SIX_MONTHS);
+    uint256 vestedTwelveMonths = _getVestedAmount(user, Duration.TWELVE_MONTHS);
+    uint256 totalVested = noVesting + vestedThreeMonths + vestedsixMonths + vestedTwelveMonths;
+    require(totalVested >= amount, 'insufficient balance to unstake');
 
     // update storage
-    userstakedAmounts[user][Duration.NONE] -= amount;
+    _updateUserStakedAmounts(user, amount, noVesting, vestedThreeMonths, vestedsixMonths, vestedTwelveMonths);
     // perform transfer
     IERC20(INFINITY_TOKEN).safeTransfer(user, amount);
     // emit event
     emit UnStaked(user, amount);
   }
 
-  function rageQuit() external override {
-    uint256 noLock = userstakedAmounts[msg.sender][Duration.NONE];
-    uint256 threeMonthLock = userstakedAmounts[msg.sender][Duration.THREE_MONTHS];
-    uint256 sixMonthLock = userstakedAmounts[msg.sender][Duration.SIX_MONTHS];
-    uint256 twelveMonthLock = userstakedAmounts[msg.sender][Duration.TWELVE_MONTHS];
+  function rageQuit() external override nonReentrant {
+    uint256 noLock = userstakedAmounts[msg.sender][Duration.NONE].amount;
+    uint256 threeMonthLock = userstakedAmounts[msg.sender][Duration.THREE_MONTHS].amount;
+    uint256 sixMonthLock = userstakedAmounts[msg.sender][Duration.SIX_MONTHS].amount;
+    uint256 twelveMonthLock = userstakedAmounts[msg.sender][Duration.TWELVE_MONTHS].amount;
     uint256 totalStaked = noLock + threeMonthLock + sixMonthLock + twelveMonthLock;
     require(totalStaked >= 0, 'nothing staked to rage quit');
     uint256 totalToUser = noLock +
@@ -110,6 +123,10 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     return _getUserTotalStaked(user);
   }
 
+  function getUserTotalVested(address user) external view override returns (uint256) {
+    return _getUserTotalVested(user);
+  }
+
   function getUserStakeLevel(address user) external view override returns (StakeLevel) {
     uint256 totalPower = _getUserStakePower(user);
     if (totalPower < BRONZE_STAKE_LEVEL) {
@@ -131,25 +148,96 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
 
   function _getUserTotalStaked(address user) internal view returns (uint256) {
     return
-      userstakedAmounts[user][Duration.NONE] +
-      userstakedAmounts[user][Duration.THREE_MONTHS] +
-      userstakedAmounts[user][Duration.SIX_MONTHS] +
-      userstakedAmounts[user][Duration.TWELVE_MONTHS];
+      userstakedAmounts[user][Duration.NONE].amount +
+      userstakedAmounts[user][Duration.THREE_MONTHS].amount +
+      userstakedAmounts[user][Duration.SIX_MONTHS].amount +
+      userstakedAmounts[user][Duration.TWELVE_MONTHS].amount;
+  }
+
+  function _getUserTotalVested(address user) internal view returns (uint256) {
+    uint256 noVesting = userstakedAmounts[user][Duration.NONE].amount;
+    uint256 vestedThreeMonths = _getVestedAmount(user, Duration.THREE_MONTHS);
+    uint256 vestedsixMonths = _getVestedAmount(user, Duration.SIX_MONTHS);
+    uint256 vestedTwelveMonths = _getVestedAmount(user, Duration.TWELVE_MONTHS);
+    return noVesting + vestedThreeMonths + vestedsixMonths + vestedTwelveMonths;
+  }
+
+  function _getVestedAmount(address user, Duration duration) internal view returns (uint256) {
+    uint256 amount = userstakedAmounts[user][duration].amount;
+    uint256 timestamp = userstakedAmounts[user][duration].timestamp;
+    uint256 durationInSeconds = _getDurationInSeconds(duration);
+    uint256 secondsSinceStake = block.timestamp - timestamp;
+    uint256 portion = secondsSinceStake / durationInSeconds;
+    uint256 vestedAmount = portion > 1 ? amount : amount * portion;
+    return vestedAmount;
+  }
+
+  function _getDurationInSeconds(Duration duration) internal pure returns (uint256) {
+    if (duration == Duration.THREE_MONTHS) {
+      return 90 days;
+    } else if (duration == Duration.SIX_MONTHS) {
+      return 180 days;
+    } else if (duration == Duration.TWELVE_MONTHS) {
+      return 360 days;
+    } else {
+      return 1 seconds;
+    }
   }
 
   function _getUserStakePower(address user) internal view returns (uint256) {
     return
-      ((userstakedAmounts[user][Duration.NONE] * 1) +
-        (userstakedAmounts[user][Duration.THREE_MONTHS] * 2) +
-        (userstakedAmounts[user][Duration.SIX_MONTHS] * 3) +
-        (userstakedAmounts[user][Duration.TWELVE_MONTHS] * 4)) / (10**18);
+      ((userstakedAmounts[user][Duration.NONE].amount * 1) +
+        (userstakedAmounts[user][Duration.THREE_MONTHS].amount * 2) +
+        (userstakedAmounts[user][Duration.SIX_MONTHS].amount * 3) +
+        (userstakedAmounts[user][Duration.TWELVE_MONTHS].amount * 4)) / (10**18);
+  }
+
+  // a recursive impl is possible but this is more gas efficient
+  function _updateUserStakedAmounts(
+    address user,
+    uint256 amount,
+    uint256 noVesting,
+    uint256 vestedThreeMonths,
+    uint256 vestedSixMonths,
+    uint256 vestedTwelveMonths
+  ) internal {
+    if (amount > noVesting) {
+      userstakedAmounts[user][Duration.NONE].amount = 0;
+      amount = amount - noVesting;
+      if (amount > vestedThreeMonths) {
+        userstakedAmounts[user][Duration.THREE_MONTHS].amount = 0;
+        amount = amount - vestedThreeMonths;
+        if (amount > vestedSixMonths) {
+          userstakedAmounts[user][Duration.SIX_MONTHS].amount = 0;
+          amount = amount - vestedSixMonths;
+          if (amount > vestedTwelveMonths) {
+            userstakedAmounts[user][Duration.TWELVE_MONTHS].amount = 0;
+          } else {
+            userstakedAmounts[user][Duration.TWELVE_MONTHS].amount -= amount;
+          }
+        } else {
+          userstakedAmounts[user][Duration.SIX_MONTHS].amount -= amount;
+        }
+      } else {
+        userstakedAmounts[user][Duration.THREE_MONTHS].amount -= amount;
+      }
+    } else {
+      userstakedAmounts[user][Duration.NONE].amount -= amount;
+    }
   }
 
   function _clearUserStakedAmounts(address user) internal {
-    userstakedAmounts[user][Duration.NONE] = 0;
-    userstakedAmounts[user][Duration.THREE_MONTHS] = 0;
-    userstakedAmounts[user][Duration.SIX_MONTHS] = 0;
-    userstakedAmounts[user][Duration.TWELVE_MONTHS] = 0;
+    // clear amounts
+    userstakedAmounts[user][Duration.NONE].amount = 0;
+    userstakedAmounts[user][Duration.THREE_MONTHS].amount = 0;
+    userstakedAmounts[user][Duration.SIX_MONTHS].amount = 0;
+    userstakedAmounts[user][Duration.TWELVE_MONTHS].amount = 0;
+
+    // clear timestamps
+    userstakedAmounts[user][Duration.NONE].timestamp = 0;
+    userstakedAmounts[user][Duration.THREE_MONTHS].timestamp = 0;
+    userstakedAmounts[user][Duration.SIX_MONTHS].timestamp = 0;
+    userstakedAmounts[user][Duration.TWELVE_MONTHS].timestamp = 0;
   }
 
   // ====================================================== ADMIN FUNCTIONS ================================================

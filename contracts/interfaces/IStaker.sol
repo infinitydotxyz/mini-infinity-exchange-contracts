@@ -28,6 +28,8 @@ interface IStaker {
 
   function getUserTotalStaked(address user) external view returns (uint256);
 
+  function getUserTotalVested(address user) external view returns (uint256);
+
   function getUserStakePower(address user) external view returns (uint256);
 
   function getUserStakeLevel(address user) external view returns (StakeLevel);
