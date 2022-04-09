@@ -102,7 +102,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
     // emit events
     for (uint256 i = 0; i < items.length; ) {
-      // fee allocated per collection is simply totalFeel divided by number of collections in the order
+      // fee allocated per collection is simply totalFee divided by number of collections in the order
       emit FeeAllocated(items[i].collection, currency, totalFees / items.length);
       unchecked {
         ++i;

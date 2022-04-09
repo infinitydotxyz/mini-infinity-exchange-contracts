@@ -20,7 +20,6 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
   uint16 public TWELVE_MONTH_PENALTY = 12;
 
   event Staked(address indexed user, uint256 amount, Duration duration);
-  event Locked(address indexed user, uint256 amount, Duration duration);
   event DurationChanged(address indexed user, uint256 amount, Duration oldDuration, Duration newDuration);
   event UnStaked(address indexed user, uint256 amount);
   event RageQuit(address indexed user, uint256 totalStaked, uint256 totalToUser);
@@ -36,7 +35,11 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
   receive() external payable {}
 
   // =================================================== USER FUNCTIONS =======================================================
-  function stake(address user, uint256 amount, Duration duration) external whenNotPaused {
+  function stake(
+    address user,
+    uint256 amount,
+    Duration duration
+  ) external override whenNotPaused {
     require(amount != 0, 'stake amount cant be 0');
     require(IERC20(INFINITY_TOKEN).balanceOf(user) >= amount, 'insufficient balance to stake');
 
@@ -48,26 +51,15 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     emit Staked(user, amount, duration);
   }
 
-  function lock(address user, uint256 amount, Duration duration) external whenNotPaused {
-    require(amount != 0, 'lock amount cant be 0');
-    require(userstakedAmounts[user][Duration.NONE] >= amount, 'insufficient balance to lock');
-    require(duration != Duration.NONE, 'cant lock for duration NONE');
-
-    // update storage
-    userstakedAmounts[user][Duration.NONE] -= amount;
-    userstakedAmounts[user][duration] += amount;
-    // emit event
-    emit Locked(user, amount, duration);
-  }
-
   function changeDuration(
     address user,
     uint256 amount,
     Duration oldDuration,
     Duration newDuration
-  ) external whenNotPaused {
+  ) external override whenNotPaused {
     require(amount != 0, 'amount cant be 0');
     require(userstakedAmounts[user][oldDuration] >= amount, 'insufficient staked amount to change duration');
+    require(newDuration > oldDuration, 'new duration must be greater than old duration');
 
     // update storage
     userstakedAmounts[user][oldDuration] -= amount;
@@ -76,19 +68,19 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     emit DurationChanged(user, amount, oldDuration, newDuration);
   }
 
-  function unstake(address user, uint256 amount) external whenNotPaused {
+  function unstake(address user, uint256 amount) external override whenNotPaused {
     require(amount != 0, 'stake amount cant be 0');
     require(userstakedAmounts[user][Duration.NONE] >= amount, 'insufficient balance to unstake');
 
     // update storage
     userstakedAmounts[user][Duration.NONE] -= amount;
     // perform transfer
-    IERC20(INFINITY_TOKEN).safeTransferFrom(address(this), user, amount);
+    IERC20(INFINITY_TOKEN).safeTransfer(user, amount);
     // emit event
     emit UnStaked(user, amount);
   }
 
-  function rageQuit() external {
+  function rageQuit() external override {
     uint256 noLock = userstakedAmounts[msg.sender][Duration.NONE];
     uint256 threeMonthLock = userstakedAmounts[msg.sender][Duration.THREE_MONTHS];
     uint256 sixMonthLock = userstakedAmounts[msg.sender][Duration.SIX_MONTHS];
@@ -114,11 +106,11 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
 
   // ====================================================== VIEW FUNCTIONS ======================================================
 
-  function getUserTotalStaked(address user) external view returns (uint256) {
+  function getUserTotalStaked(address user) external view override returns (uint256) {
     return _getUserTotalStaked(user);
   }
 
-  function getUserStakeLevel(address user) external view returns (StakeLevel) {
+  function getUserStakeLevel(address user) external view override returns (StakeLevel) {
     uint256 totalPower = _getUserStakePower(user);
     if (totalPower < BRONZE_STAKE_LEVEL) {
       return StakeLevel.BRONZE;
@@ -131,7 +123,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     }
   }
 
-  function getUserStakePower(address user) external view returns (uint256) {
+  function getUserStakePower(address user) external view override returns (uint256) {
     return _getUserStakePower(user);
   }
 
@@ -147,10 +139,10 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
 
   function _getUserStakePower(address user) internal view returns (uint256) {
     return
-      (userstakedAmounts[user][Duration.NONE] * 1) +
-      (userstakedAmounts[user][Duration.THREE_MONTHS] * 2) +
-      (userstakedAmounts[user][Duration.SIX_MONTHS] * 3) +
-      (userstakedAmounts[user][Duration.TWELVE_MONTHS] * 4);
+      ((userstakedAmounts[user][Duration.NONE] * 1) +
+        (userstakedAmounts[user][Duration.THREE_MONTHS] * 2) +
+        (userstakedAmounts[user][Duration.SIX_MONTHS] * 3) +
+        (userstakedAmounts[user][Duration.TWELVE_MONTHS] * 4)) / (10**18);
   }
 
   function _clearUserStakedAmounts(address user) internal {
@@ -161,7 +153,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
   }
 
   // ====================================================== ADMIN FUNCTIONS ================================================
-  
+
   function rescueTokens(
     address destination,
     address currency,
@@ -174,7 +166,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable {
     (bool sent, ) = destination.call{value: msg.value}('');
     require(sent, 'Failed to send Ether');
   }
-  
+
   function updateStakeLevelThreshold(StakeLevel stakeLevel, uint16 threshold) external onlyOwner {
     if (stakeLevel == StakeLevel.BRONZE) {
       BRONZE_STAKE_LEVEL = threshold;

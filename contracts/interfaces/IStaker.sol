@@ -20,8 +20,6 @@ enum StakeLevel {
 interface IStaker {
   function stake(address user, uint256 amount, Duration duration) external;
 
-  function lock(address user, uint256 amount, Duration duration) external;
-
   function changeDuration(address user, uint256 amount, Duration oldDuration, Duration newDuration) external;
 
   function unstake(address user, uint256 amount) external;
