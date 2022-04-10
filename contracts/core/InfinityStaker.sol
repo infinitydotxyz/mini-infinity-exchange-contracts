@@ -20,9 +20,9 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
   uint16 public BRONZE_STAKE_LEVEL = 1000;
   uint16 public SILVER_STAKE_LEVEL = 5000;
   uint16 public GOLD_STAKE_LEVEL = 10000;
-  uint16 public THREE_MONTH_PENALTY = 3;
-  uint16 public SIX_MONTH_PENALTY = 6;
-  uint16 public TWELVE_MONTH_PENALTY = 12;
+  uint16 public THREE_MONTH_PENALTY = 2;
+  uint16 public SIX_MONTH_PENALTY = 3;
+  uint16 public TWELVE_MONTH_PENALTY = 4;
 
   event Staked(address indexed user, uint256 amount, Duration duration);
   event DurationChanged(address indexed user, uint256 amount, Duration oldDuration, Duration newDuration);
@@ -47,8 +47,9 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
   ) external override whenNotPaused {
     require(amount != 0, 'stake amount cant be 0');
     require(IERC20(INFINITY_TOKEN).balanceOf(user) >= amount, 'insufficient balance to stake');
-
+    console.log('====================== staking =========================');
     // update storage
+    console.log('block timestmap at stake', block.timestamp);
     userstakedAmounts[user][duration].amount += amount;
     userstakedAmounts[user][duration].timestamp = block.timestamp;
     // perform transfer
@@ -98,15 +99,19 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     uint256 threeMonthLock = userstakedAmounts[msg.sender][Duration.THREE_MONTHS].amount;
     uint256 sixMonthLock = userstakedAmounts[msg.sender][Duration.SIX_MONTHS].amount;
     uint256 twelveMonthLock = userstakedAmounts[msg.sender][Duration.TWELVE_MONTHS].amount;
+
+    uint256 threeMonthVested = _getVestedAmount(msg.sender, Duration.THREE_MONTHS);
+    uint256 sixMonthVested = _getVestedAmount(msg.sender, Duration.SIX_MONTHS);
+    uint256 twelveMonthVested = _getVestedAmount(msg.sender, Duration.TWELVE_MONTHS);
+
+    uint256 totalVested = noLock + threeMonthVested + sixMonthVested + twelveMonthVested;
     uint256 totalStaked = noLock + threeMonthLock + sixMonthLock + twelveMonthLock;
     require(totalStaked >= 0, 'nothing staked to rage quit');
-    uint256 totalToUser = noLock +
-      threeMonthLock /
-      THREE_MONTH_PENALTY +
-      sixMonthLock /
-      SIX_MONTH_PENALTY +
-      twelveMonthLock /
-      TWELVE_MONTH_PENALTY;
+
+    uint256 totalToUser = totalVested +
+      ((threeMonthLock - threeMonthVested) / THREE_MONTH_PENALTY) +
+      ((sixMonthLock - sixMonthVested) / SIX_MONTH_PENALTY) +
+      ((twelveMonthLock - twelveMonthVested) / TWELVE_MONTH_PENALTY);
 
     // update storage
     _clearUserStakedAmounts(msg.sender);
@@ -129,6 +134,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
 
   function getUserStakeLevel(address user) external view override returns (StakeLevel) {
     uint256 totalPower = _getUserStakePower(user);
+    console.log('totalPower', totalPower);
     if (totalPower < BRONZE_STAKE_LEVEL) {
       return StakeLevel.BRONZE;
     } else if (totalPower < SILVER_STAKE_LEVEL) {
@@ -144,6 +150,15 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     return _getUserStakePower(user);
   }
 
+  function getVestingInfo(address user) external view returns (StakeAmount[] memory) {
+    StakeAmount[] memory vestingInfo = new StakeAmount[](4);
+    vestingInfo[0] = userstakedAmounts[user][Duration.NONE];
+    vestingInfo[1] = userstakedAmounts[user][Duration.THREE_MONTHS];
+    vestingInfo[2] = userstakedAmounts[user][Duration.SIX_MONTHS];
+    vestingInfo[3] = userstakedAmounts[user][Duration.TWELVE_MONTHS];
+    return vestingInfo;
+  }
+
   // ====================================================== INTERNAL FUNCTIONS ================================================
 
   function _getUserTotalStaked(address user) internal view returns (uint256) {
@@ -155,7 +170,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
   }
 
   function _getUserTotalVested(address user) internal view returns (uint256) {
-    uint256 noVesting = userstakedAmounts[user][Duration.NONE].amount;
+    uint256 noVesting = _getVestedAmount(user, Duration.NONE);
     uint256 vestedThreeMonths = _getVestedAmount(user, Duration.THREE_MONTHS);
     uint256 vestedsixMonths = _getVestedAmount(user, Duration.SIX_MONTHS);
     uint256 vestedTwelveMonths = _getVestedAmount(user, Duration.TWELVE_MONTHS);
@@ -165,11 +180,19 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
   function _getVestedAmount(address user, Duration duration) internal view returns (uint256) {
     uint256 amount = userstakedAmounts[user][duration].amount;
     uint256 timestamp = userstakedAmounts[user][duration].timestamp;
+    // short circuit if no vesting for this duration
+    if (timestamp == 0) {
+      return 0;
+    }
     uint256 durationInSeconds = _getDurationInSeconds(duration);
     uint256 secondsSinceStake = block.timestamp - timestamp;
-    uint256 portion = secondsSinceStake / durationInSeconds;
-    uint256 vestedAmount = portion > 1 ? amount : amount * portion;
-    return vestedAmount;
+    console.log('====================== fetching vested amount =========================');
+    console.log('stake amount', amount);
+    console.log('durationInSeconds', durationInSeconds);
+    console.log('current block timestamp', block.timestamp);
+    console.log('stake timestamp', timestamp);
+    console.log('secondsSinceStake', secondsSinceStake);
+    return secondsSinceStake >= durationInSeconds ? amount : 0;
   }
 
   function _getDurationInSeconds(Duration duration) internal pure returns (uint256) {
@@ -180,7 +203,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     } else if (duration == Duration.TWELVE_MONTHS) {
       return 360 days;
     } else {
-      return 1 seconds;
+      return 0 seconds;
     }
   }
 
