@@ -6,12 +6,13 @@ import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {IStaker, StakeLevel, Duration} from '../interfaces/IStaker.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {IInfinityTradingRewards} from '../interfaces/IInfinityTradingRewards.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 /**
  * @title InfinityTradingRewards
  * @notice allocates and distributes trading rewards
  */
-contract InfinityTradingRewards is IInfinityTradingRewards, Ownable {
+contract InfinityTradingRewards is IInfinityTradingRewards, Ownable, ReentrancyGuard {
   using SafeERC20 for IERC20;
   using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -53,10 +54,10 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable {
     address[] calldata currencies,
     uint256[] calldata amounts
   ) external override {
-    require(sellers.length == buyers.length);
-    require(sellers.length == currencies.length);
-    require(sellers.length == amounts.length);
-    require(msg.sender == INFINTY_EXCHANGE);
+    require(sellers.length == buyers.length, 'sellers and buyers must be same length');
+    require(sellers.length == currencies.length, 'sellers and currencies must be same length');
+    require(sellers.length == amounts.length, 'sellers and amounts must be same length');
+    require(msg.sender == INFINTY_EXCHANGE, 'only INFINTY_EXCHANGE');
 
     for (uint256 j = 0; j < _rewardTokens.length(); ) {
       address rewardToken = _rewardTokens.at(j);
@@ -79,14 +80,14 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable {
     address destination,
     address currency,
     uint256 amount
-  ) external override {
+  ) external override nonReentrant {
     require(earnedRewards[destination][currency] >= amount, 'Not enough rewards to claim');
     earnedRewards[destination][currency] -= amount;
     IERC20(currency).safeTransfer(destination, amount);
     emit RewardClaimed(destination, currency, amount);
   }
 
-  function stakeInfinityRewards(uint256 amount, Duration duration) external override {
+  function stakeInfinityRewards(uint256 amount, Duration duration) external override nonReentrant {
     require(amount > 0, 'Stake amount must be greater than 0');
     require(amount <= earnedRewards[msg.sender][INFINITY_TOKEN], 'Not enough rewards to stake');
     earnedRewards[msg.sender][INFINITY_TOKEN] -= amount;

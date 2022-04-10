@@ -14,6 +14,8 @@ import {SignatureChecker} from '../libs/SignatureChecker.sol';
 import {IERC165} from '@openzeppelin/contracts/interfaces/IERC165.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
+
+import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import 'hardhat/console.sol'; // todo: remove this
 
 /**
@@ -47,6 +49,7 @@ NFTNFTNFT...........................................NFTNFTNFT
 contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   using OrderTypes for OrderTypes.Order;
   using OrderTypes for OrderTypes.OrderItem;
+  using SafeERC20 for IERC20;
 
   address public immutable WETH;
   bytes32 public immutable DOMAIN_SEPARATOR;
@@ -764,6 +767,19 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   }
 
   // ====================================================== ADMIN FUNCTIONS ======================================================
+
+  function rescueTokens(
+    address destination,
+    address currency,
+    uint256 amount
+  ) external onlyOwner {
+    IERC20(currency).safeTransfer(destination, amount);
+  }
+
+  function rescueETH(address destination) external payable onlyOwner {
+    (bool sent, ) = destination.call{value: msg.value}('');
+    require(sent, 'Failed to send Ether');
+  }
 
   /**
    * @notice Update currency manager
