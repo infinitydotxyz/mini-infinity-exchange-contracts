@@ -7,6 +7,7 @@ import {IStaker, StakeLevel, Duration} from '../interfaces/IStaker.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {IInfinityTradingRewards} from '../interfaces/IInfinityTradingRewards.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import 'hardhat/console.sol';
 
 /**
  * @title InfinityTradingRewards
@@ -53,7 +54,7 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable, ReentrancyG
     address[] calldata buyers,
     address[] calldata currencies,
     uint256[] calldata amounts
-  ) external override {
+  ) external override nonReentrant {
     require(sellers.length == buyers.length, 'sellers and buyers must be same length');
     require(sellers.length == currencies.length, 'sellers and currencies must be same length');
     require(sellers.length == amounts.length, 'sellers and amounts must be same length');
@@ -88,6 +89,7 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable, ReentrancyG
   }
 
   function stakeInfinityRewards(uint256 amount, Duration duration) external override nonReentrant {
+    console.log('staking InfinityRewards', amount);
     require(amount > 0, 'Stake amount must be greater than 0');
     require(amount <= earnedRewards[msg.sender][INFINITY_TOKEN], 'Not enough rewards to stake');
     earnedRewards[msg.sender][INFINITY_TOKEN] -= amount;

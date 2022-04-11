@@ -46,17 +46,25 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     address user,
     uint256 amount,
     Duration duration
-  ) external override whenNotPaused {
-    require(user == msg.sender || user == INFINITY_REWARDS_CONTRACT, 'Only user or infinity rewards can stake');
+  ) external override nonReentrant whenNotPaused {
+    console.log('stake msg sender', msg.sender, 'infinity rewards contract', INFINITY_REWARDS_CONTRACT);
+    require(msg.sender == user || msg.sender == INFINITY_REWARDS_CONTRACT, 'Only user or infinity rewards can stake');
     require(amount != 0, 'stake amount cant be 0');
     require(IERC20(INFINITY_TOKEN).balanceOf(user) >= amount, 'insufficient balance to stake');
-    console.log('====================== staking =========================');
+    console.log('staking for user', user, 'amount', amount);
     // update storage
     console.log('block timestmap at stake', block.timestamp);
     userstakedAmounts[user][duration].amount += amount;
     userstakedAmounts[user][duration].timestamp = block.timestamp;
     // perform transfer
-    IERC20(INFINITY_TOKEN).safeTransferFrom(user, address(this), amount);
+    console.log('transferring', amount, 'from', user);
+    console.log('user balance before', IERC20(INFINITY_TOKEN).balanceOf(user));
+    console.log('contract balance before', IERC20(INFINITY_TOKEN).balanceOf(address(this)));
+    if (msg.sender != INFINITY_REWARDS_CONTRACT) {
+      IERC20(INFINITY_TOKEN).safeTransferFrom(user, address(this), amount);
+    }
+    console.log('user balance after', IERC20(INFINITY_TOKEN).balanceOf(user));
+    console.log('contract balance after', IERC20(INFINITY_TOKEN).balanceOf(address(this)));
     // emit event
     emit Staked(user, amount, duration);
   }
@@ -65,7 +73,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     uint256 amount,
     Duration oldDuration,
     Duration newDuration
-  ) external override whenNotPaused {
+  ) external override nonReentrant whenNotPaused {
     require(amount != 0, 'amount cant be 0');
     require(
       userstakedAmounts[msg.sender][oldDuration].amount >= amount,

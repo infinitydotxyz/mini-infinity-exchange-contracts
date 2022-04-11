@@ -1615,23 +1615,35 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
     });
   });
 
-  // describe('Stake reward tokens', () => {
-  //   it('Should stake', async function () {
-  //     const stakeAmount = toBN(1);
-  //     console.log('total reward earned', totalRewardEarned);
-  //     expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+  describe('Stake reward tokens', () => {
+    it('Should stake', async function () {
+      const stakeAmount = toBN(1);
+      console.log('total reward earned', totalRewardEarned);
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
 
-  //     await infinityTradingRewards.stakeInfinityRewards(stakeAmount, 0);
-  //     await infinityTradingRewards.stakeInfinityRewards(stakeAmount, 2);
+      console.log('infinity staker balance before', (await token.balanceOf(infinityStaker.address)).toString());
+      // approve erc20
+      await approveERC20(signer1.address, token.address, stakeAmount, signer1, infinityStaker.address);
 
-  //     infinityRewardsBalance = infinityRewardsBalance.sub(stakeAmount.mul(2));
-  //     totalRewardEarned = totalRewardEarned.sub(stakeAmount);
-  //     expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
-  //     expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
-  //     expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
+      const userStaked1 = await infinityStaker.getUserTotalStaked(signer1.address);
+      const userStaked2 = await infinityStaker.getUserTotalStaked(signer2.address);
 
-  //     const totalStaked = amountStaked2.add(amountStaked.mul(2));
-  //     expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
-  //   });
-  // });
+      await infinityTradingRewards.connect(signer1).stakeInfinityRewards(stakeAmount, 0);
+      console.log('infinity staker balance after 1', (await token.balanceOf(infinityStaker.address)).toString());
+      await infinityTradingRewards.connect(signer2).stakeInfinityRewards(stakeAmount, 2);
+      console.log('infinity staker balance after 2', (await token.balanceOf(infinityStaker.address)).toString());
+
+      infinityRewardsBalance = infinityRewardsBalance.sub(stakeAmount.mul(2));
+      totalRewardEarned = totalRewardEarned.sub(stakeAmount);
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
+
+      expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(stakeAmount.add(userStaked1));
+      expect(await infinityStaker.getUserTotalStaked(signer2.address)).to.equal(stakeAmount.add(userStaked2));
+
+      const totalStaked = amountStaked2.add(stakeAmount.mul(2));
+      expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
+    });
+  });
 });

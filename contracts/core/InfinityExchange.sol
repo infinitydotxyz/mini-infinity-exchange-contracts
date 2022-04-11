@@ -230,7 +230,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     address from,
     address to,
     OrderTypes.OrderItem[] calldata items
-  ) external {
+  ) external nonReentrant {
     _batchTransferNFTs(from, to, items);
   }
 

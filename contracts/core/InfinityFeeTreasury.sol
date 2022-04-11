@@ -73,7 +73,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     uint256 minBpsToSeller,
     address execComplication,
     bool feeDiscountEnabled
-  ) external override {
+  ) external override nonReentrant {
     console.log('allocating fees');
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     // token staker discount
@@ -117,7 +117,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     OrderTypes.Order[] calldata sells,
     address matchExecutor,
     address weth
-  ) external override {
+  ) external override nonReentrant {
     console.log('refunding gas fees');
     require(msg.sender == INFINITY_EXCHANGE, 'Gas fee refund: Only Infinity exchange');
     for (uint256 i = 0; i < sells.length; ) {
