@@ -2048,4 +2048,38 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         .setupCollectionForCreatorFeeShare(mock721Contract4.address, [], []);
     });
   });
+
+  describe('Claim creator fees', () => {
+    it('Should claim', async function () {
+      // pre
+      let feeTreasuryBalance = toBN(await token.balanceOf(infinityFeeTreasury.address));
+      let creatorFeeBalance1 = toBN(await infinityFeeTreasury.creatorFees(signer1.address, token.address));
+      let creatorFeeBalance2 = toBN(await infinityFeeTreasury.creatorFees(signer2.address, token.address));
+      let signer1Balance = toBN(await token.balanceOf(signer1.address));
+      let signer2Balance = toBN(await token.balanceOf(signer2.address));
+
+      // claim
+      await infinityFeeTreasury.connect(signer1).claimCreatorFees(token.address);
+      await infinityFeeTreasury.connect(signer2).claimCreatorFees(token.address);
+
+      // post
+      feeTreasuryBalance = feeTreasuryBalance.sub(creatorFeeBalance1).sub(creatorFeeBalance2);
+      signer1Balance = signer1Balance.add(creatorFeeBalance1);
+      signer2Balance = signer2Balance.add(creatorFeeBalance2);
+
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(feeTreasuryBalance);
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+      expect(await await infinityFeeTreasury.creatorFees(signer1.address, token.address)).to.equal(0);
+      expect(await await infinityFeeTreasury.creatorFees(signer2.address, token.address)).to.equal(0);
+
+      // claiming again should fail
+      await expect(infinityFeeTreasury.connect(signer1).claimCreatorFees(token.address)).to.be.revertedWith(
+        'Fees: No creator fees to claim'
+      );
+      await expect(infinityFeeTreasury.connect(signer2).claimCreatorFees(token.address)).to.be.revertedWith(
+        'Fees: No creator fees to claim'
+      );
+    });
+  });
 });
