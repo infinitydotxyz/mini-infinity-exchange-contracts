@@ -143,8 +143,8 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   function claimCreatorFees(address currency) external override nonReentrant {
     require(creatorFees[msg.sender][currency] > 0, 'Fees: No creator fees to claim');
-    creatorFees[msg.sender][currency] = 0;
     IERC20(currency).safeTransfer(msg.sender, creatorFees[msg.sender][currency]);
+    creatorFees[msg.sender][currency] = 0;
     emit CreatorFeesClaimed(msg.sender, currency, creatorFees[msg.sender][currency]);
   }
 
