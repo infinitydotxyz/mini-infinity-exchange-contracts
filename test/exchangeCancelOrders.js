@@ -623,6 +623,7 @@ describe('Exchange_Cancel_Orders', function () {
   });
 
   // ================================================== CANCEL ORDERS ===================================================
+
   describe('Cancel_One', () => {
     it('Should cancel a valid order', async function () {
       const sellOrder = orders[++numTakeOrders];
@@ -653,7 +654,6 @@ describe('Exchange_Cancel_Orders', function () {
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -661,46 +661,44 @@ describe('Exchange_Cancel_Orders', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
-        expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
-
-        // try to perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            // no change
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
-        }
-
-        // balance after sale
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(0);
-        expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
-        expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
       }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
+      expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
+
+      // try to perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          // no change
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
+        }
+      }
+
+      // balance after sale
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(0);
+      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
+      expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
     });
   });
 
@@ -778,7 +776,6 @@ describe('Exchange_Cancel_Orders', function () {
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -786,54 +783,52 @@ describe('Exchange_Cancel_Orders', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
-        expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-        signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
-        signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // try canceling
-        await expect(infinityExchange.connect(signer2).cancelMultipleOrders([nonce])).to.be.revertedWith(
-          'Cancel: Nonce already executed or cancelled'
-        );
       }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
+      expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
+      signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
+      signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // try canceling
+      await expect(infinityExchange.connect(signer2).cancelMultipleOrders([nonce])).to.be.revertedWith(
+        'Cancel: Nonce already executed or cancelled'
+      );
     });
   });
 
@@ -879,7 +874,6 @@ describe('Exchange_Cancel_Orders', function () {
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -887,46 +881,44 @@ describe('Exchange_Cancel_Orders', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            // no change
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
-        }
-
-        // balance after sale
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          // no change
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
+        }
+      }
+
+      // balance after sale
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 

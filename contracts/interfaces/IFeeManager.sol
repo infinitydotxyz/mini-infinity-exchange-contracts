@@ -15,6 +15,7 @@ interface IFeeManager {
     uint256 amount
   )
     external
+    view
     returns (
       FeeParty partyName,
       address[] memory,

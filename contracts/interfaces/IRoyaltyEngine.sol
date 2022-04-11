@@ -2,9 +2,9 @@
 pragma solidity 0.8.9;
 
 interface IRoyaltyEngine {
-  function getRoyalty(
+  function getRoyaltyView(
     address tokenAddress,
     uint256 tokenId,
     uint256 value
-  ) external returns (address[] memory recipients, uint256[] memory amounts);
+  ) external view returns (address[] memory recipients, uint256[] memory amounts);
 }

@@ -12,8 +12,9 @@ const {
 const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
 const { erc20Abi } = require('../abi/erc20');
+const { JsonRpcSigner } = require('@ethersproject/providers');
 
-describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
+describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
   let signers,
     signer1,
     signer2,
@@ -69,6 +70,10 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
 
   const amountStaked = ethers.utils.parseEther('700');
   const amountStaked2 = ethers.utils.parseEther('5000');
+
+  let rewardRatio = toBN(1);
+  let totalRewardEarned = toBN(0);
+  let infinityRewardsBalance = toBN(0);
 
   function toBN(val) {
     return ethers.BigNumber.from(val.toString());
@@ -199,8 +204,24 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
     // set infinity fee treasury on exchange
     await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
 
+    // set infinity rewards on exchange
+    await infinityExchange.updateInfinityTradingRewards(infinityTradingRewards.address);
+
+    // set infinity rewards on staker
+    await infinityStaker.updateInfinityRewardsContract(infinityTradingRewards.address);
+
+    // set reward token
+    await infinityTradingRewards.addRewardToken(token.address);
+    let rewardTokenFundAmount = INITIAL_SUPPLY.div(4);
+    infinityRewardsBalance = rewardTokenFundAmount;
+    // @ts-ignore
+    await approveERC20(signer1.address, token.address, rewardTokenFundAmount, signer1, infinityTradingRewards.address);
+    await infinityTradingRewards.fundWithRewardToken(token.address, signer1.address, rewardTokenFundAmount);
+
     // send assets
     await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
+    signer1Balance = INITIAL_SUPPLY.div(4);
+    signer2Balance = INITIAL_SUPPLY.div(2);
     for (let i = 0; i < numNFTsToTransfer; i++) {
       await mock721Contract1.transferFrom(signer1.address, signer2.address, i);
       await mock721Contract2.transferFrom(signer1.address, signer2.address, i);
@@ -215,8 +236,10 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.decimals()).to.equal(18);
       expect(await token.totalSupply()).to.equal(INITIAL_SUPPLY);
 
-      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
+      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(4));
       expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
+
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(INITIAL_SUPPLY.div(4));
 
       expect(await mock721Contract1.balanceOf(signer1.address)).to.equal(numNFTsLeft);
       expect(await mock721Contract1.balanceOf(signer2.address)).to.equal(numNFTsToTransfer);
@@ -631,85 +654,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
   // ================================================== TAKE SELL ORDERS ===================================================
 
   describe('Take_OneCollectionOneTokenSell', () => {
-    it('Should take valid order with no discount', async function () {
-      const sellOrder = sellOrders[++numTakeOrders];
-      const chainId = network.config.chainId;
-      const contractAddress = infinityExchange.address;
-      const isSellOrder = false;
-
-      const constraints = sellOrder.constraints;
-      const nfts = sellOrder.nfts;
-      const execParams = sellOrder.execParams;
-      const extraParams = sellOrder.extraParams;
-
-      // approve currency
-      let salePrice = getCurrentSignedOrderPrice(sellOrder);
-      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
-
-      // sign order
-      const buyOrder = {
-        isSellOrder,
-        signer: signer1.address,
-        extraParams,
-        nfts,
-        constraints,
-        execParams,
-        sig: ''
-      };
-      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
-
-      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      expect(isSigValid).to.equal(true);
-      // owners before sale
-      for (const item of nfts) {
-        const collection = item.collection;
-        const contract = new ethers.Contract(collection, erc721Abi, signer1);
-        for (const token of item.tokens) {
-          const tokenId = token.tokenId;
-          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-        }
-      }
-
-      // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
-      expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
-
-      // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
-
-      // owners after sale
-      for (const item of nfts) {
-        const collection = item.collection;
-        const contract = new ethers.Contract(collection, erc721Abi, signer1);
-        for (const token of item.tokens) {
-          const tokenId = token.tokenId;
-          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-        }
-      }
-
-      // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
-      signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-    });
-  });
-
-  describe('Stake tokens to silver level', () => {
-    it('Should stake', async function () {
-      // approve erc20
-      await approveERC20(signer2.address, token.address, amountStaked, signer2, infinityStaker.address);
-      await infinityStaker.connect(signer2).stake(signer2.address, amountStaked, 1);
-      expect(await infinityStaker.getUserStakeLevel(signer2.address)).to.equal(1);
-      signer2Balance = signer2Balance.sub(amountStaked);
-    });
-  });
-
-  describe('Take_OneCollectionMultipleTokensSell', () => {
-    it('Should take valid order with no discount even if staked', async function () {
+    it('Should take valid order with no discount and no trading rewards', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -753,7 +698,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, true);
 
       // owners after sale
       for (const item of nfts) {
@@ -773,6 +718,101 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(0);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(0);
+    });
+  });
+
+  describe('Stake tokens to bronze level', () => {
+    it('Should stake', async function () {
+      // approve erc20
+      await approveERC20(signer2.address, token.address, amountStaked, signer2, infinityStaker.address);
+      await infinityStaker.connect(signer2).stake(signer2.address, amountStaked, 1);
+      expect(await infinityStaker.getUserStakeLevel(signer2.address)).to.equal(1);
+      signer2Balance = signer2Balance.sub(amountStaked);
+    });
+  });
+
+  describe('Update rewards map', () => {
+    it('Should update', async function () {
+      await infinityTradingRewards.updateRewardsMap(token.address, token.address, rewardRatio);
+      expect(await infinityTradingRewards.rewardsMap(token.address, token.address)).to.equal(rewardRatio);
+    });
+  });
+
+  describe('Take_OneCollectionMultipleTokensSell', () => {
+    it('Should take valid order with no discount even if staked but rewards earned', async function () {
+      const sellOrder = sellOrders[++numTakeOrders];
+      const chainId = network.config.chainId;
+      const contractAddress = infinityExchange.address;
+      const isSellOrder = false;
+
+      const constraints = sellOrder.constraints;
+      const nfts = sellOrder.nfts;
+      const execParams = sellOrder.execParams;
+      const extraParams = sellOrder.extraParams;
+
+      // approve currency
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
+      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
+
+      // sign order
+      const buyOrder = {
+        isSellOrder,
+        signer: signer1.address,
+        extraParams,
+        nfts,
+        constraints,
+        execParams,
+        sig: ''
+      };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
+
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
+      expect(isSigValid).to.equal(true);
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
+        }
+      }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, true);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(fee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
 
@@ -786,7 +826,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
   });
 
   describe('Take_OneCollectionAnyOneTokenSell', () => {
-    it('Should take valid order with silver discount', async function () {
+    it('Should take valid order with silver discount and rewards earned', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -847,10 +887,9 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, true);
 
       // owners after sale
       for (const item of nfts) {
@@ -864,19 +903,23 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
 
       // balance after sale
       const effectiveBps = (silverBps * CURATOR_FEE_BPS) / 10000;
-      console.log(`-------------- effectiveBps -----------: ${effectiveBps}`);
       const fee = salePrice.mul(effectiveBps).div(10000);
-      console.log(`-------------- fee -----------: ${fee}`);
       totalCuratorFees = totalCuratorFees.add(fee);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
 
-  describe('Stake tokens to gold level', () => {
+  describe('Stake tokens to silver level', () => {
     it('Should stake', async function () {
       // approve erc20
       await approveERC20(signer2.address, token.address, amountStaked2, signer2, infinityStaker.address);
@@ -887,7 +930,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
   });
 
   describe('Take_OneCollectionAnyMultipleTokensSell', () => {
-    it('Should take valid order with gold discount', async function () {
+    it('Should take valid order with no discount and rewards earned', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -962,7 +1005,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, false);
 
       // owners after sale
       for (const item of nfts) {
@@ -975,14 +1018,19 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       }
 
       // balance after sale
-      const effectiveBps = (goldBps * CURATOR_FEE_BPS) / 10000;
-      const fee = salePrice.mul(effectiveBps).div(10000);
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
       totalCuratorFees = totalCuratorFees.add(fee);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
 
@@ -993,8 +1041,16 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
     });
   });
 
+  describe('Update rewards map', () => {
+    it('Should update', async function () {
+      rewardRatio = rewardRatio.mul(2);
+      await infinityTradingRewards.updateRewardsMap(token.address, token.address, rewardRatio);
+      expect(await infinityTradingRewards.rewardsMap(token.address, token.address)).to.equal(rewardRatio);
+    });
+  });
+
   describe('Take_MultipleCollectionsMultipleTokensSell', () => {
-    it('Should take valid order with platinum discount', async function () {
+    it('Should take valid order with platinum discount and updated rewards', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -1041,7 +1097,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, true);
 
       // owners after sale
       for (const item of nfts) {
@@ -1062,6 +1118,16 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      console.log(
+        '****************** total reward earned before reward ratio is 0 ******************',
+        totalRewardEarned
+      );
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
 
@@ -1077,8 +1143,20 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
     });
   });
 
+  describe('Update rewards map', () => {
+    it('Should update', async function () {
+      rewardRatio = rewardRatio.sub(rewardRatio);
+      await infinityTradingRewards.updateRewardsMap(token.address, token.address, rewardRatio);
+      expect(await infinityTradingRewards.rewardsMap(token.address, token.address)).to.equal(rewardRatio);
+      console.log(
+        '****************** total reward earned after reward ratio is 0 ******************',
+        totalRewardEarned
+      );
+    });
+  });
+
   describe('Take_MultipleCollectionsAnyTokensSell', () => {
-    it('Should take valid order with no discount', async function () {
+    it('Should take valid order with no discount and no rewards', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -1173,11 +1251,9 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      console.log('totalCuratorFees before sale', totalCuratorFees);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, true);
 
       // owners after sale
       for (const item of nfts) {
@@ -1191,36 +1267,47 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
 
       // balance after sale
       const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      console.log('calculated fee from this sale', fee);
       totalCuratorFees = totalCuratorFees.add(fee);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
 
-  describe('Stake tokens to gold level', () => {
+  describe('Stake tokens to silver level', () => {
     it('Should stake', async function () {
       // approve erc20
-      const stakeAmount = amountStaked2.mul(2).add(1);
-      await approveERC20(signer2.address, token.address, stakeAmount, signer2, infinityStaker.address);
-      await infinityStaker.connect(signer2).stake(signer2.address, stakeAmount, 0);
-      expect(await infinityStaker.getUserStakeLevel(signer2.address)).to.equal(2);
+      await approveERC20(signer2.address, token.address, amountStaked2, signer2, infinityStaker.address);
+      await infinityStaker.connect(signer2).stake(signer2.address, amountStaked2, 0);
+      expect(await infinityStaker.getUserStakeLevel(signer2.address)).to.equal(1);
     });
   });
 
-  describe('Untake tokens to bronze level', () => {
+  describe('Unstake tokens to bronze level', () => {
     it('Should unstake', async function () {
-      const stakeAmount = amountStaked2.mul(2).add(1);
-      await infinityStaker.connect(signer2).unstake(stakeAmount);
+      await infinityStaker.connect(signer2).unstake(amountStaked2);
       expect(await infinityStaker.getUserStakeLevel(signer2.address)).to.equal(0);
     });
   });
 
+  describe('Update rewards map', () => {
+    it('Should update', async function () {
+      rewardRatio = toBN(1);
+      await infinityTradingRewards.updateRewardsMap(token.address, token.address, rewardRatio);
+      expect(await infinityTradingRewards.rewardsMap(token.address, token.address)).to.equal(rewardRatio);
+    });
+  });
+
   describe('Take_AnyCollectionAnyOneTokenSell', () => {
-    it('Should take valid order no discount', async function () {
+    it('Should take valid order no discount and reward earned', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -1280,7 +1367,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, false);
 
       // owners after sale
       for (const item of nfts) {
@@ -1300,10 +1387,16 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
 
-  describe('Stake tokens to bronze level', () => {
+  describe('Stake tokens to silver level', () => {
     it('Should stake', async function () {
       // approve erc20
       await approveERC20(signer2.address, token.address, amountStaked2, signer2, infinityStaker.address);
@@ -1323,7 +1416,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
   });
 
   describe('Take_AnyCollectionAnyMultipleTokensSell', () => {
-    it('Should take valid order with no discount even if staked', async function () {
+    it('Should take valid order with no discount even if staked and rewards earned', async function () {
       const sellOrder = sellOrders[++numTakeOrders];
       const chainId = network.config.chainId;
       const contractAddress = infinityExchange.address;
@@ -1439,7 +1532,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], true, true);
 
       // owners after sale
       for (const item of nfts) {
@@ -1459,6 +1552,86 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // rewards
+      const rewardEarned = salePrice.mul(rewardRatio);
+      totalRewardEarned = totalRewardEarned.add(rewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+      expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
   });
+
+  describe('Rescue tokens', () => {
+    it('Should rescue', async function () {
+      const rescueAmount = ethers.utils.parseEther('1');
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+
+      await infinityTradingRewards.rescueTokens(signer1.address, token.address, rescueAmount);
+
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance.sub(rescueAmount));
+      infinityRewardsBalance = infinityRewardsBalance.sub(rescueAmount);
+    });
+  });
+
+  describe('Try rescue tokens', () => {
+    it('Should not rescue', async function () {
+      const rescueAmount = ethers.utils.parseEther('1');
+
+      await expect(
+        infinityTradingRewards.connect(signer2).rescueTokens(signer2.address, token.address, rescueAmount)
+      ).to.be.revertedWith('Ownable: caller is not the owner');
+
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+    });
+  });
+
+  describe('Claim reward tokens', () => {
+    it('Should claim', async function () {
+      const claimAmount = toBN(1);
+      console.log('total reward earned', totalRewardEarned);
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+
+      await infinityTradingRewards.claimRewards(signer1.address, token.address, claimAmount);
+      await infinityTradingRewards.claimRewards(signer2.address, token.address, claimAmount);
+
+      infinityRewardsBalance = infinityRewardsBalance.sub(claimAmount.mul(2));
+      totalRewardEarned = totalRewardEarned.sub(claimAmount);
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+    });
+  });
+
+  describe('Try claim reward tokens large amount', () => {
+    it('Should not claim', async function () {
+      const claimAmount = ethers.utils.parseEther('100000');
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+
+      await expect(infinityTradingRewards.claimRewards(signer1.address, token.address, claimAmount)).to.be.revertedWith(
+        'Not enough rewards to claim'
+      );
+
+      expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+      expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+    });
+  });
+
+  // describe('Stake reward tokens', () => {
+  //   it('Should stake', async function () {
+  //     const stakeAmount = toBN(1);
+  //     console.log('total reward earned', totalRewardEarned);
+  //     expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+
+  //     await infinityTradingRewards.stakeInfinityRewards(stakeAmount, 0);
+  //     await infinityTradingRewards.stakeInfinityRewards(stakeAmount, 2);
+
+  //     infinityRewardsBalance = infinityRewardsBalance.sub(stakeAmount.mul(2));
+  //     totalRewardEarned = totalRewardEarned.sub(stakeAmount);
+  //     expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
+  //     expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
+  //     expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
+
+  //     const totalStaked = amountStaked2.add(amountStaked.mul(2));
+  //     expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
+  //   });
+  // });
 });

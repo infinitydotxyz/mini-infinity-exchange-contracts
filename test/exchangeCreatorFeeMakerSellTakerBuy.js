@@ -9,7 +9,7 @@ const {
   approveERC20,
   signFormattedOrder
 } = require('../helpers/orders');
-const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
+const { nowSeconds, trimLowerCase, NULL_ADDRESS } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
 const { erc20Abi } = require('../abi/erc20');
 
@@ -41,6 +41,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
   let signer2Balance = toBN(0);
   let totalCuratorFees = toBN(0);
   let totalCreatorFees = toBN(0);
+  let totalFeeSoFar = toBN(0);
   let creatorFees = {};
   let orderNonce = 0;
   let numTakeOrders = -1;
@@ -70,6 +71,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
 
   function toBN(val) {
     return ethers.BigNumber.from(val.toString());
+  }
+
+  function toFloor(val) {
+    return toBN(Math.floor(val));
   }
 
   before(async () => {
@@ -654,7 +659,6 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -662,56 +666,55 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
-        expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-        signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
-        signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
+      expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
+      signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
+      signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
   describe('Set_Royalty_In_RoyaltyEngine', () => {
     it('Should set royalty', async function () {
       await mockRoyaltyEngine.connect(signer1).setRoyaltyBps(mock721Contract1.address, CREATOR_FEE_BPS_ENGINE);
-      const result = await mockRoyaltyEngine.getRoyalty(mock721Contract1.address, 0, ethers.utils.parseEther('1'));
+      const result = await mockRoyaltyEngine.getRoyaltyView(mock721Contract1.address, 0, ethers.utils.parseEther('1'));
       console.log('get royalty result', result, result[0], result[1], result[0][0], result[1][0]);
       const recipient = result[0][0];
       const amount = result[1][0];
@@ -738,7 +741,6 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -746,66 +748,66 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFee = salePrice.mul(CREATOR_FEE_BPS_ENGINE).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFee);
-
-        const result = await mockRoyaltyEngine.getRoyalty(mock721Contract1.address, 0, salePrice);
-        const recipient = result[0][0];
-        const amount = result[1][0];
-        if (!creatorFees[recipient]) {
-          creatorFees[recipient] = toBN(0);
-        }
-        expect(amount).to.equal(creatorFee);
-        creatorFees[recipient] = creatorFees[recipient].add(creatorFee);
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        const allocatedCreatorFee = await infinityFeeTreasury.creatorFees(recipient, token.address);
-        expect(allocatedCreatorFee.toString()).to.equal(creatorFees[recipient].toString());
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      const creatorFee = salePrice.mul(CREATOR_FEE_BPS_ENGINE).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFee);
+      const totalFee = creatorFee.add(fee);
+      totalFeeSoFar = totalCuratorFees.add(totalCreatorFees);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result = await mockRoyaltyEngine.getRoyaltyView(mock721Contract1.address, 0, salePrice);
+      const recipient = result[0][0];
+      const amount = result[1][0];
+      if (!creatorFees[recipient]) {
+        creatorFees[recipient] = toBN(0);
+      }
+      expect(amount).to.equal(creatorFee);
+      creatorFees[recipient] = creatorFees[recipient].add(creatorFee);
+      console.log('creatorFees recepient', recipient, creatorFees[recipient]);
+
+      const allocatedCreatorFee = await infinityFeeTreasury.creatorFees(recipient, token.address);
+      expect(allocatedCreatorFee.toString()).to.equal(creatorFees[recipient].toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
@@ -820,6 +822,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         );
       const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
         mock721Contract1.address,
+        0,
         ethers.utils.parseEther('1')
       );
       const setter = result[0];
@@ -876,11 +879,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       }
 
       // approve currency
-      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -888,80 +890,80 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // sale price
-        const salePrice = getCurrentSignedOrderPrice(buyOrder);
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFee = salePrice.mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFee);
-
-        const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, salePrice);
-        const dest1 = result[1][0];
-        const dest2 = result[1][1];
-        const bpsSplit1 = result[2][0];
-        const bpsSplit2 = result[2][1];
-        const amount1 = result[3][0];
-        const amount2 = result[3][1];
-        if (!creatorFees[dest1]) {
-          creatorFees[dest1] = toBN(0);
-        }
-        if (!creatorFees[dest2]) {
-          creatorFees[dest2] = toBN(0);
-        }
-        expect(amount1).to.equal(creatorFee.mul(bpsSplit1).div(10000));
-        expect(amount2).to.equal(creatorFee.mul(bpsSplit2).div(10000));
-        creatorFees[dest1] = creatorFees[dest1].add(creatorFee.mul(bpsSplit1).div(10000));
-        creatorFees[dest2] = creatorFees[dest2].add(creatorFee.mul(bpsSplit2).div(10000));
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
-        expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
-        const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
-        expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // sale price
+      salePrice = getCurrentSignedOrderPrice(buyOrder);
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      const creatorFee = salePrice.mul(CREATOR_FEE_BPS).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFee);
+      const totalFee = creatorFee.add(fee);
+      totalFeeSoFar = totalCuratorFees.add(totalCreatorFees);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, 0, salePrice);
+      const dest1 = result[1][0];
+      const dest2 = result[1][1];
+      const bpsSplit1 = result[2][0];
+      const bpsSplit2 = result[2][1];
+      const amount1 = result[3][0];
+      const amount2 = result[3][1];
+      if (!creatorFees[dest1]) {
+        creatorFees[dest1] = toBN(0);
+      }
+      if (!creatorFees[dest2]) {
+        creatorFees[dest2] = toBN(0);
+      }
+      expect(amount1).to.equal(creatorFee.mul(bpsSplit1).div(CREATOR_FEE_BPS));
+      expect(amount2).to.equal(creatorFee.mul(bpsSplit2).div(CREATOR_FEE_BPS));
+      creatorFees[dest1] = creatorFees[dest1].add(amount1);
+      creatorFees[dest2] = creatorFees[dest2].add(amount2);
+      console.log('creatorFees dest1', dest1, creatorFees[dest1], 'creatorFees dest2', dest2, creatorFees[dest2]);
+
+      const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
+      expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
+      const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
+      expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
@@ -972,10 +974,11 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         .setupCollectionForCreatorFeeShare(
           mock721Contract1.address,
           [signer2.address, signer3.address],
-          [CREATOR_FEE_BPS, CREATOR_FEE_BPS]
+          [CREATOR_FEE_BPS / 2, CREATOR_FEE_BPS / 2]
         );
       const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
         mock721Contract1.address,
+        0,
         ethers.utils.parseEther('1')
       );
       const setter = result[0];
@@ -985,13 +988,19 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       const bpsSplit2 = result[2][1];
       const amount1 = result[3][0];
       const amount2 = result[3][1];
-      const calcRoyalty1 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
-      const calcRoyalty2 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
+      const calcRoyalty1 = ethers.utils
+        .parseEther('1')
+        .mul(CREATOR_FEE_BPS / 2)
+        .div(10000);
+      const calcRoyalty2 = ethers.utils
+        .parseEther('1')
+        .mul(CREATOR_FEE_BPS / 2)
+        .div(10000);
       expect(setter).to.equal(signer1.address);
       expect(dest1).to.equal(signer2.address);
       expect(dest2).to.equal(signer3.address);
-      expect(bpsSplit1).to.equal(CREATOR_FEE_BPS);
-      expect(bpsSplit2).to.equal(CREATOR_FEE_BPS);
+      expect(bpsSplit1).to.equal(CREATOR_FEE_BPS / 2);
+      expect(bpsSplit2).to.equal(CREATOR_FEE_BPS / 2);
       expect(amount1.toString()).to.equal(calcRoyalty1);
       expect(amount2.toString()).to.equal(calcRoyalty2);
     });
@@ -1038,11 +1047,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       }
 
       // approve currency
-      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -1050,80 +1058,81 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // sale price
-        const salePrice = getCurrentSignedOrderPrice(buyOrder);
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFee = salePrice.mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFee);
-
-        const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, salePrice);
-        const dest1 = result[1][0];
-        const dest2 = result[1][1];
-        const bpsSplit1 = result[2][0];
-        const bpsSplit2 = result[2][1];
-        const amount1 = result[3][0];
-        const amount2 = result[3][1];
-        if (!creatorFees[dest1]) {
-          creatorFees[dest1] = toBN(0);
-        }
-        if (!creatorFees[dest2]) {
-          creatorFees[dest2] = toBN(0);
-        }
-        expect(amount1).to.equal(creatorFee.mul(bpsSplit1).div(10000));
-        expect(amount2).to.equal(creatorFee.mul(bpsSplit2).div(10000));
-        creatorFees[dest1] = creatorFees[dest1].add(creatorFee.mul(bpsSplit1).div(10000));
-        creatorFees[dest2] = creatorFees[dest2].add(creatorFee.mul(bpsSplit2).div(10000));
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
-        expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
-        const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
-        expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // sale price
+      salePrice = getCurrentSignedOrderPrice(buyOrder);
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      const creatorFee = salePrice.mul(CREATOR_FEE_BPS).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFee);
+      const totalFee = creatorFee.add(fee);
+      totalFeeSoFar = totalCuratorFees.add(totalCreatorFees);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, 0, salePrice);
+      const dest1 = result[1][0];
+      const dest2 = result[1][1];
+      const bpsSplit1 = result[2][0];
+      const bpsSplit2 = result[2][1];
+      const amount1 = result[3][0];
+      const amount2 = result[3][1];
+      if (!creatorFees[dest1]) {
+        creatorFees[dest1] = toBN(0);
+      }
+      if (!creatorFees[dest2]) {
+        creatorFees[dest2] = toBN(0);
+      }
+      expect(amount1).to.equal(creatorFee.mul(bpsSplit1).div(CREATOR_FEE_BPS));
+      expect(amount2).to.equal(creatorFee.mul(bpsSplit2).div(CREATOR_FEE_BPS));
+      creatorFees[dest1] = creatorFees[dest1].add(amount1);
+      creatorFees[dest2] = creatorFees[dest2].add(amount2);
+
+      console.log('creatorFees dest1', dest1, creatorFees[dest1], 'creatorFees dest2', dest2, creatorFees[dest2]);
+
+      const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
+      expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
+      const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
+      expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
@@ -1142,7 +1151,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
   describe('Set_Royalty_In_RoyaltyEngine_Collection3', () => {
     it('Should set royalty', async function () {
       await mockRoyaltyEngine.connect(signer1).setRoyaltyBps(mock721Contract3.address, CREATOR_FEE_BPS_ENGINE);
-      const result = await mockRoyaltyEngine.getRoyalty(mock721Contract3.address, 0, ethers.utils.parseEther('1'));
+      const result = await mockRoyaltyEngine.getRoyaltyView(mock721Contract3.address, 0, ethers.utils.parseEther('1'));
       const recipient = result[0][0];
       const amount = result[1][0];
       const calcRoyalty = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS_ENGINE).div(10000);
@@ -1164,11 +1173,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       const extraParams = sellOrder.extraParams;
 
       // approve currency
-      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -1176,108 +1184,145 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // sale price
-        const salePrice = getCurrentSignedOrderPrice(buyOrder);
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const numColls = nfts.length;
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
-        const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
-        const creatorFeeIerc2981 = salePrice.div(numColls).mul(CREATOR_FEE_BPS_IERC2981).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeIerc2981);
-
-        const result1 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, salePrice);
-        const dest1 = result1[1][0];
-        const dest2 = result1[1][1];
-        const bpsSplit1 = result1[2][0];
-        const bpsSplit2 = result1[2][1];
-        const amount1 = result1[3][0];
-        const amount2 = result1[3][1];
-        if (!creatorFees[dest1]) {
-          creatorFees[dest1] = toBN(0);
-        }
-        if (!creatorFees[dest2]) {
-          creatorFees[dest2] = toBN(0);
-        }
-        expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(10000));
-        expect(amount2).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit2).div(10000));
-        creatorFees[dest1] = creatorFees[dest1].add(creatorFeeInfinityRegistry.mul(bpsSplit1).div(10000));
-        creatorFees[dest2] = creatorFees[dest2].add(creatorFeeInfinityRegistry.mul(bpsSplit2).div(10000));
-        const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
-        expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
-        const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
-        expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
-
-        const result2 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721ContractRoyalty.address, salePrice);
-        const dest2_1 = result2[1][0];
-        const bpsSplit2_1 = result2[2][0];
-        const amount2_1 = result2[3][0];
-        if (!creatorFees[dest2_1]) {
-          creatorFees[dest2_1] = toBN(0);
-        }
-        expect(amount2_1).to.equal(creatorFeeIerc2981.mul(bpsSplit2_1).div(10000));
-        creatorFees[dest2_1] = creatorFees[dest2_1].add(creatorFeeIerc2981.mul(bpsSplit2_1).div(10000));
-        const allocatedCreatorFee2_1 = await infinityFeeTreasury.creatorFees(dest2_1, token.address);
-        expect(allocatedCreatorFee2_1.toString()).to.equal(creatorFees[dest2_1].toString());
-
-        const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract3.address, salePrice);
-        const dest3_1 = result3[1][0];
-        const bpsSplit3_1 = result3[2][0];
-        const amount3_1 = result3[3][0];
-        if (!creatorFees[dest3_1]) {
-          creatorFees[dest3_1] = toBN(0);
-        }
-        expect(amount3_1).to.equal(creatorFeeRoyaltyEngine.mul(bpsSplit3_1).div(10000));
-        creatorFees[dest3_1] = creatorFees[dest3_1].add(creatorFeeRoyaltyEngine.mul(bpsSplit3_1).div(10000));
-        const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
-        expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // sale price
+      salePrice = getCurrentSignedOrderPrice(buyOrder);
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const numColls = nfts.length;
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      console.log('salePrice', salePrice.toString());
+      console.log('sale price by numColls', numColls, salePrice.div(numColls).toString());
+      const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000).sub(1); // sub 1 for rounding
+      totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
+      const creatorFeeIerc2981 = salePrice.div(numColls).mul(CREATOR_FEE_BPS_IERC2981).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFeeIerc2981);
+      const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
+      console.log('creatorFeeInfinityRegistry', creatorFeeInfinityRegistry.toString());
+      console.log('creatorFeeIerc2981', creatorFeeIerc2981.toString());
+      console.log('creatorFeeRoyaltyEngine', creatorFeeRoyaltyEngine.toString());
+      totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
+
+      const totalFee = fee.add(creatorFeeInfinityRegistry.add(creatorFeeRoyaltyEngine).add(creatorFeeIerc2981));
+      console.log(
+        'fee',
+        fee,
+        'total fee',
+        totalFee.toString(),
+        'totalCuratorFees',
+        totalCuratorFees.toString(),
+        'totalCreatorFees',
+        totalCreatorFees.toString()
+      );
+      totalFeeSoFar = totalCuratorFees.add(totalCreatorFees);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result1 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract1.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest1 = result1[1][0];
+      const dest2 = result1[1][1];
+      const bpsSplit1 = result1[2][0];
+      const bpsSplit2 = result1[2][1];
+      const amount1 = result1[3][0];
+      const amount2 = result1[3][1];
+      if (!creatorFees[dest1]) {
+        creatorFees[dest1] = toBN(0);
+      }
+      if (!creatorFees[dest2]) {
+        creatorFees[dest2] = toBN(0);
+      }
+      expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(CREATOR_FEE_BPS));
+      expect(amount2).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit2).div(CREATOR_FEE_BPS));
+      creatorFees[dest1] = creatorFees[dest1].add(amount1);
+      creatorFees[dest2] = creatorFees[dest2].add(amount2);
+
+      const result2 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721ContractRoyalty.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest2_1 = result2[1][0];
+      const amount2_1 = result2[3][0];
+      console.log(
+        'creator fees dest1',
+        dest1,
+        creatorFees[dest1],
+        'creator fees dest2',
+        dest2,
+        creatorFees[dest2],
+        'creator fees dest2_1',
+        dest2_1,
+        creatorFees[dest2_1]
+      );
+      if (!creatorFees[dest2_1]) {
+        creatorFees[dest2_1] = toBN(0);
+      }
+      expect(amount2_1).to.equal(creatorFeeIerc2981);
+      creatorFees[dest2_1] = creatorFees[dest2_1].add(amount2_1);
+
+      const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract3.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest3_1 = result3[1][0];
+      const amount3_1 = result3[3][0];
+      if (!creatorFees[dest3_1]) {
+        creatorFees[dest3_1] = toBN(0);
+      }
+      expect(amount3_1).to.equal(creatorFeeRoyaltyEngine);
+      creatorFees[dest3_1] = creatorFees[dest3_1].add(amount3_1);
+
+      const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
+      expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
+      const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
+      expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
+      const allocatedCreatorFee2_1 = await infinityFeeTreasury.creatorFees(dest2_1, token.address);
+      expect(allocatedCreatorFee2_1.toString()).to.equal(creatorFees[dest2_1].toString());
+      const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
+      expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
@@ -1285,24 +1330,18 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
     it('Should succeed', async function () {
       await infinityCreatorsFeeManager
         .connect(signer1)
-        .setupCollectionForCreatorFeeShare(
-          mock721ContractRoyalty.address,
-          [signer2.address],
-          [CREATOR_FEE_BPS]
-        );
+        .setupCollectionForCreatorFeeShare(mock721ContractRoyalty.address, [signer2.address], [CREATOR_FEE_BPS]);
 
       const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
         mock721ContractRoyalty.address,
+        0,
         ethers.utils.parseEther('1')
       );
       const setter = result[0];
       const dest1 = result[1][0];
       const bpsSplit1 = result[2][0];
       const amount1 = result[3][0];
-      const calcRoyalty1 = ethers.utils
-        .parseEther('1')
-        .mul(CREATOR_FEE_BPS)
-        .div(10000);
+      const calcRoyalty1 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
       expect(setter).to.equal(signer1.address);
       expect(dest1).to.equal(signer2.address);
       expect(bpsSplit1).to.equal(CREATOR_FEE_BPS);
@@ -1373,11 +1412,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       }
 
       // approve currency
-      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -1385,112 +1423,127 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // sale price
-        const salePrice = getCurrentSignedOrderPrice(buyOrder);
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const numColls = nfts.length;
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
-        const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
-        const creatorFeeInfinityRegistry2 = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry2);
-
-        const result1 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, salePrice);
-        const dest1 = result1[1][0];
-        const dest2 = result1[1][1];
-        const bpsSplit1 = result1[2][0];
-        const bpsSplit2 = result1[2][1];
-        const amount1 = result1[3][0];
-        const amount2 = result1[3][1];
-        if (!creatorFees[dest1]) {
-          creatorFees[dest1] = toBN(0);
-        }
-        if (!creatorFees[dest2]) {
-          creatorFees[dest2] = toBN(0);
-        }
-        expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(10000));
-        expect(amount2).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit2).div(10000));
-        creatorFees[dest1] = creatorFees[dest1].add(creatorFeeInfinityRegistry.mul(bpsSplit1).div(10000));
-        creatorFees[dest2] = creatorFees[dest2].add(creatorFeeInfinityRegistry.mul(bpsSplit2).div(10000));
-        const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
-        expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
-        const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
-        expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
-
-        const result2 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721ContractRoyalty.address, salePrice);
-        const dest2_1 = result2[1][0];
-        const bpsSplit2_1 = result2[2][0];
-        const amount2_1 = result2[3][0];
-        if (!creatorFees[dest2_1]) {
-          creatorFees[dest2_1] = toBN(0);
-        }
-        expect(amount2_1).to.equal(creatorFeeInfinityRegistry2.mul(bpsSplit2_1).div(10000));
-        creatorFees[dest2_1] = creatorFees[dest2_1].add(creatorFeeInfinityRegistry2.mul(bpsSplit2_1).div(10000));
-        const allocatedCreatorFee2_1 = await infinityFeeTreasury.creatorFees(dest2_1, token.address);
-        expect(allocatedCreatorFee2_1.toString()).to.equal(creatorFees[dest2_1].toString());
-
-        const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract3.address, salePrice);
-        const dest3_1 = result3[1][0];
-        const bpsSplit3_1 = result3[2][0];
-        const amount3_1 = result3[3][0];
-        if (!creatorFees[dest3_1]) {
-          creatorFees[dest3_1] = toBN(0);
-        }
-        expect(amount3_1).to.equal(creatorFeeRoyaltyEngine.mul(bpsSplit3_1).div(10000));
-        creatorFees[dest3_1] = creatorFees[dest3_1].add(creatorFeeRoyaltyEngine.mul(bpsSplit3_1).div(10000));
-        const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
-        expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // sale price
+      salePrice = getCurrentSignedOrderPrice(buyOrder);
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const numColls = nfts.length;
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000).sub(1); // sub 1 for rounding;
+      totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
+      const creatorFeeInfinityRegistry2 = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000).sub(1); // sub 1 for rounding
+      totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry2);
+      const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
+
+      const totalFee = fee
+        .add(creatorFeeInfinityRegistry)
+        .add(creatorFeeInfinityRegistry2)
+        .add(creatorFeeRoyaltyEngine);
+      totalFeeSoFar = totalCreatorFees.add(totalCuratorFees).add(1); // add 1 for rounding;
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result1 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract1.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest1 = result1[1][0];
+      const dest2 = result1[1][1];
+      const bpsSplit1 = result1[2][0];
+      const bpsSplit2 = result1[2][1];
+      const amount1 = result1[3][0];
+      const amount2 = result1[3][1];
+      if (!creatorFees[dest1]) {
+        creatorFees[dest1] = toBN(0);
+      }
+      if (!creatorFees[dest2]) {
+        creatorFees[dest2] = toBN(0);
+      }
+      expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(CREATOR_FEE_BPS));
+      expect(amount2).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit2).div(CREATOR_FEE_BPS));
+      creatorFees[dest1] = creatorFees[dest1].add(amount1);
+      creatorFees[dest2] = creatorFees[dest2].add(amount2);
+
+      const result2 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721ContractRoyalty.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest2_1 = result2[1][0];
+      const bpsSplit2_1 = result2[2][0];
+      const amount2_1 = result2[3][0];
+      if (!creatorFees[dest2_1]) {
+        creatorFees[dest2_1] = toBN(0);
+      }
+      expect(amount2_1).to.equal(creatorFeeInfinityRegistry2.mul(bpsSplit2_1).div(CREATOR_FEE_BPS));
+      creatorFees[dest2_1] = creatorFees[dest2_1].add(amount2_1);
+
+      const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract3.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest3_1 = result3[1][0];
+      const amount3_1 = result3[3][0];
+      if (!creatorFees[dest3_1]) {
+        creatorFees[dest3_1] = toBN(0);
+      }
+      expect(amount3_1).to.equal(creatorFeeRoyaltyEngine);
+      creatorFees[dest3_1] = creatorFees[dest3_1].add(amount3_1);
+
+      const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
+      expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].add(1).toString());
+      const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
+      expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
+      const allocatedCreatorFee2_1 = await infinityFeeTreasury.creatorFees(dest2_1, token.address);
+      expect(allocatedCreatorFee2_1.toString()).to.equal(creatorFees[dest2_1].add(1).toString());
+      const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
+      expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee).sub(1)); // sub 1 for rounding
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
-  describe('Setup_IERC2981_Collection_With_Infinity_Registry', () => {
+  describe('Setup_Royalty_Engine_Collection_With_Infinity_Registry', () => {
     it('Should succeed', async function () {
       await infinityCreatorsFeeManager
         .connect(signer1)
@@ -1498,6 +1551,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
 
       const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
         mock721Contract3.address,
+        0,
         ethers.utils.parseEther('1')
       );
       const setter = result[0];
@@ -1538,11 +1592,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       nfts.push(nft);
 
       // approve currency
-      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -1550,70 +1603,74 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // sale price
-        const salePrice = getCurrentSignedOrderPrice(buyOrder);
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const numColls = nfts.length;
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
-
-        const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract3.address, salePrice);
-        const dest3_1 = result3[1][0];
-        const bpsSplit3_1 = result3[2][0];
-        const amount3_1 = result3[3][0];
-        if (!creatorFees[dest3_1]) {
-          creatorFees[dest3_1] = toBN(0);
-        }
-        expect(amount3_1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit3_1).div(10000));
-        creatorFees[dest3_1] = creatorFees[dest3_1].add(creatorFeeInfinityRegistry.mul(bpsSplit3_1).div(10000));
-        const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
-        expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // sale price
+      salePrice = getCurrentSignedOrderPrice(buyOrder);
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const numColls = nfts.length;
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
+
+      const totalFee = fee.add(creatorFeeInfinityRegistry);
+      totalFeeSoFar = totalCreatorFees.add(totalCuratorFees).add(1); // add 1 for rounding
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract3.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest3_1 = result3[1][0];
+      const bpsSplit3_1 = result3[2][0];
+      const amount3_1 = result3[3][0];
+      if (!creatorFees[dest3_1]) {
+        creatorFees[dest3_1] = toBN(0);
+      }
+      expect(amount3_1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit3_1).div(CREATOR_FEE_BPS));
+      creatorFees[dest3_1] = creatorFees[dest3_1].add(amount3_1);
+      const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
+      expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
@@ -1623,18 +1680,16 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         .connect(signer1)
         .setupCollectionForCreatorFeeShare(mock721ContractRoyalty.address, [], []);
 
-      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
-        mock721ContractRoyalty.address,
-        ethers.utils.parseEther('1')
-      );
+      const salePrice = toBN(ethers.utils.parseEther('1'));
+      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721ContractRoyalty.address, 0, salePrice);
       const setter = result[0];
       const dest1 = result[1][0];
       const bpsSplit1 = result[2][0];
       const amount1 = result[3][0];
-      expect(setter).to.equal(signer1.address);
-      expect(dest1).to.equal(undefined);
+      expect(setter).to.equal(NULL_ADDRESS);
+      expect(dest1).to.equal(signer1.address);
       expect(bpsSplit1).to.equal(undefined);
-      expect(amount1).to.equal(undefined);
+      expect(amount1).to.equal(salePrice.mul(CREATOR_FEE_BPS_IERC2981).div(10000));
     });
   });
 
@@ -1644,18 +1699,16 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         .connect(signer1)
         .setupCollectionForCreatorFeeShare(mock721Contract3.address, [], []);
 
-      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
-        mock721Contract3.address,
-        ethers.utils.parseEther('1')
-      );
+      const salePrice = toBN(ethers.utils.parseEther('1'));
+      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract3.address, 0, salePrice);
       const setter = result[0];
       const dest1 = result[1][0];
       const bpsSplit1 = result[2][0];
       const amount1 = result[3][0];
-      expect(setter).to.equal(signer1.address);
-      expect(dest1).to.equal(undefined);
+      expect(setter).to.equal(NULL_ADDRESS);
+      expect(dest1).to.equal(signer1.address);
       expect(bpsSplit1).to.equal(undefined);
-      expect(amount1).to.equal(undefined);
+      expect(amount1).to.equal(salePrice.mul(CREATOR_FEE_BPS_ENGINE).div(10000));
     });
   });
 
@@ -1741,11 +1794,10 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       nfts.push(nft3);
 
       // approve currency
-      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
 
       // sign order
-      const sig = await signFormattedOrder(chainId, contractAddress, sellOrder, signer1);
       const buyOrder = {
         isSellOrder,
         signer: signer1.address,
@@ -1753,108 +1805,118 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         nfts,
         constraints,
         execParams,
-        sig
+        sig: ''
       };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
 
       const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
-      if (!isSigValid) {
-        console.error('take order signature is invalid');
-      } else {
-        // owners before sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
-          }
+      expect(isSigValid).to.equal(true);
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
         }
-
-        // sale price
-        const salePrice = getCurrentSignedOrderPrice(buyOrder);
-
-        // balance before sale
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
-
-        // perform exchange
-        await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
-
-        // owners after sale
-        for (const item of nfts) {
-          const collection = item.collection;
-          const contract = new ethers.Contract(collection, erc721Abi, signer1);
-          for (const token of item.tokens) {
-            const tokenId = token.tokenId;
-            expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
-          }
-        }
-
-        // balance after sale
-        const numColls = nfts.length;
-        const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-        totalCuratorFees = totalCuratorFees.add(fee);
-        const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
-        const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
-        const creatorFeeIerc2981 = salePrice.div(numColls).mul(CREATOR_FEE_BPS_IERC2981).div(10000);
-        totalCreatorFees = totalCreatorFees.add(creatorFeeIerc2981);
-
-        const result1 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract1.address, salePrice);
-        const dest1 = result1[1][0];
-        const dest2 = result1[1][1];
-        const bpsSplit1 = result1[2][0];
-        const bpsSplit2 = result1[2][1];
-        const amount1 = result1[3][0];
-        const amount2 = result1[3][1];
-        if (!creatorFees[dest1]) {
-          creatorFees[dest1] = toBN(0);
-        }
-        if (!creatorFees[dest2]) {
-          creatorFees[dest2] = toBN(0);
-        }
-        expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(10000));
-        expect(amount2).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit2).div(10000));
-        creatorFees[dest1] = creatorFees[dest1].add(creatorFeeInfinityRegistry.mul(bpsSplit1).div(10000));
-        creatorFees[dest2] = creatorFees[dest2].add(creatorFeeInfinityRegistry.mul(bpsSplit2).div(10000));
-        const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
-        expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
-        const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
-        expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].toString());
-
-        const result2 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721ContractRoyalty.address, salePrice);
-        const dest2_1 = result2[1][0];
-        const bpsSplit2_1 = result2[2][0];
-        const amount2_1 = result2[3][0];
-        if (!creatorFees[dest2_1]) {
-          creatorFees[dest2_1] = toBN(0);
-        }
-        expect(amount2_1).to.equal(creatorFeeIerc2981.mul(bpsSplit2_1).div(10000));
-        creatorFees[dest2_1] = creatorFees[dest2_1].add(creatorFeeIerc2981.mul(bpsSplit2_1).div(10000));
-        const allocatedCreatorFee2_1 = await infinityFeeTreasury.creatorFees(dest2_1, token.address);
-        expect(allocatedCreatorFee2_1.toString()).to.equal(creatorFees[dest2_1].toString());
-
-        const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(mock721Contract3.address, salePrice);
-        const dest3_1 = result3[1][0];
-        const bpsSplit3_1 = result3[2][0];
-        const amount3_1 = result3[3][0];
-        if (!creatorFees[dest3_1]) {
-          creatorFees[dest3_1] = toBN(0);
-        }
-        expect(amount3_1).to.equal(creatorFeeRoyaltyEngine.mul(bpsSplit3_1).div(10000));
-        creatorFees[dest3_1] = creatorFees[dest3_1].add(creatorFeeRoyaltyEngine.mul(bpsSplit3_1).div(10000));
-        const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
-        expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].toString());
-
-        const totalFee = totalCreatorFees.add(totalCuratorFees);
-        expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFee);
-
-        signer1Balance = signer1Balance.sub(salePrice);
-        signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
-        expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
-        expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       }
+
+      // sale price
+      salePrice = getCurrentSignedOrderPrice(buyOrder);
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const numColls = nfts.length;
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
+      const creatorFeeIerc2981 = salePrice.div(numColls).mul(CREATOR_FEE_BPS_IERC2981).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFeeIerc2981);
+      const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
+      totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
+
+      totalFeeSoFar = totalCreatorFees.add(totalCuratorFees).add(1);
+      const totalFee = fee.add(creatorFeeInfinityRegistry).add(creatorFeeRoyaltyEngine).add(creatorFeeIerc2981);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
+
+      const result1 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract1.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest1 = result1[1][0];
+      const dest2 = result1[1][1];
+      const bpsSplit1 = result1[2][0];
+      const bpsSplit2 = result1[2][1];
+      const amount1 = result1[3][0];
+      const amount2 = result1[3][1];
+      if (!creatorFees[dest1]) {
+        creatorFees[dest1] = toBN(0);
+      }
+      if (!creatorFees[dest2]) {
+        creatorFees[dest2] = toBN(0);
+      }
+      expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(CREATOR_FEE_BPS).add(3));
+      expect(amount2).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit2).div(CREATOR_FEE_BPS).add(3));
+      creatorFees[dest1] = creatorFees[dest1].add(amount1);
+      creatorFees[dest2] = creatorFees[dest2].add(amount2);
+
+      const result2 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721ContractRoyalty.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest2_1 = result2[1][0];
+      const amount2_1 = result2[3][0];
+      if (!creatorFees[dest2_1]) {
+        creatorFees[dest2_1] = toBN(0);
+      }
+      expect(amount2_1).to.equal(creatorFeeIerc2981.add(5));
+      creatorFees[dest2_1] = creatorFees[dest2_1].add(amount2_1);
+
+      const result3 = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract3.address,
+        0,
+        toFloor(salePrice.div(numColls))
+      );
+      const dest3_1 = result3[1][0];
+      const amount3_1 = result3[3][0];
+      if (!creatorFees[dest3_1]) {
+        creatorFees[dest3_1] = toBN(0);
+      }
+      expect(amount3_1).to.equal(creatorFeeRoyaltyEngine.add(3));
+      creatorFees[dest3_1] = creatorFees[dest3_1].add(amount3_1);
+
+      const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
+      expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].sub(2).toString());
+      const allocatedCreatorFee2 = await infinityFeeTreasury.creatorFees(dest2, token.address);
+      expect(allocatedCreatorFee2.toString()).to.equal(creatorFees[dest2].sub(3).toString());
+      const allocatedCreatorFee2_1 = await infinityFeeTreasury.creatorFees(dest2_1, token.address);
+      expect(allocatedCreatorFee2_1.toString()).to.equal(creatorFees[dest2_1].sub(8).toString());
+      const allocatedCreatorFee3_1 = await infinityFeeTreasury.creatorFees(dest3_1, token.address);
+      expect(allocatedCreatorFee3_1.toString()).to.equal(creatorFees[dest3_1].sub(8).toString());
+
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(totalFee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
     });
   });
 
@@ -1872,74 +1934,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
 
       const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
         mock721Contract1.address,
-        ethers.utils.parseEther('1')
-      );
-      const setter = result[0];
-      const dest1 = result[1][0];
-      const dest2 = result[1][1];
-      const bpsSplit1 = result[2][0];
-      const bpsSplit2 = result[2][1];
-      const amount1 = result[3][0];
-      const amount2 = result[3][1];
-      const calcRoyalty1 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
-      const calcRoyalty2 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
-      expect(setter).to.equal(signer1.address);
-      expect(dest1).to.equal(signer2.address);
-      expect(dest2).to.equal(signer3.address);
-      expect(bpsSplit1).to.equal(CREATOR_FEE_BPS);
-      expect(bpsSplit2).to.equal(CREATOR_FEE_BPS);
-      expect(amount1.toString()).to.equal(calcRoyalty1);
-      expect(amount2.toString()).to.equal(calcRoyalty2);
-    });
-  });
-
-  describe('Try_Setup_Collection_NonOwner', () => {
-    it('Should not succeed', async function () {
-      await expect(
-        infinityCreatorsFeeManager
-          .connect(signer2)
-          .setupCollectionForCreatorFeeShare(
-            mock721Contract1.address,
-            [signer1.address, signer2.address],
-            [CREATOR_FEE_BPS / 2, CREATOR_FEE_BPS / 2]
-          )
-      ).to.be.revertedWith('unauthorized');
-
-      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
-        mock721Contract1.address,
-        ethers.utils.parseEther('1')
-      );
-      const setter = result[0];
-      const dest1 = result[1][0];
-      const dest2 = result[1][1];
-      const bpsSplit1 = result[2][0];
-      const bpsSplit2 = result[2][1];
-      const amount1 = result[3][0];
-      const amount2 = result[3][1];
-      const calcRoyalty1 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
-      const calcRoyalty2 = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS).div(10000);
-      expect(setter).to.equal(signer1.address);
-      expect(dest1).to.equal(signer2.address);
-      expect(dest2).to.equal(signer3.address);
-      expect(bpsSplit1).to.equal(CREATOR_FEE_BPS);
-      expect(bpsSplit2).to.equal(CREATOR_FEE_BPS);
-      expect(amount1.toString()).to.equal(calcRoyalty1);
-      expect(amount2.toString()).to.equal(calcRoyalty2);
-    });
-  });
-
-  describe('Try_Setup_Collection_NonOwner_ButAdmin', () => {
-    it('Should succeed', async function () {
-      await infinityCreatorsFeeManager
-        .connect(signer1)
-        .setupCollectionForCreatorFeeShare(
-          mock721Contract4.address,
-          [signer1.address, signer2.address],
-          [CREATOR_FEE_BPS / 2, CREATOR_FEE_BPS / 2]
-        );
-
-      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
-        mock721Contract4.address,
+        0,
         ethers.utils.parseEther('1')
       );
       const setter = result[0];
@@ -1958,10 +1953,92 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
         .mul(CREATOR_FEE_BPS / 2)
         .div(10000);
       expect(setter).to.equal(signer1.address);
-      expect(dest1).to.equal(signer1.address);
-      expect(dest2).to.equal(signer2.address);
+      expect(dest1).to.equal(signer2.address);
+      expect(dest2).to.equal(signer3.address);
       expect(bpsSplit1).to.equal(CREATOR_FEE_BPS / 2);
       expect(bpsSplit2).to.equal(CREATOR_FEE_BPS / 2);
+      expect(amount1.toString()).to.equal(calcRoyalty1);
+      expect(amount2.toString()).to.equal(calcRoyalty2);
+    });
+  });
+
+  describe('Try_Setup_Collection_NonOwner', () => {
+    it('Should not succeed', async function () {
+      await expect(
+        infinityCreatorsFeeManager
+          .connect(signer2)
+          .setupCollectionForCreatorFeeShare(
+            mock721Contract1.address,
+            [signer1.address, signer2.address],
+            [CREATOR_FEE_BPS / 4, CREATOR_FEE_BPS / 4]
+          )
+      ).to.be.revertedWith('unauthorized');
+
+      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract1.address,
+        0,
+        ethers.utils.parseEther('1')
+      );
+      const setter = result[0];
+      const dest1 = result[1][0];
+      const dest2 = result[1][1];
+      const bpsSplit1 = result[2][0];
+      const bpsSplit2 = result[2][1];
+      const amount1 = result[3][0];
+      const amount2 = result[3][1];
+      const calcRoyalty1 = ethers.utils
+        .parseEther('1')
+        .mul(CREATOR_FEE_BPS / 2)
+        .div(10000);
+      const calcRoyalty2 = ethers.utils
+        .parseEther('1')
+        .mul(CREATOR_FEE_BPS / 2)
+        .div(10000);
+      expect(setter).to.equal(signer1.address);
+      expect(dest1).to.equal(signer2.address);
+      expect(dest2).to.equal(signer3.address);
+      expect(bpsSplit1).to.equal(CREATOR_FEE_BPS / 2);
+      expect(bpsSplit2).to.equal(CREATOR_FEE_BPS / 2);
+      expect(amount1.toString()).to.equal(calcRoyalty1);
+      expect(amount2.toString()).to.equal(calcRoyalty2);
+    });
+  });
+
+  describe('Try_Setup_Collection_NonOwner_ButAdmin', () => {
+    it('Should succeed', async function () {
+      await infinityCreatorsFeeManager
+        .connect(signer1)
+        .setupCollectionForCreatorFeeShare(
+          mock721Contract4.address,
+          [signer1.address, signer2.address],
+          [CREATOR_FEE_BPS / 4, CREATOR_FEE_BPS / 4]
+        );
+
+      const result = await infinityCreatorsFeeManager.getCreatorsFeeInfo(
+        mock721Contract4.address,
+        0,
+        ethers.utils.parseEther('1')
+      );
+      const setter = result[0];
+      const dest1 = result[1][0];
+      const dest2 = result[1][1];
+      const bpsSplit1 = result[2][0];
+      const bpsSplit2 = result[2][1];
+      const amount1 = result[3][0];
+      const amount2 = result[3][1];
+      const calcRoyalty1 = ethers.utils
+        .parseEther('1')
+        .mul(CREATOR_FEE_BPS / 4)
+        .div(10000);
+      const calcRoyalty2 = ethers.utils
+        .parseEther('1')
+        .mul(CREATOR_FEE_BPS / 4)
+        .div(10000);
+      expect(setter).to.equal(signer1.address);
+      expect(dest1).to.equal(signer1.address);
+      expect(dest2).to.equal(signer2.address);
+      expect(bpsSplit1).to.equal(CREATOR_FEE_BPS / 4);
+      expect(bpsSplit2).to.equal(CREATOR_FEE_BPS / 4);
       expect(amount1.toString()).to.equal(calcRoyalty1);
       expect(amount2.toString()).to.equal(calcRoyalty2);
 

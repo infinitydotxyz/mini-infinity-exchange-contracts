@@ -7,15 +7,13 @@ import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
 import {IOwnable} from '../interfaces/IOwnable.sol';
 import {IRoyaltyEngine} from '../interfaces/IRoyaltyEngine.sol';
 import {IFeeRegistry} from '../interfaces/IFeeRegistry.sol';
+import 'hardhat/console.sol';
 
 /**
  * @title InfinityCreatorsFeeManager
  * @notice handles creator fees aka royalties
  */
 contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
-  bytes4 public constant INTERFACE_ID_ERC721 = 0x80ac58cd;
-  bytes4 public constant INTERFACE_ID_ERC1155 = 0xd9b67a26;
-  bytes4 public constant INTERFACE_ID_ERC2981 = 0x2a55205a;
   FeeParty public PARTY_NAME = FeeParty.CREATORS;
   IRoyaltyEngine public royaltyEngine;
   uint16 public MAX_CREATOR_FEE_BPS = 1000;
@@ -45,6 +43,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
     uint256 amount
   )
     external
+    view
     override
     returns (
       FeeParty,
@@ -52,19 +51,8 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
       uint256[] memory
     )
   {
-    address[] memory recipients;
-    uint256[] memory amounts;
-
     // check if the creators fee is registered
-    (, recipients, , amounts) = _getCreatorsFeeInfo(collection, amount);
-    if (recipients.length > 0) {
-      return (PARTY_NAME, recipients, amounts);
-    } else if (IERC165(collection).supportsInterface(INTERFACE_ID_ERC2981)) {
-      (recipients[0], amounts[0]) = IERC2981(collection).royaltyInfo(tokenId, amount);
-    } else {
-      // lookup from royaltyregistry.eth
-      (recipients, amounts) = royaltyEngine.getRoyalty(collection, tokenId, amount);
-    }
+    (, address[] memory recipients, , uint256[] memory amounts) = _getCreatorsFeeInfo(collection, tokenId, amount);
     return (PARTY_NAME, recipients, amounts);
   }
 
@@ -80,6 +68,8 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
     address[] calldata feeDestinations,
     uint16[] calldata bpsSplits
   ) external {
+    bytes4 INTERFACE_ID_ERC721 = 0x80ac58cd;
+    bytes4 INTERFACE_ID_ERC1155 = 0xd9b67a26;
     require(
       (IERC165(collection).supportsInterface(INTERFACE_ID_ERC721) ||
         IERC165(collection).supportsInterface(INTERFACE_ID_ERC1155)),
@@ -115,7 +105,11 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
 
   // ============================================== INTERNAL FUNCTIONS ==============================================
 
-  function _getCreatorsFeeInfo(address collection, uint256 amount)
+  function _getCreatorsFeeInfo(
+    address collection,
+    uint256 tokenId,
+    uint256 amount
+  )
     internal
     view
     returns (
@@ -125,26 +119,39 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
       uint256[] memory
     )
   {
+    bytes4 INTERFACE_ID_ERC2981 = 0x2a55205a;
+    uint256[] memory amounts;
+    // check if the creators fee is registered
     (address setter, address[] memory destinations, uint16[] memory bpsSplits) = IFeeRegistry(CREATORS_FEE_REGISTRY)
       .getFeeInfo(collection);
-    uint256[] memory creatorsFees = new uint256[](bpsSplits.length);
-    for (uint256 i = 0; i < bpsSplits.length; ) {
-      creatorsFees[i] = (bpsSplits[i] * amount) / 10000;
-      unchecked {
-        ++i;
+    if (destinations.length > 0) {
+      uint256[] memory creatorsFees = new uint256[](bpsSplits.length);
+      for (uint256 i = 0; i < bpsSplits.length; ) {
+        creatorsFees[i] = (bpsSplits[i] * amount) / 10000;
+        unchecked {
+          ++i;
+        }
       }
+      return (setter, destinations, bpsSplits, creatorsFees);
+    } else if (IERC165(collection).supportsInterface(INTERFACE_ID_ERC2981)) {
+      destinations = new address[](1);
+      amounts = new uint256[](1);
+      (destinations[0], amounts[0]) = IERC2981(collection).royaltyInfo(tokenId, amount);
+      return (address(0), destinations, bpsSplits, amounts);
+    } else {
+      // lookup from royaltyregistry.eth
+      (destinations, amounts) = royaltyEngine.getRoyaltyView(collection, tokenId, amount);
+      return (address(0), destinations, bpsSplits, amounts);
     }
-    return (setter, destinations, bpsSplits, creatorsFees);
   }
 
   // ============================================== VIEW FUNCTIONS ==============================================
 
-  /**
-   * @notice Calculate creators fee for a collection address and return info
-   * @param collection collection address
-   * @param amount amount
-   */
-  function getCreatorsFeeInfo(address collection, uint256 amount)
+  function getCreatorsFeeInfo(
+    address collection,
+    uint256 tokenId,
+    uint256 amount
+  )
     external
     view
     returns (
@@ -154,7 +161,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
       uint256[] memory
     )
   {
-    return _getCreatorsFeeInfo(collection, amount);
+    return _getCreatorsFeeInfo(collection, tokenId, amount);
   }
 
   // ===================================================== ADMIN FUNCTIONS =====================================================

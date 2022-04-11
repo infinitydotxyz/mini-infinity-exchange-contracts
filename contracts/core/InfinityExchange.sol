@@ -68,6 +68,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   event NewCurrencyRegistry(address currencyRegistry);
   event NewComplicationRegistry(address complicationRegistry);
   event NewInfinityFeeTreasury(address infinityFeeTreasury);
+  event NewInfinityTradingRewards(address infinityTradingRewards);
   event NewMatchExecutor(address matchExecutor);
 
   event OrderFulfilled(
@@ -158,10 +159,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     require(sells.length == constructs.length, 'Match orders: mismatched lengths');
 
     if (tradingRewards) {
-      address[] memory sellers;
-      address[] memory buyers;
-      address[] memory currencies;
-      uint256[] memory amounts;
+      address[] memory sellers = new address[](sells.length);
+      address[] memory buyers = new address[](sells.length);
+      address[] memory currencies = new address[](sells.length);
+      uint256[] memory amounts = new uint256[](sells.length);
       // execute orders one by one
       for (uint256 i = 0; i < sells.length; ) {
         (sellers[i], buyers[i], currencies[i], amounts[i]) = _matchOrders(
@@ -198,10 +199,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
 
     if (tradingRewards) {
       console.log('trading rewards enabled');
-      address[] memory sellers;
-      address[] memory buyers;
-      address[] memory currencies;
-      uint256[] memory amounts;
+      address[] memory sellers = new address[](makerOrders.length);
+      address[] memory buyers = new address[](makerOrders.length);
+      address[] memory currencies = new address[](makerOrders.length);
+      uint256[] memory amounts = new uint256[](makerOrders.length);
       // execute orders one by one
       for (uint256 i = 0; i < makerOrders.length; ) {
         (sellers[i], buyers[i], currencies[i], amounts[i]) = _takeOrders(
@@ -809,6 +810,12 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     require(_infinityFeeTreasury != address(0), 'Owner: Cannot be 0x0');
     infinityFeeTreasury = IInfinityFeeTreasury(_infinityFeeTreasury);
     emit NewInfinityFeeTreasury(_infinityFeeTreasury);
+  }
+
+  function updateInfinityTradingRewards(address _infinityTradingRewards) external onlyOwner {
+    require(_infinityTradingRewards != address(0), 'Owner: Cannot be 0x0');
+    infinityTradingRewards = IInfinityTradingRewards(_infinityTradingRewards);
+    emit NewInfinityTradingRewards(_infinityTradingRewards);
   }
 
   function updateMatchExecutor(address _matchExecutor) external onlyOwner {

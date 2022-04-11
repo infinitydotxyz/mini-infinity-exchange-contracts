@@ -9,7 +9,7 @@ import 'hardhat/console.sol';
 contract MockRoyaltyEngine is IRoyaltyEngine, Ownable {
   mapping(address => uint16) royaltyBps;
 
-  function getRoyalty(
+  function getRoyaltyView(
     address collection,
     uint256,
     uint256 salePrice

@@ -264,7 +264,7 @@ describe('Staker_Tests', function () {
 
   describe('Change duration to gold level and overall level to platinum', () => {
     it('Should change duration', async function () {
-      await infinityStaker.changeDuration(signer1.address, amountStaked2, 0, 1);
+      await infinityStaker.changeDuration(amountStaked2, 0, 1);
       expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(3);
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(infinityStaker.address)).to.equal(infinityStakerBalance);
@@ -273,7 +273,7 @@ describe('Staker_Tests', function () {
 
   describe('Try changing duration to silver level', () => {
     it('Should not change duration', async function () {
-      await expect(infinityStaker.changeDuration(signer1.address, amountStaked2, 1, 0)).to.be.revertedWith(
+      await expect(infinityStaker.changeDuration(amountStaked2, 1, 0)).to.be.revertedWith(
         'new duration must be greater than old duration'
       );
     });
@@ -302,12 +302,12 @@ describe('Staker_Tests', function () {
     });
   });
 
-  describe('Stake tokens to gold level', () => {
+  describe('Stake tokens to silver level', () => {
     it('Should stake', async function () {
       // approve erc20
       await approveERC20(signer1.address, token.address, amountStaked2, signer1, infinityStaker.address);
       await infinityStaker.stake(signer1.address, amountStaked2, 0);
-      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(2);
+      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(1);
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance.sub(amountStaked2));
       expect(await token.balanceOf(infinityStaker.address)).to.equal(amountStaked2);
       signer1Balance = signer1Balance.sub(amountStaked2);
@@ -317,7 +317,7 @@ describe('Staker_Tests', function () {
 
   describe('Unstake tokens to bronze level', () => {
     it('Should unstake', async function () {
-      await infinityStaker.unstake(signer1.address, amountStaked2);
+      await infinityStaker.unstake(amountStaked2);
       expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(0);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(0);
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance.add(amountStaked2));
@@ -340,7 +340,7 @@ describe('Staker_Tests', function () {
       await infinityStaker.stake(signer1.address, amountStaked2, 0);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
       expect(await infinityStaker.getUserTotalVested(signer1.address)).to.equal(amountStaked2);
-      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(2);
+      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(1);
 
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance.sub(amountStaked2));
       expect(await token.balanceOf(infinityStaker.address)).to.equal(amountStaked2);
@@ -364,7 +364,7 @@ describe('Staker_Tests', function () {
       await infinityStaker.stake(signer1.address, amountStaked2, 2);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
       expect(await infinityStaker.getUserTotalVested(signer1.address)).to.equal(amountStaked2);
-      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(3);
+      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(4);
 
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance.sub(amountStaked2));
       expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
@@ -377,18 +377,18 @@ describe('Staker_Tests', function () {
       let totalVested = amountStaked2.add(amountStaked2);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
       expect(await infinityStaker.getUserTotalVested(signer1.address)).to.equal(totalVested);
-      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(3);
+      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(4);
 
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
 
       // try unstaking a large amount
-      await expect(infinityStaker.unstake(signer1.address, amountStaked2.mul(5))).to.be.revertedWith(
+      await expect(infinityStaker.unstake(amountStaked2.mul(5))).to.be.revertedWith(
         'insufficient balance to unstake'
       );
 
       // unstake all vested amount
-      await infinityStaker.unstake(signer1.address, totalVested);
+      await infinityStaker.unstake(totalVested);
       totalStaked = totalStaked.sub(totalVested);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
       expect(await infinityStaker.getUserTotalVested(signer1.address)).to.equal(0);
@@ -399,7 +399,7 @@ describe('Staker_Tests', function () {
       signer1Balance = signer1Balance.add(totalVested);
 
       // try unstaking
-      await expect(infinityStaker.unstake(signer1.address, amountStaked2)).to.be.revertedWith(
+      await expect(infinityStaker.unstake(amountStaked2)).to.be.revertedWith(
         'insufficient balance to unstake'
       );
 
@@ -417,7 +417,7 @@ describe('Staker_Tests', function () {
       // unstake some vested amount
       const unstakeAmount = totalVested.div(2);
       const amountLeft = totalVested.sub(unstakeAmount);
-      await infinityStaker.unstake(signer1.address, unstakeAmount);
+      await infinityStaker.unstake(unstakeAmount);
       totalStaked = totalStaked.sub(unstakeAmount);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
       expect(await infinityStaker.getUserTotalVested(signer1.address)).to.equal(amountLeft);
@@ -427,7 +427,7 @@ describe('Staker_Tests', function () {
       expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
       signer1Balance = signer1Balance.add(unstakeAmount);
 
-      // ragequit the remaining amount; shouldn't be any penalty
+      // ragequit the remaining amount; there shouldn't be any penalty
       await infinityStaker.rageQuit();
       totalStaked = totalStaked.sub(amountLeft);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
@@ -470,7 +470,7 @@ describe('Staker_Tests', function () {
       await infinityStaker.stake(signer1.address, amountStaked2, 2);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
       expect(await infinityStaker.getUserTotalVested(signer1.address)).to.equal(0);
-      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(3);
+      expect(await infinityStaker.getUserStakeLevel(signer1.address)).to.equal(4);
 
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance.sub(totalStaked));
       expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);

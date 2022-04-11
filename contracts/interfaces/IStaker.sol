@@ -11,6 +11,7 @@ enum Duration {
 }
 
 enum StakeLevel {
+  NONE,
   BRONZE,
   SILVER,
   GOLD,
@@ -20,15 +21,17 @@ enum StakeLevel {
 interface IStaker {
   function stake(address user, uint256 amount, Duration duration) external;
 
-  function changeDuration(address user, uint256 amount, Duration oldDuration, Duration newDuration) external;
+  function changeDuration(uint256 amount, Duration oldDuration, Duration newDuration) external;
 
-  function unstake(address user, uint256 amount) external;
+  function unstake(uint256 amount) external;
 
   function rageQuit() external;
 
   function getUserTotalStaked(address user) external view returns (uint256);
 
   function getUserTotalVested(address user) external view returns (uint256);
+
+  function getRageQuitAmounts(address user) external view returns (uint256, uint256);
 
   function getUserStakePower(address user) external view returns (uint256);
 
