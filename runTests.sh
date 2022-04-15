@@ -49,5 +49,8 @@ printSeparator
 npx hardhat test --grep Staker_Tests
 printSeparator
 
+npx hardhat test --grep Exchange_Match
+printSeparator
+
 npx hardhat test --grep 'Infinity Token'
 echo 'All tests complete!'
