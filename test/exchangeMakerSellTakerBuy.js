@@ -327,6 +327,57 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
     });
   });
 
+  // one specific collection, any one of multiple specific tokens, min price
+  describe('OneCollectionAnyOneOfMultipleTokensSell', () => {
+    it('Signed order should be valid', async function () {
+      const user = {
+        address: signer2.address
+      };
+      const chainId = network.config.chainId;
+      const nfts = [
+        {
+          collection: mock721Contract1.address,
+          tokens: [
+            { tokenId: 12, numTokens: 1 },
+            { tokenId: 13, numTokens: 1 },
+            { tokenId: 14, numTokens: 1 }
+          ]
+        }
+      ];
+      const execParams = { complicationAddress: obComplication.address, currencyAddress: token.address };
+      const extraParams = {};
+      const nonce = ++orderNonce;
+      const orderId = ethers.utils.solidityKeccak256(['address', 'uint256', 'uint256'], [user.address, nonce, chainId]);
+      let numItems = 1;
+      const order = {
+        id: orderId,
+        chainId,
+        isSellOrder: true,
+        signerAddress: user.address,
+        numItems,
+        startPrice: ethers.utils.parseEther('1'),
+        endPrice: ethers.utils.parseEther('1'),
+        startTime: nowSeconds(),
+        endTime: nowSeconds().add(10 * 60),
+        minBpsToSeller: 9000,
+        nonce,
+        nfts,
+        execParams,
+        extraParams
+      };
+      const signedOrder = await prepareOBOrder(
+        user,
+        chainId,
+        signer2,
+        order,
+        infinityExchange,
+        infinityFeeTreasury.address
+      );
+      expect(signedOrder).to.not.be.undefined;
+      sellOrders.push(signedOrder);
+    });
+  });
+
   // one specific collection, any one token, min price
   describe('OneCollectionAnyOneTokenSell', () => {
     it('Signed order should be valid', async function () {
@@ -701,6 +752,90 @@ describe('Exchange_Maker_Sell_Taker_Buy', function () {
       const nfts = sellOrder.nfts;
       const execParams = sellOrder.execParams;
       const extraParams = sellOrder.extraParams;
+
+      // approve currency
+      const salePrice = getCurrentSignedOrderPrice(sellOrder);
+      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
+
+      // sign order
+      const buyOrder = {
+        isSellOrder,
+        signer: signer1.address,
+        extraParams,
+        nfts,
+        constraints,
+        execParams,
+        sig: ''
+      };
+      buyOrder.sig = await signFormattedOrder(chainId, contractAddress, buyOrder, signer1);
+
+      const isSigValid = await infinityExchange.verifyOrderSig(buyOrder);
+      expect(isSigValid).to.equal(true);
+      // owners before sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer2.address);
+        }
+      }
+
+      // balance before sale
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // perform exchange
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+
+      // owners after sale
+      for (const item of nfts) {
+        const collection = item.collection;
+        const contract = new ethers.Contract(collection, erc721Abi, signer1);
+        for (const token of item.tokens) {
+          const tokenId = token.tokenId;
+          expect(await contract.ownerOf(tokenId)).to.equal(signer1.address);
+        }
+      }
+
+      // balance after sale
+      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      totalCuratorFees = totalCuratorFees.add(fee);
+      expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
+      signer1Balance = signer1Balance.sub(salePrice);
+      signer2Balance = signer2Balance.add(salePrice.sub(fee));
+      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+    });
+  });
+
+  describe('Take_OneCollectionAnyOneOfMultipleTokensSell', () => {
+    it('Should take valid order', async function () {
+      const sellOrder = sellOrders[++numTakeOrders];
+      const chainId = network.config.chainId;
+      const contractAddress = infinityExchange.address;
+      const isSellOrder = false;
+
+      const constraints = sellOrder.constraints;
+      const sellOrderNfts = sellOrder.nfts;
+      const execParams = sellOrder.execParams;
+      const extraParams = sellOrder.extraParams;
+
+      // form matching nfts
+      const nfts = [];
+      for (const sellOrderNft of sellOrderNfts) {
+        const collection = sellOrderNft.collection;
+        const nft = {
+          collection,
+          tokens: [
+            {
+              tokenId: 12,
+              numTokens: 1
+            }
+          ]
+        };
+        nfts.push(nft);
+      }
 
       // approve currency
       const salePrice = getCurrentSignedOrderPrice(sellOrder);
