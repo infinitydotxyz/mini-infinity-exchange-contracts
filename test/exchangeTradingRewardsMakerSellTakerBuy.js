@@ -210,6 +210,9 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
     // set infinity rewards on staker
     await infinityStaker.updateInfinityRewardsContract(infinityTradingRewards.address);
 
+    // set creator fee manager on registry
+    await infinityCreatorsFeeRegistry.updateCreatorsFeeManager(infinityCreatorsFeeManager.address);
+
     // set reward token
     await infinityTradingRewards.addRewardToken(token.address);
     let rewardTokenFundAmount = INITIAL_SUPPLY.div(4);
