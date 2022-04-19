@@ -33,10 +33,6 @@ function toBN(val: string | number) {
   return BigNumber.from(val.toString());
 }
 
-task('runAllInteractions', 'Run all interactions').setAction(async (args, { ethers, run, network }) => {
-  await run('sendAssetsToTest');
-});
-
 task('deployAll', 'Deploy all contracts')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
@@ -77,25 +73,6 @@ task('deployAll', 'Deploy all contracts')
 
     // run all interactions
     await run('runAllInteractions');
-  });
-
-task('deployMock20', 'Deploy')
-  .addFlag('verify', 'verify contracts on etherscan')
-  .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
-    const mock20 = await deployContract('MockERC20', await ethers.getContractFactory('MockERC20'), signer);
-
-    // verify source
-    if (args.verify) {
-      console.log('Verifying source on etherscan');
-      await mock20.deployTransaction.wait(5);
-      await run('verify:verify', {
-        address: mock20.address,
-        contract: 'contracts/MockERC20.sol:MockERC20'
-      });
-    }
-    return mock20;
   });
 
 task('deployInfinityToken', 'Deploy Infinity token contract')
@@ -149,31 +126,6 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
     }
 
     return infinityToken;
-  });
-
-task('deployMock721', 'Deploy')
-  .addFlag('verify', 'verify contracts on etherscan')
-  .addParam('name', 'name')
-  .addParam('symbol', 'symbol')
-  .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
-    const mock721 = await deployContract('MockERC721', await ethers.getContractFactory('MockERC721'), signer, [
-      args.name,
-      args.symbol
-    ]);
-
-    // verify source
-    if (args.verify) {
-      console.log('Verifying source on etherscan');
-      await mock721.deployTransaction.wait(5);
-      await run('verify:verify', {
-        address: mock721.address,
-        contract: 'contracts/MockERC721.sol:MockERC721',
-        constructorArguments: [args.name, args.symbol]
-      });
-    }
-    return mock721;
   });
 
 task('deployCurrencyRegistry', 'Deploy')
@@ -276,27 +228,3 @@ task('deployOBComplication', 'Deploy')
     }
     return obComplication;
   });
-
-// ============================================== interactions and tests ==============================================
-
-task('sendAssetsToTest', 'Sends mock721s and mock20 tokens to 2 test addresses').setAction(
-  async (args, { ethers, run, network }) => {
-    const signer = (await ethers.getSigners())[0];
-    const addr1 = signer.address;
-    const addr2 = (await ethers.getSigners())[1].address;
-    if (mock20Address) {
-      const mock20 = new ethers.Contract(mock20Address, erc20Abi, signer);
-      await mock20.transfer(addr2, ethers.utils.parseUnits('10000', 18));
-    }
-    if (mock721Address1 && mock721Address2 && mock721Address3) {
-      const mock721a = new ethers.Contract(mock721Address1, erc721Abi, signer);
-      const mock721b = new ethers.Contract(mock721Address2, erc721Abi, signer);
-      const mock721c = new ethers.Contract(mock721Address3, erc721Abi, signer);
-      for (let i = 0; i < 10; i++) {
-        await mock721a.transferFrom(addr1, addr2, i);
-        await mock721b.transferFrom(addr1, addr2, i);
-        await mock721c.transferFrom(addr1, addr2, i);
-      }
-    }
-  }
-);
