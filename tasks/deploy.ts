@@ -315,7 +315,7 @@ task('deployInfinityTradingRewards', 'Deploy')
     return rewards;
   });
 
-task('deployCreatorsFeeRegistry', 'Deploy')
+task('deployInfinityCreatorsFeeRegistry', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
     const creatorsFeeRegistry = await deployContract(
