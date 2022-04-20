@@ -29,7 +29,7 @@ export default {
     polygonprod: {
       url: 'https://polygon-rpc.com/',
       accounts: [process.env.POLYGON_PROD_PRIV_KEY, process.env.POLYGON_PROD_PRIV_KEY_2],
-      gasPrice: parseUnits('50', 'gwei').toNumber()
+      gasPrice: parseUnits('80', 'gwei').toNumber()
     }
   },
   solidity: {
