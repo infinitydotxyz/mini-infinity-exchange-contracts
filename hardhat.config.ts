@@ -4,8 +4,6 @@ import '@nomiclabs/hardhat-waffle';
 import 'hardhat-gas-reporter';
 
 import './tasks/deploy';
-import './tasks/interactions';
-import './tasks/gen';
 
 import { HardhatUserConfig } from 'hardhat/config';
 import { parseUnits } from 'ethers/lib/utils';
@@ -41,8 +39,8 @@ export default {
         settings: {
           optimizer: {
             enabled: true,
-            // runs: 99999999
-            runs: 1 // todo: set to 99999999
+            runs: 99999999
+            // runs: 1 // todo: set to 99999999
           }
         }
       }

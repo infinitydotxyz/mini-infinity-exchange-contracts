@@ -1,33 +1,54 @@
 import { task } from 'hardhat/config';
 import { deployContract } from './utils';
 import { expect } from 'chai';
-import { BigNumber } from 'ethers';
+import { BigNumber, Contract } from 'ethers';
 import { parseEther } from 'ethers/lib/utils';
 import { erc20Abi } from '../abi/erc20';
 import { erc721Abi } from '../abi/erc721';
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 require('dotenv').config();
 
-const WETH_ADDRESS = undefined; // todo: change this to the address of WETH contract;
+// mainnet
+// const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+// polygon
+const WETH_ADDRESS = '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619';
 
-let mock721Address1 = '';
-let mock721Address2 = '';
-let mock721Address3 = '';
-let mock20Address = '';
-let nftTokenAddress = '';
+// mainnet
+// const ROYALTY_ENGINE = '0x0385603ab55642cb4dd5de3ae9e306809991804f';
+// polygon
+const ROYALTY_ENGINE = '0x28edfcf0be7e86b07493466e7631a213bde8eef2';
 
+const CURATOR_FEE_BPS = 150;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const MINUTE = 60;
 const HOUR = MINUTE * 60;
 const DAY = HOUR * 24;
 const MONTH = DAY * 30;
 const YEAR = MONTH * 12;
 const UNIT = toBN(1e18);
-const INFLATION = toBN(300_000_000).mul(UNIT); // 40m
+const INFLATION = toBN(300_000_000).mul(UNIT);
 const EPOCH_DURATION = YEAR;
 const CLIFF = toBN(3);
 const CLIFF_PERIOD = CLIFF.mul(YEAR);
 const MAX_EPOCHS = 6;
 const TIMELOCK = 30 * DAY;
-const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT); // 1b
+const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT);
+
+// other vars
+let signer1: SignerWithAddress,
+  signer2: SignerWithAddress,
+  signer3: SignerWithAddress,
+  infinityToken: Contract,
+  infinityExchange: Contract,
+  infinityCurrencyRegistry: Contract,
+  infinityComplicationRegistry: Contract,
+  infinityOBComplication: Contract,
+  infinityTreasurer: string,
+  infinityStaker: Contract,
+  infinityTradingRewards: Contract,
+  infinityFeeTreasury: Contract,
+  infinityCreatorsFeeRegistry: Contract,
+  infinityCreatorsFeeManager: Contract;
 
 function toBN(val: string | number) {
   return BigNumber.from(val.toString());
@@ -36,71 +57,94 @@ function toBN(val: string | number) {
 task('deployAll', 'Deploy all contracts')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
-    const nftToken = await run('deployInfinityToken', {
-      verify: args.verify,
+    signer1 = (await ethers.getSigners())[0];
+    signer2 = (await ethers.getSigners())[1];
+    signer3 = (await ethers.getSigners())[2];
+
+    infinityToken = await run('deployInfinityToken', {
       inflation: INFLATION.toString(),
       epochduration: EPOCH_DURATION.toString(),
       cliff: CLIFF_PERIOD.toString(),
       maxepochs: MAX_EPOCHS.toString(),
       timelock: TIMELOCK.toString(),
-      supply: INITIAL_SUPPLY.toString()
+      supply: INITIAL_SUPPLY.toString(),
+      verify: args.verify
     });
-    nftTokenAddress = nftToken.address;
 
-    const mock721a = await run('deployMock721', { verify: args.verify, name: 'Mock721A', symbol: 'MCKA' });
-    mock721Address1 = mock721a.address;
-    const mock721b = await run('deployMock721', { verify: args.verify, name: 'Mock721B', symbol: 'MCKB' });
-    mock721Address2 = mock721b.address;
-    const mock721c = await run('deployMock721', { verify: args.verify, name: 'Mock721C', symbol: 'MCKC' });
-    mock721Address3 = mock721c.address;
+    infinityCurrencyRegistry = await run('deployCurrencyRegistry', { verify: args.verify });
 
-    const currencyRegistry = await run('deployCurrencyRegistry', { verify: args.verify });
+    infinityComplicationRegistry = await run('deployComplicationRegistry', { verify: args.verify });
 
-    const complicationRegistry = await run('deployComplicationRegistry', { verify: args.verify });
-
-    const infinityExchange = await run('deployExchange', {
+    infinityExchange = await run('deployExchange', {
       verify: args.verify,
-      currencyregistry: currencyRegistry.address,
-      complicationregistry: complicationRegistry.address,
-      wethaddress: WETH_ADDRESS ?? nftTokenAddress
+      currencyregistry: infinityCurrencyRegistry.address,
+      complicationregistry: infinityComplicationRegistry.address,
+      wethaddress: WETH_ADDRESS,
+      matchexecutor: signer3.address
     });
 
-    const obComplication = await run('deployOBComplication', {
+    infinityOBComplication = await run('deployOBComplication', {
       verify: args.verify,
       protocolfee: '0',
-      errorbound: '1000000000'
+      errorbound: parseEther('0.01').toString()
     });
 
-    // run all interactions
-    await run('runAllInteractions');
+    infinityTreasurer = (await ethers.getSigners())[0].address;
+
+    infinityStaker = await run('deployInfinityStaker', {
+      verify: args.verify,
+      token: infinityToken.address,
+      treasurer: infinityTreasurer
+    });
+
+    infinityTradingRewards = await run('deployInfinityTradingRewards', {
+      verify: args.verify,
+      exchange: infinityExchange.address,
+      staker: infinityStaker.address,
+      token: infinityToken.address
+    });
+
+    infinityCreatorsFeeRegistry = await run('deployInfinityCreatorsFeeRegistry', {
+      verify: args.verify
+    });
+
+    infinityCreatorsFeeManager = await run('deployInfinityCreatorsFeeManager', {
+      verify: args.verify,
+      royaltyengine: ROYALTY_ENGINE,
+      creatorsfeeregistry: infinityCreatorsFeeRegistry.address
+    });
+
+    infinityFeeTreasury = await run('deployInfinityFeeTreasury', {
+      verify: args.verify,
+      exchange: infinityExchange.address,
+      staker: infinityStaker.address,
+      creatorsfeemanager: infinityCreatorsFeeManager.address
+    });
   });
 
 task('deployInfinityToken', 'Deploy Infinity token contract')
-  .addParam('supply', 'initial supply')
   .addParam('inflation', 'per epoch inflation')
   .addParam('epochduration', 'epoch duration in days')
   .addParam('cliff', 'initial cliff in days')
   .addParam('maxepochs', 'max number of epochs')
   .addParam('timelock', 'timelock duration in days')
+  .addParam('supply', 'initial supply')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
-
     const tokenArgs = [
-      signer.address,
-      parseEther(args.inflation),
-      BigNumber.from(args.epochduration).mul(DAY),
-      BigNumber.from(args.cliff).mul(DAY),
+      signer1.address,
+      args.inflation,
+      args.epochduration,
+      args.cliff,
       args.maxepochs,
-      BigNumber.from(args.timelock).mul(DAY),
-      parseEther(args.supply)
+      args.timelock,
+      args.supply
     ];
 
     const infinityToken = await deployContract(
       'InfinityToken',
       await ethers.getContractFactory('InfinityToken'),
-      signer,
+      signer1,
       tokenArgs
     );
 
@@ -108,11 +152,11 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
 
     console.log('Validating deployment');
 
-    expect(await infinityToken.balanceOf(signer.address)).to.be.eq(parseEther(args.supply));
-    expect(await infinityToken.getAdmin()).to.be.eq(signer.address);
-    expect(await infinityToken.getTimelock()).to.be.eq(BigNumber.from(args.timelock).mul(DAY));
-    expect(await infinityToken.getInflation()).to.be.eq(parseEther(args.inflation));
-    expect(await infinityToken.getEpochDuration()).to.be.eq(BigNumber.from(args.epochduration).mul(DAY));
+    expect(await infinityToken.balanceOf(signer1.address)).to.be.eq(args.supply);
+    expect(await infinityToken.getAdmin()).to.be.eq(signer1.address);
+    expect(await infinityToken.getTimelock()).to.be.eq(args.timelock);
+    expect(await infinityToken.getInflation()).to.be.eq(args.inflation);
+    expect(await infinityToken.getEpochDuration()).to.be.eq(args.epochduration);
 
     // verify etherscan
     if (args.verify) {
@@ -131,12 +175,10 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
 task('deployCurrencyRegistry', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
     const currencyRegistry = await deployContract(
       'InfinityCurrencyRegistry',
       await ethers.getContractFactory('InfinityCurrencyRegistry'),
-      signer
+      signer1
     );
 
     // verify source
@@ -154,12 +196,10 @@ task('deployCurrencyRegistry', 'Deploy')
 task('deployComplicationRegistry', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
     const complicationRegistry = await deployContract(
       'InfinityComplicationRegistry',
       await ethers.getContractFactory('InfinityComplicationRegistry'),
-      signer
+      signer1
     );
 
     // verify source
@@ -179,14 +219,13 @@ task('deployExchange', 'Deploy')
   .addParam('currencyregistry', 'currency registry address')
   .addParam('complicationregistry', 'complication registry address')
   .addParam('wethaddress', 'weth address')
+  .addParam('matchexecutor', 'matchexecutor address')
   .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
     const infinityExchange = await deployContract(
       'InfinityExchange',
       await ethers.getContractFactory('InfinityExchange'),
-      signer,
-      [args.currencyregistry, args.complicationregistry, args.wethaddress]
+      signer1,
+      [args.currencyregistry, args.complicationregistry, args.wethaddress, args.matchexecutor]
     );
 
     // verify source
@@ -196,7 +235,7 @@ task('deployExchange', 'Deploy')
       await run('verify:verify', {
         address: infinityExchange.address,
         contract: 'contracts/core/InfinityExchange.sol:InfinityExchange',
-        constructorArguments: [args.currencyregistry, args.complicationregistry, args.wethaddress]
+        constructorArguments: [args.currencyregistry, args.complicationregistry, args.wethaddress, args.matchexecutor]
       });
     }
     return infinityExchange;
@@ -207,12 +246,10 @@ task('deployOBComplication', 'Deploy')
   .addParam('protocolfee', 'protocol fee')
   .addParam('errorbound', 'error bound')
   .setAction(async (args, { ethers, run, network }) => {
-    // get signer
-    const signer = (await ethers.getSigners())[0];
     const obComplication = await deployContract(
       'InfinityOrderBookComplication',
       await ethers.getContractFactory('InfinityOrderBookComplication'),
-      signer,
+      signer1,
       [args.protocolfee, args.errorbound]
     );
 
@@ -228,3 +265,160 @@ task('deployOBComplication', 'Deploy')
     }
     return obComplication;
   });
+
+task('deployInfinityStaker', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .addParam('token', 'infinity token address')
+  .addParam('treasurer', 'treasurer address')
+  .setAction(async (args, { ethers, run, network }) => {
+    const staker = await deployContract('InfinityStaker', await ethers.getContractFactory('InfinityStaker'), signer1, [
+      args.token,
+      args.treasurer
+    ]);
+
+    // verify source
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await staker.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: staker.address,
+        contract: 'contracts/core/InfinityStaker.sol:InfinityStaker',
+        constructorArguments: [args.token, args.treasurer]
+      });
+    }
+    return staker;
+  });
+
+task('deployInfinityTradingRewards', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .addParam('exchange', 'exchange address')
+  .addParam('staker', 'staker address')
+  .addParam('token', 'token address')
+  .setAction(async (args, { ethers, run, network }) => {
+    const rewards = await deployContract(
+      'InfinityTradingRewards',
+      await ethers.getContractFactory('InfinityTradingRewards'),
+      signer1,
+      [args.exchange, args.staker, args.token]
+    );
+
+    // verify source
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await rewards.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: rewards.address,
+        contract: 'contracts/core/InfinityTradingRewards.sol:InfinityTradingRewards',
+        constructorArguments: [args.exchange, args.staker, args.token]
+      });
+    }
+    return rewards;
+  });
+
+task('deployCreatorsFeeRegistry', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .setAction(async (args, { ethers, run, network }) => {
+    const creatorsFeeRegistry = await deployContract(
+      'InfinityCreatorsFeeRegistry',
+      await ethers.getContractFactory('InfinityCreatorsFeeRegistry'),
+      signer1
+    );
+
+    // verify source
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await creatorsFeeRegistry.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: creatorsFeeRegistry.address,
+        contract: 'contracts/core/InfinityCreatorsFeeRegistry.sol:InfinityCreatorsFeeRegistry'
+      });
+    }
+    return creatorsFeeRegistry;
+  });
+
+task('deployInfinityCreatorsFeeManager', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .addParam('royaltyengine', 'royalty engine address')
+  .addParam('creatorsfeeregistry', 'creators fee registry address')
+  .setAction(async (args, { ethers, run, network }) => {
+    const infinityCreatorsFeeManager = await deployContract(
+      'InfinityCreatorsFeeManager',
+      await ethers.getContractFactory('InfinityCreatorsFeeManager'),
+      signer1,
+      [args.royaltyengine, args.creatorsfeeregistry]
+    );
+
+    // verify source
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await infinityCreatorsFeeManager.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: infinityCreatorsFeeManager.address,
+        contract: 'contracts/core/InfinityCreatorsFeeManager.sol:InfinityCreatorsFeeManager',
+        constructorArguments: [args.royaltyengine, args.creatorsfeeregistry]
+      });
+    }
+    return infinityCreatorsFeeManager;
+  });
+
+task('deployInfinityFeeTreasury', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .addParam('exchange', 'exchange address')
+  .addParam('staker', 'staker address')
+  .addParam('creatorsfeemanager', 'creators fee manager address')
+  .setAction(async (args, { ethers, run, network }) => {
+    const infinityFeeTreasury = await deployContract(
+      'InfinityFeeTreasury',
+      await ethers.getContractFactory('InfinityFeeTreasury'),
+      signer1,
+      [args.exchange, args.staker, args.creatorsfeemanager]
+    );
+
+    // verify source
+    if (args.verify) {
+      console.log('Verifying source on etherscan');
+      await infinityFeeTreasury.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: infinityFeeTreasury.address,
+        contract: 'contracts/core/InfinityFeeTreasury.sol:InfinityFeeTreasury',
+        constructorArguments: [args.exchange, args.staker, args.creatorsfeemanager]
+      });
+    }
+    return infinityFeeTreasury;
+  });
+
+task('postDeployActions', 'Post deploy').setAction(async (args, { ethers, run, network }) => {
+  // add currencies to registry
+  await infinityCurrencyRegistry.addCurrency(WETH_ADDRESS);
+
+  // add complications to registry
+  await infinityComplicationRegistry.addComplication(infinityOBComplication.address);
+
+  // set infinity fee treasury on exchange
+  await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
+
+  // set infinity rewards on exchange
+  await infinityExchange.updateInfinityTradingRewards(infinityTradingRewards.address);
+
+  // set infinity rewards on staker
+  await infinityStaker.updateInfinityRewardsContract(infinityTradingRewards.address);
+
+  // set creator fee manager on registry
+  await infinityCreatorsFeeRegistry.updateCreatorsFeeManager(infinityCreatorsFeeManager.address);
+
+  // set reward token
+  await infinityTradingRewards.addRewardToken(infinityToken.address);
+  let rewardTokenFundAmount = INITIAL_SUPPLY.div(4);
+  // @ts-ignore
+  await approveERC20(
+    signer1.address,
+    infinityToken.address,
+    rewardTokenFundAmount,
+    signer1,
+    infinityTradingRewards.address
+  );
+  await infinityTradingRewards.fundWithRewardToken(infinityToken.address, signer1.address, rewardTokenFundAmount);
+
+  // send assets
+  await infinityToken.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
+});
