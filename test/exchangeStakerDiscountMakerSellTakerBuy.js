@@ -864,9 +864,9 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
 
       // balance after sale
       const effectiveBps = (silverBps * CURATOR_FEE_BPS) / 10000;
-      console.log(`-------------- effectiveBps -----------: ${effectiveBps}`);
+      // console.log(`-------------- effectiveBps -----------: ${effectiveBps}`);
       const fee = salePrice.mul(effectiveBps).div(10000);
-      console.log(`-------------- fee -----------: ${fee}`);
+      // console.log(`-------------- fee -----------: ${fee}`);
       totalCuratorFees = totalCuratorFees.add(fee);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
       signer1Balance = signer1Balance.sub(salePrice);
@@ -1174,7 +1174,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      console.log('totalCuratorFees before sale', totalCuratorFees);
+      // console.log('totalCuratorFees before sale', totalCuratorFees);
 
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, true);
@@ -1191,7 +1191,7 @@ describe('Exchange_Staker_Discount_Maker_Sell_Taker_Buy', function () {
 
       // balance after sale
       const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      console.log('calculated fee from this sale', fee);
+      // console.log('calculated fee from this sale', fee);
       totalCuratorFees = totalCuratorFees.add(fee);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
       signer1Balance = signer1Balance.sub(salePrice);

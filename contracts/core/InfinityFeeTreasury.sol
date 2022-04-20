@@ -25,10 +25,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   uint16 public CURATOR_FEE_BPS = 150;
 
-  uint16 BRONZE_EFFECTIVE_FEE_BPS = 10000;
-  uint16 SILVER_EFFECTIVE_FEE_BPS = 10000;
-  uint16 GOLD_EFFECTIVE_FEE_BPS = 10000;
-  uint16 PLATINUM_EFFECTIVE_FEE_BPS = 10000;
+  uint16 public BRONZE_EFFECTIVE_FEE_BPS = 10000;
+  uint16 public SILVER_EFFECTIVE_FEE_BPS = 10000;
+  uint16 public GOLD_EFFECTIVE_FEE_BPS = 10000;
+  uint16 public PLATINUM_EFFECTIVE_FEE_BPS = 10000;
 
   event CreatorFeesClaimed(address indexed user, address currency, uint256 amount);
   event CuratorFeesClaimed(address indexed user, address currency, uint256 amount);

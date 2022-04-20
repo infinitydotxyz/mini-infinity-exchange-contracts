@@ -16,9 +16,9 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     uint256 timestamp;
   }
   mapping(address => mapping(Duration => StakeAmount)) public userstakedAmounts;
-  address INFINITY_TOKEN;
-  address INFINITY_TREASURY;
-  address INFINITY_REWARDS_CONTRACT;
+  address public INFINITY_TOKEN;
+  address public INFINITY_TREASURY;
+  address public INFINITY_REWARDS_CONTRACT;
   uint16 public BRONZE_STAKE_THRESHOLD = 1000;
   uint16 public SILVER_STAKE_THRESHOLD = 5000;
   uint16 public GOLD_STAKE_THRESHOLD = 10000;

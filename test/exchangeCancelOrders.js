@@ -726,7 +726,7 @@ describe('Exchange_Cancel_Orders', function () {
 
       // should not cancel already canceled orders
       await expect(infinityExchange.connect(signer2).cancelMultipleOrders([nonce1, nonce2])).to.be.revertedWith(
-        'Cancel: Nonce already executed or cancelled'
+        'nonce already executed or cancelled'
       );
     });
   });
@@ -827,7 +827,7 @@ describe('Exchange_Cancel_Orders', function () {
 
       // try canceling
       await expect(infinityExchange.connect(signer2).cancelMultipleOrders([nonce])).to.be.revertedWith(
-        'Cancel: Nonce already executed or cancelled'
+        'nonce already executed or cancelled'
       );
     });
   });
@@ -842,7 +842,7 @@ describe('Exchange_Cancel_Orders', function () {
       expect(isValid).to.be.true;
 
       // try canceling a big nonce
-      await expect(infinityExchange.connect(signer2).cancelAllOrders(1000001)).to.be.revertedWith('Cancel: Too many');
+      await expect(infinityExchange.connect(signer2).cancelAllOrders(1000001)).to.be.revertedWith('too many');
 
       // cancel all orders
       await infinityExchange.connect(signer2).cancelAllOrders(minCancelNonce);
@@ -927,7 +927,7 @@ describe('Exchange_Cancel_Orders', function () {
       // try canceling higher nonces; should not revert
       await expect(
         infinityExchange.connect(signer2).cancelMultipleOrders([minCancelNonce + 1, minCancelNonce + 2])
-      ).to.not.be.revertedWith('Cancel: Nonce too low');
+      ).to.not.be.revertedWith('nonce too low');
       // min order nonce should still be 100
       let newMinOrderNonce = await infinityExchange.userMinOrderNonce(signer2.address);
       expect(newMinOrderNonce).to.equal(minCancelNonce);

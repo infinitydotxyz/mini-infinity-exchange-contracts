@@ -603,7 +603,7 @@ describe('Exchange_Varying_Prices', function () {
       // sale price
       const totalEvmIncreasedTimeSoFarInTestCases = 1 * HOUR;
       const salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
-      console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
+      // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder], false, false);
 
@@ -740,7 +740,7 @@ describe('Exchange_Varying_Prices', function () {
       // sale price
       const totalEvmIncreasedTimeSoFarInTestCases = 1 * HOUR + 30 * MINUTE;
       const salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
-      console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
+      // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder], false, false);
 
       // owners after sale
@@ -824,7 +824,7 @@ describe('Exchange_Varying_Prices', function () {
       // not increasing time here
       // sale price
       const salePrice = calculateSignedOrderPriceAt(nowSeconds(), sellOrder);
-      console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
+      // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
       // approve currency
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
@@ -929,7 +929,7 @@ describe('Exchange_Varying_Prices', function () {
       // approve currency
       let salePrice = getCurrentSignedOrderPrice(sellOrder);
       await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
-      console.log('current salePrice', ethers.utils.formatEther(salePrice.toString()));
+      // console.log('current salePrice', ethers.utils.formatEther(salePrice.toString()));
 
       // sign order
       const buyOrder = {
@@ -963,7 +963,7 @@ describe('Exchange_Varying_Prices', function () {
       await network.provider.send('evm_increaseTime', [4 * HOUR]);
       const totalEvmIncreasedTimeSoFarInTestCases = 5 * HOUR + 30 * MINUTE;
       salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
-      console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
+      // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
 
       // owners after sale
@@ -1033,11 +1033,11 @@ describe('Exchange_Varying_Prices', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // increase time
       await network.provider.send('evm_increaseTime', [13 * HOUR]);
@@ -1047,15 +1047,8 @@ describe('Exchange_Varying_Prices', function () {
         nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases),
         constructedOrder
       );
-      console.log(
-        '=========current sell order price for match=========',
-        ethers.utils.formatEther(salePrice.toString())
-      );
+
       const buyPrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), buyOrder);
-      console.log(
-        '=========current buy order price for match==========',
-        ethers.utils.formatEther(buyPrice.toString())
-      );
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
 
@@ -1081,7 +1074,7 @@ describe('Exchange_Varying_Prices', function () {
       );
       const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
       const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
+      // console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
       expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
       signer2Balance = signer2TokenBalance;
     });
@@ -1239,11 +1232,11 @@ describe('Exchange_Varying_Prices', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // sale price
       const totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced = 3 * DAY;
@@ -1252,14 +1245,10 @@ describe('Exchange_Varying_Prices', function () {
         nowSeconds().add(totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced),
         buyOrder
       );
-      console.log('=========current buy order price for match=========', ethers.utils.formatEther(buyPrice.toString()));
+      // console.log('=========current buy order price for match=========', ethers.utils.formatEther(buyPrice.toString()));
       const salePrice = calculateSignedOrderPriceAt(
         nowSeconds().add(totalEvmIncreasedTimeSoFarSinceSellOrderPlaced),
         sellOrder
-      );
-      console.log(
-        '=========current sell order price for match==========',
-        ethers.utils.formatEther(salePrice.toString())
       );
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1293,7 +1282,7 @@ describe('Exchange_Varying_Prices', function () {
       );
       const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
       const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
+      // console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
       expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
       // update balances
       totalCuratorFees = infinityFeeTreasuryBalance;

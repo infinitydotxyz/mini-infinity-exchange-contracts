@@ -7,8 +7,8 @@ export async function deployContract(
   args: Array<any> = []
 ): Promise<Contract> {
   const contract = await factory.connect(signer).deploy(...args);
-  console.log('Deploying', name, 'on', await signer.provider?.getNetwork());
-  console.log('  to', contract.address);
-  console.log('  in', contract.deployTransaction.hash);
+  // console.log('Deploying', name, 'on', await signer.provider?.getNetwork());
+  // console.log('  to', contract.address);
+  // console.log('  in', contract.deployTransaction.hash);
   return contract.deployed();
 }

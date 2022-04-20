@@ -61,8 +61,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   IInfinityTradingRewards public infinityTradingRewards;
 
   mapping(address => uint256) public userMinOrderNonce;
-  mapping(address => mapping(uint256 => bool)) private _isUserOrderNonceExecutedOrCancelled;
-  address matchExecutor;
+  mapping(address => mapping(uint256 => bool)) public isUserOrderNonceExecutedOrCancelled;
+  address public matchExecutor;
 
   event CancelAllOrders(address user, uint256 newMinNonce);
   event CancelMultipleOrders(address user, uint256[] orderNonces);
@@ -133,16 +133,16 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param orderNonces array of order nonces
    */
   function cancelMultipleOrders(uint256[] calldata orderNonces) external {
-    require(orderNonces.length > 0, 'Cancel: Cannot be empty');
+    require(orderNonces.length > 0, 'cannot be empty');
     // console.log('user min order nonce', msg.sender, userMinOrderNonce[msg.sender]);
     for (uint256 i = 0; i < orderNonces.length; i++) {
       // console.log('order nonce', orderNonces[i]);
       require(orderNonces[i] > userMinOrderNonce[msg.sender], 'nonce too low');
       require(
-        !_isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]],
-        'Cancel: Nonce already executed or cancelled'
+        !isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]],
+        'nonce already executed or cancelled'
       );
-      _isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
+      isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
     }
     emit CancelMultipleOrders(msg.sender, orderNonces);
   }
@@ -243,7 +243,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
    * @param nonce nonce of the order
    */
   function isNonceValid(address user, uint256 nonce) external view returns (bool) {
-    return !_isUserOrderNonceExecutedOrCancelled[user][nonce] && nonce > userMinOrderNonce[user];
+    return !isUserOrderNonceExecutedOrCancelled[user][nonce] && nonce > userMinOrderNonce[user];
   }
 
   function verifyOrderSig(OrderTypes.Order calldata order) external view returns (bool) {
@@ -515,7 +515,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 nonce
   ) internal view returns (bool) {
     // console.log('checking order validity');
-    bool orderExpired = _isUserOrderNonceExecutedOrCancelled[signer][nonce] || nonce < userMinOrderNonce[signer];
+    bool orderExpired = isUserOrderNonceExecutedOrCancelled[signer][nonce] || nonce < userMinOrderNonce[signer];
     // console.log('order expired:', orderExpired);
     // Verify the validity of the signature
     (bytes32 r, bytes32 s, uint8 v) = abi.decode(sig, (bytes32, bytes32, uint8));
@@ -555,8 +555,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   {
     // console.log('executing order');
     // Update order execution status to true (prevents replay)
-    _isUserOrderNonceExecutedOrCancelled[seller][sellNonce] = true;
-    _isUserOrderNonceExecutedOrCancelled[buyer][buyNonce] = true;
+    isUserOrderNonceExecutedOrCancelled[seller][sellNonce] = true;
+    isUserOrderNonceExecutedOrCancelled[buyer][buyNonce] = true;
 
     _transferNFTsAndFees(
       seller,

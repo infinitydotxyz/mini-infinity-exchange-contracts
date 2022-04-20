@@ -715,7 +715,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
     it('Should set royalty', async function () {
       await mockRoyaltyEngine.connect(signer1).setRoyaltyBps(mock721Contract1.address, CREATOR_FEE_BPS_ENGINE);
       const result = await mockRoyaltyEngine.getRoyaltyView(mock721Contract1.address, 0, ethers.utils.parseEther('1'));
-      console.log('get royalty result', result, result[0], result[1], result[0][0], result[1][0]);
+      // console.log('get royalty result', result, result[0], result[1], result[0][0], result[1][0]);
       const recipient = result[0][0];
       const amount = result[1][0];
       const calcRoyalty = ethers.utils.parseEther('1').mul(CREATOR_FEE_BPS_ENGINE).div(10000);
@@ -799,7 +799,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       }
       expect(amount).to.equal(creatorFee);
       creatorFees[recipient] = creatorFees[recipient].add(creatorFee);
-      console.log('creatorFees recepient', recipient, creatorFees[recipient]);
+      // console.log('creatorFees recepient', recipient, creatorFees[recipient]);
 
       const allocatedCreatorFee = await infinityFeeTreasury.creatorFees(recipient, token.address);
       expect(allocatedCreatorFee.toString()).to.equal(creatorFees[recipient].toString());
@@ -953,7 +953,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       expect(amount2).to.equal(creatorFee.mul(bpsSplit2).div(CREATOR_FEE_BPS));
       creatorFees[dest1] = creatorFees[dest1].add(amount1);
       creatorFees[dest2] = creatorFees[dest2].add(amount2);
-      console.log('creatorFees dest1', dest1, creatorFees[dest1], 'creatorFees dest2', dest2, creatorFees[dest2]);
+      // console.log('creatorFees dest1', dest1, creatorFees[dest1], 'creatorFees dest2', dest2, creatorFees[dest2]);
 
       const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
       expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
@@ -1122,7 +1122,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       creatorFees[dest1] = creatorFees[dest1].add(amount1);
       creatorFees[dest2] = creatorFees[dest2].add(amount2);
 
-      console.log('creatorFees dest1', dest1, creatorFees[dest1], 'creatorFees dest2', dest2, creatorFees[dest2]);
+      // console.log('creatorFees dest1', dest1, creatorFees[dest1], 'creatorFees dest2', dest2, creatorFees[dest2]);
 
       const allocatedCreatorFee1 = await infinityFeeTreasury.creatorFees(dest1, token.address);
       expect(allocatedCreatorFee1.toString()).to.equal(creatorFees[dest1].toString());
@@ -1225,29 +1225,29 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       const numColls = nfts.length;
       const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
       totalCuratorFees = totalCuratorFees.add(fee);
-      console.log('salePrice', salePrice.toString());
-      console.log('sale price by numColls', numColls, salePrice.div(numColls).toString());
+      // console.log('salePrice', salePrice.toString());
+      // console.log('sale price by numColls', numColls, salePrice.div(numColls).toString());
       const creatorFeeInfinityRegistry = salePrice.div(numColls).mul(CREATOR_FEE_BPS).div(10000).sub(1); // sub 1 for rounding
       totalCreatorFees = totalCreatorFees.add(creatorFeeInfinityRegistry);
       const creatorFeeIerc2981 = salePrice.div(numColls).mul(CREATOR_FEE_BPS_IERC2981).div(10000);
       totalCreatorFees = totalCreatorFees.add(creatorFeeIerc2981);
       const creatorFeeRoyaltyEngine = salePrice.div(numColls).mul(CREATOR_FEE_BPS_ENGINE).div(10000);
-      console.log('creatorFeeInfinityRegistry', creatorFeeInfinityRegistry.toString());
-      console.log('creatorFeeIerc2981', creatorFeeIerc2981.toString());
-      console.log('creatorFeeRoyaltyEngine', creatorFeeRoyaltyEngine.toString());
+      // console.log('creatorFeeInfinityRegistry', creatorFeeInfinityRegistry.toString());
+      // console.log('creatorFeeIerc2981', creatorFeeIerc2981.toString());
+      // console.log('creatorFeeRoyaltyEngine', creatorFeeRoyaltyEngine.toString());
       totalCreatorFees = totalCreatorFees.add(creatorFeeRoyaltyEngine);
 
       const totalFee = fee.add(creatorFeeInfinityRegistry.add(creatorFeeRoyaltyEngine).add(creatorFeeIerc2981));
-      console.log(
-        'fee',
-        fee,
-        'total fee',
-        totalFee.toString(),
-        'totalCuratorFees',
-        totalCuratorFees.toString(),
-        'totalCreatorFees',
-        totalCreatorFees.toString()
-      );
+      // console.log(
+      //   'fee',
+      //   fee,
+      //   'total fee',
+      //   totalFee.toString(),
+      //   'totalCuratorFees',
+      //   totalCuratorFees.toString(),
+      //   'totalCreatorFees',
+      //   totalCreatorFees.toString()
+      // );
       totalFeeSoFar = totalCuratorFees.add(totalCreatorFees);
       expect(await token.balanceOf(infinityFeeTreasury.address)).to.equal(totalFeeSoFar);
 
@@ -1280,17 +1280,17 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       );
       const dest2_1 = result2[1][0];
       const amount2_1 = result2[3][0];
-      console.log(
-        'creator fees dest1',
-        dest1,
-        creatorFees[dest1],
-        'creator fees dest2',
-        dest2,
-        creatorFees[dest2],
-        'creator fees dest2_1',
-        dest2_1,
-        creatorFees[dest2_1]
-      );
+      // console.log(
+      //   'creator fees dest1',
+      //   dest1,
+      //   creatorFees[dest1],
+      //   'creator fees dest2',
+      //   dest2,
+      //   creatorFees[dest2],
+      //   'creator fees dest2_1',
+      //   dest2_1,
+      //   creatorFees[dest2_1]
+      // );
       if (!creatorFees[dest2_1]) {
         creatorFees[dest2_1] = toBN(0);
       }

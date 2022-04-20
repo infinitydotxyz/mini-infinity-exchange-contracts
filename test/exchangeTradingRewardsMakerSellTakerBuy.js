@@ -1125,10 +1125,7 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
       // rewards
       const rewardEarned = salePrice.mul(rewardRatio);
       totalRewardEarned = totalRewardEarned.add(rewardEarned);
-      console.log(
-        '****************** total reward earned before reward ratio is 0 ******************',
-        totalRewardEarned
-      );
+
       expect(await infinityTradingRewards.earnedRewards(signer1.address, token.address)).to.equal(totalRewardEarned);
       expect(await infinityTradingRewards.earnedRewards(signer2.address, token.address)).to.equal(totalRewardEarned);
     });
@@ -1151,10 +1148,6 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
       rewardRatio = rewardRatio.sub(rewardRatio);
       await infinityTradingRewards.updateRewardsMap(token.address, token.address, rewardRatio);
       expect(await infinityTradingRewards.rewardsMap(token.address, token.address)).to.equal(rewardRatio);
-      console.log(
-        '****************** total reward earned after reward ratio is 0 ******************',
-        totalRewardEarned
-      );
     });
   });
 
@@ -1591,7 +1584,7 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
   describe('Claim reward tokens', () => {
     it('Should claim', async function () {
       const claimAmount = toBN(1);
-      console.log('total reward earned', totalRewardEarned);
+      // console.log('total reward earned', totalRewardEarned);
       expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
 
       await infinityTradingRewards.claimRewards(signer1.address, token.address, claimAmount);
@@ -1621,10 +1614,10 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
   describe('Stake reward tokens', () => {
     it('Should stake', async function () {
       const stakeAmount = toBN(1);
-      console.log('total reward earned', totalRewardEarned);
+      // console.log('total reward earned', totalRewardEarned);
       expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
 
-      console.log('infinity staker balance before', (await token.balanceOf(infinityStaker.address)).toString());
+      // console.log('infinity staker balance before', (await token.balanceOf(infinityStaker.address)).toString());
       // approve erc20
       await approveERC20(signer1.address, token.address, stakeAmount, signer1, infinityStaker.address);
 
@@ -1632,9 +1625,9 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
       const userStaked2 = await infinityStaker.getUserTotalStaked(signer2.address);
 
       await infinityTradingRewards.connect(signer1).stakeInfinityRewards(stakeAmount, 0);
-      console.log('infinity staker balance after 1', (await token.balanceOf(infinityStaker.address)).toString());
+      // console.log('infinity staker balance after 1', (await token.balanceOf(infinityStaker.address)).toString());
       await infinityTradingRewards.connect(signer2).stakeInfinityRewards(stakeAmount, 2);
-      console.log('infinity staker balance after 2', (await token.balanceOf(infinityStaker.address)).toString());
+      // console.log('infinity staker balance after 2', (await token.balanceOf(infinityStaker.address)).toString());
 
       infinityRewardsBalance = infinityRewardsBalance.sub(stakeAmount.mul(2));
       totalRewardEarned = totalRewardEarned.sub(stakeAmount);

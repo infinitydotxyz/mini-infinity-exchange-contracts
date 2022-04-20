@@ -147,7 +147,7 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
 
     // verify etherscan
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await infinityToken.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityToken.address,
@@ -170,7 +170,7 @@ task('deployCurrencyRegistry', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await currencyRegistry.deployTransaction.wait(5);
       await run('verify:verify', {
         address: currencyRegistry.address,
@@ -191,7 +191,7 @@ task('deployComplicationRegistry', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await complicationRegistry.deployTransaction.wait(5);
       await run('verify:verify', {
         address: complicationRegistry.address,
@@ -217,7 +217,7 @@ task('deployExchange', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await infinityExchange.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityExchange.address,
@@ -242,7 +242,7 @@ task('deployOBComplication', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await obComplication.deployTransaction.wait(5);
       await run('verify:verify', {
         address: obComplication.address,
@@ -265,7 +265,7 @@ task('deployInfinityStaker', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await staker.deployTransaction.wait(5);
       await run('verify:verify', {
         address: staker.address,
@@ -291,7 +291,7 @@ task('deployInfinityTradingRewards', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await rewards.deployTransaction.wait(5);
       await run('verify:verify', {
         address: rewards.address,
@@ -313,7 +313,7 @@ task('deployInfinityCreatorsFeeRegistry', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await creatorsFeeRegistry.deployTransaction.wait(5);
       await run('verify:verify', {
         address: creatorsFeeRegistry.address,
@@ -337,7 +337,7 @@ task('deployInfinityCreatorsFeeManager', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await infinityCreatorsFeeManager.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityCreatorsFeeManager.address,
@@ -363,7 +363,7 @@ task('deployInfinityFeeTreasury', 'Deploy')
 
     // verify source
     if (args.verify) {
-      console.log('Verifying source on etherscan');
+      // console.log('Verifying source on etherscan');
       await infinityFeeTreasury.deployTransaction.wait(5);
       await run('verify:verify', {
         address: infinityFeeTreasury.address,

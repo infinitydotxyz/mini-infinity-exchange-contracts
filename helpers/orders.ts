@@ -132,7 +132,7 @@ export const calculateSignedOrderPriceAt = (timestamp: BigNumber, order: SignedO
     return startPrice;
   }
   const elapsedTime = BigNumber.from(timestamp).sub(startTime);
-  console.log('======elapsedTime======', elapsedTime);
+  // console.log('======elapsedTime======', elapsedTime);
   const precision = 10000;
   const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.mul(precision).div(duration);
   priceDiff = priceDiff.mul(portion).div(precision);
@@ -169,13 +169,13 @@ export async function prepareOBOrder(
   // sign order
   const signedOBOrder = await signOBOrder(chainId, infinityExchange.address, order, signer);
 
-  console.log('Verifying signature');
+  // console.log('Verifying signature');
   const isSigValid = await infinityExchange.verifyOrderSig(signedOBOrder);
   if (!isSigValid) {
     console.error('Signature is invalid');
     return undefined;
   } else {
-    console.log('Signature is valid');
+    // console.log('Signature is valid');
   }
   return signedOBOrder;
 }
@@ -197,7 +197,7 @@ export async function isOrderValid(
 
   // check if nonce is valid
   const isNonceValid = await infinityExchange.isNonceValid(user.address, order.nonce);
-  console.log('Nonce valid:', isNonceValid);
+  // console.log('Nonce valid:', isNonceValid);
   if (!isNonceValid) {
     console.error('Order nonce is not valid');
     return false;
@@ -223,7 +223,7 @@ export async function grantApprovals(
   infinityFeeTreasuryAddress: string
 ): Promise<boolean> {
   try {
-    console.log('Granting approvals');
+    // console.log('Granting approvals');
     if (!order.isSellOrder) {
       // approve currencies
       const currentPrice = getCurrentOrderPrice(order);
@@ -253,14 +253,14 @@ export async function approveERC20(
   infinityFeeTreasuryAddress: string
 ) {
   try {
-    console.log('Granting ERC20 approval');
+    // console.log('Granting ERC20 approval');
     if (currencyAddress !== NULL_ADDRESS) {
       const contract = new Contract(currencyAddress, erc20Abi, signer);
       const allowance = BigNumber.from(await contract.allowance(user, infinityFeeTreasuryAddress));
       if (allowance.lt(price)) {
         await contract.approve(infinityFeeTreasuryAddress, constants.MaxUint256);
       } else {
-        console.log('ERC20 approval already granted');
+        // console.log('ERC20 approval already granted');
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -272,7 +272,7 @@ export async function approveERC20(
 
 export async function approveERC721(user: string, items: OrderItem[], signer: JsonRpcSigner, exchange: string) {
   try {
-    console.log('Granting ERC721 approval');
+    // console.log('Granting ERC721 approval');
     for (const item of items) {
       const collection = item.collection;
       const contract = new Contract(collection, erc721Abi, signer);
@@ -280,7 +280,7 @@ export async function approveERC721(user: string, items: OrderItem[], signer: Js
       if (!isApprovedForAll) {
         await contract.setApprovalForAll(exchange, true);
       } else {
-        console.log('Already approved for all');
+        // console.log('Already approved for all');
       }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -291,7 +291,7 @@ export async function approveERC721(user: string, items: OrderItem[], signer: Js
 }
 
 export async function checkOnChainOwnership(user: User, order: OBOrder, signer: JsonRpcSigner): Promise<boolean> {
-  console.log('Checking on chain ownership');
+  // console.log('Checking on chain ownership');
   let result = true;
   for (const nft of order.nfts) {
     const collection = nft.collection;
@@ -305,7 +305,7 @@ export async function checkOnChainOwnership(user: User, order: OBOrder, signer: 
 
 export async function checkERC721Ownership(user: User, contract: Contract, tokenId: BigNumberish): Promise<boolean> {
   try {
-    console.log('Checking ERC721 on chain ownership');
+    // console.log('Checking ERC721 on chain ownership');
     const owner = trimLowerCase(await contract.ownerOf(tokenId));
     if (owner !== trimLowerCase(user.address)) {
       // todo: should continue to check if other nfts are owned
@@ -378,7 +378,7 @@ export async function signOBOrder(
 
   // sign order
   try {
-    console.log('Signing order');
+    // console.log('Signing order');
     const sig = await signer._signTypedData(domain, types, orderToSign);
     const splitSig = splitSignature(sig ?? '');
     const encodedSig = defaultAbiCoder.encode(['bytes32', 'bytes32', 'uint8'], [splitSig.r, splitSig.s, splitSig.v]);
@@ -433,7 +433,7 @@ export async function signFormattedOrder(
 
   // sign order
   try {
-    console.log('Signing order');
+    // console.log('Signing order');
     const sig = await signer._signTypedData(domain, types, orderToSign);
     const splitSig = splitSignature(sig ?? '');
     // console.log('splitSig', splitSig);
@@ -454,7 +454,7 @@ function _getCalculatedDigest(chainId: BigNumberish, exchangeAddr: string, order
   const fnSign =
     'Order(bool isSellOrder,address signer,uint256[] constraints,OrderItem[] nfts,address[] execParams,bytes extraParams)OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)';
   const orderTypeHash = solidityKeccak256(['string'], [fnSign]);
-  console.log('Order type hash', orderTypeHash);
+  // console.log('Order type hash', orderTypeHash);
 
   const constraints = [
     order.numItems,
@@ -471,10 +471,10 @@ function _getCalculatedDigest(chainId: BigNumberish, exchangeAddr: string, order
   const constraintsHash = keccak256(
     defaultAbiCoder.encode(['uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256', 'uint256'], constraints)
   );
-  console.log('constraints hash', constraintsHash);
+  // console.log('constraints hash', constraintsHash);
   const nftsHash = _getNftsHash(order.nfts);
   const execParamsHash = keccak256(defaultAbiCoder.encode(['address', 'address'], execParams));
-  console.log('execParamsHash', execParamsHash);
+  // console.log('execParamsHash', execParamsHash);
 
   const calcEncode = defaultAbiCoder.encode(
     ['bytes32', 'bool', 'address', 'bytes32', 'bytes32', 'bytes32', 'bytes32'],
@@ -488,19 +488,19 @@ function _getCalculatedDigest(chainId: BigNumberish, exchangeAddr: string, order
       keccak256(extraParams)
     ]
   );
-  // console.log('Calculated encode', calcEncode);
+
   const orderHash = keccak256(calcEncode);
 
   // console.log('calculated orderHash', orderHash);
   const digest = _getDigest(chainId, exchangeAddr, orderHash);
-  console.log('calculated digest', digest);
+  // console.log('calculated digest', digest);
   return digest;
 }
 
 function _getNftsHash(nfts: OrderItem[]): BytesLike {
   const fnSign = 'OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)';
   const typeHash = solidityKeccak256(['string'], [fnSign]);
-  console.log('Order item type hash', typeHash);
+  // console.log('Order item type hash', typeHash);
 
   const hashes = [];
   for (const nft of nfts) {
@@ -511,14 +511,14 @@ function _getNftsHash(nfts: OrderItem[]): BytesLike {
   }
   const encodeTypeArray = hashes.map((hash) => 'bytes32');
   const nftsHash = keccak256(defaultAbiCoder.encode(encodeTypeArray, hashes));
-  console.log('nftsHash', nftsHash);
+  // console.log('nftsHash', nftsHash);
   return nftsHash;
 }
 
 function _getTokensHash(tokens: TokenInfo[]): BytesLike {
   const fnSign = 'TokenInfo(uint256 tokenId,uint256 numTokens)';
   const typeHash = solidityKeccak256(['string'], [fnSign]);
-  console.log('Token info type hash', typeHash);
+  // console.log('Token info type hash', typeHash);
 
   const hashes = [];
   for (const token of tokens) {
@@ -529,7 +529,7 @@ function _getTokensHash(tokens: TokenInfo[]): BytesLike {
   }
   const encodeTypeArray = hashes.map((hash) => 'bytes32');
   const tokensHash = keccak256(defaultAbiCoder.encode(encodeTypeArray, hashes));
-  console.log('tokensHash', tokensHash);
+  // console.log('tokensHash', tokensHash);
   return tokensHash;
 }
 
@@ -554,28 +554,28 @@ function _getDomainSeparator(chainId: BigNumberish, exchangeAddr: BytesLike): By
       ]
     )
   );
-  console.log('domainSeparator:', domainSeparator);
+  // console.log('domainSeparator:', domainSeparator);
   return domainSeparator;
 }
 
 function _printTypeEncodedData(domain: any, types: any, orderToSign: any) {
-  console.log('===========================================================');
+  // console.log('===========================================================');
   const domainSeparator = _TypedDataEncoder.hashDomain(domain);
   const typedDataEncoder = _TypedDataEncoder.from(types);
   const primaryType = typedDataEncoder.primaryType;
   const primary = typedDataEncoder.encodeType(primaryType);
   const hashedType = solidityKeccak256(['string'], [primary]);
   // console.log('print primary type:', primaryType);
-  console.log('print type hash:', hashedType);
-  console.log('print domain separator:', domainSeparator);
-  // console.log('order to sign', orderToSign);
+  // console.log('print type hash:', hashedType);
+  // console.log('print domain separator:', domainSeparator);
+  // // console.log('order to sign', orderToSign);
   // const payload = _TypedDataEncoder.getPayload(domain, types, orderToSign);
-  // console.log('print payload:', payload);
+  // // console.log('print payload:', payload);
   // const encodedData = typedDataEncoder.encode(orderToSign);
   // const hashedEncoded = typedDataEncoder.hash(orderToSign);
-  // console.log('print encoded typed data:', encodedData);
-  // console.log('print typed data hash:', hashedEncoded);
+  // // console.log('print encoded typed data:', encodedData);
+  // // console.log('print typed data hash:', hashedEncoded);
 
   const orderDigest = _TypedDataEncoder.hash(domain, types, orderToSign);
-  console.log('print typed data digest', orderDigest);
+  // console.log('print typed data digest', orderDigest);
 }

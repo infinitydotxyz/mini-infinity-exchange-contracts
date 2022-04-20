@@ -1157,11 +1157,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1222,11 +1222,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1303,11 +1303,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1384,11 +1384,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1477,11 +1477,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1542,11 +1542,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1657,11 +1657,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1736,11 +1736,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
@@ -1872,11 +1872,11 @@ describe('Exchange_Match', function () {
       const gasEstimate = await infinityExchange
         .connect(signer3)
         .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
-      console.log('gasEstimate', gasEstimate);
+      // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
-      console.log('gasPrice', gasPrice);
+      // console.log('gasPrice', gasPrice);
       const gasCost = gasEstimate.mul(gasPrice);
-      console.log('gasCost', gasCost.toString());
+      // console.log('gasCost', gasCost.toString());
 
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);

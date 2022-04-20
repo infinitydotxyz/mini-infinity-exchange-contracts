@@ -20,9 +20,9 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable, ReentrancyG
 
   EnumerableSet.AddressSet private _rewardTokens;
 
-  address INFINTY_EXCHANGE;
-  address INFINITY_STAKER;
-  address INFINITY_TOKEN;
+  address public INFINTY_EXCHANGE;
+  address public INFINITY_STAKER;
+  address public INFINITY_TOKEN;
 
   // user to reward currency to balance
   mapping(address => mapping(address => uint256)) public earnedRewards;

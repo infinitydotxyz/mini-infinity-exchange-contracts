@@ -108,7 +108,7 @@ describe('Infinity Token', function () {
       expect((await token.balanceOf(signers[0].address)).toString()).to.equal(
         INITIAL_SUPPLY.add(toBN(MAX_EPOCHS).mul(INFLATION)).toString()
       );
-      console.log('final balance:', (await token.balanceOf(signers[0].address)).toString());
+      // console.log('final balance:', (await token.balanceOf(signers[0].address)).toString());
     });
     it('Should not allow advancing past epoch limit', async function () {
       await network.provider.send('evm_increaseTime', [EPOCH_DURATION]);

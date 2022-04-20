@@ -333,9 +333,6 @@ describe('Staker_Tests', function () {
       await approveERC20(signer1.address, token.address, amountStaked2, signer1, infinityStaker.address);
 
       // stake to no duration
-      console.log(
-        '+++++++++++++++++++++++++++++++++++++ Stake to no duration +++++++++++++++++++++++++++++++++++++++++++'
-      );
       totalStaked = amountStaked2;
       await infinityStaker.stake(signer1.address, amountStaked2, 0);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
@@ -347,7 +344,7 @@ describe('Staker_Tests', function () {
       signer1Balance = signer1Balance.sub(amountStaked2);
 
       // stake to 3 months
-      console.log('++++++++++++++++++++++++++++++++++ Stake to 3 months ++++++++++++++++++++++++++++++++++++++');
+      // console.log('++++++++++++++++++++++++++++++++++ Stake to 3 months ++++++++++++++++++++++++++++++++++++++');
       totalStaked = totalStaked.add(amountStaked2);
       await infinityStaker.stake(signer1.address, amountStaked2, 1);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
@@ -359,7 +356,7 @@ describe('Staker_Tests', function () {
       signer1Balance = signer1Balance.sub(amountStaked2);
 
       // stake to 6 months
-      console.log('++++++++++++++++++++++++++++++++++ Stake to 6 months ++++++++++++++++++++++++++++++++++++++');
+      // console.log('++++++++++++++++++++++++++++++++++ Stake to 6 months ++++++++++++++++++++++++++++++++++++++');
       totalStaked = totalStaked.add(amountStaked2);
       await infinityStaker.stake(signer1.address, amountStaked2, 2);
       expect(await infinityStaker.getUserTotalStaked(signer1.address)).to.equal(totalStaked);
@@ -371,7 +368,7 @@ describe('Staker_Tests', function () {
       signer1Balance = signer1Balance.sub(amountStaked2);
 
       // increase time by 3 months
-      console.log('++++++++++++++++++++++++++++++++++ evm increase time ++++++++++++++++++++++++++++++++++++++');
+      // console.log('++++++++++++++++++++++++++++++++++ evm increase time ++++++++++++++++++++++++++++++++++++++');
       await network.provider.send('evm_increaseTime', [91 * DAY]);
       await network.provider.send('evm_mine', []);
       let totalVested = amountStaked2.add(amountStaked2);
