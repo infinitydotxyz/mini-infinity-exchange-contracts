@@ -3,8 +3,6 @@ import { deployContract } from './utils';
 import { expect } from 'chai';
 import { BigNumber, Contract } from 'ethers';
 import { parseEther } from 'ethers/lib/utils';
-import { erc20Abi } from '../abi/erc20';
-import { erc721Abi } from '../abi/erc721';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 require('dotenv').config();
 
@@ -18,8 +16,6 @@ const WETH_ADDRESS = '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619';
 // polygon
 const ROYALTY_ENGINE = '0x28edfcf0be7e86b07493466e7631a213bde8eef2';
 
-const CURATOR_FEE_BPS = 150;
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const MINUTE = 60;
 const HOUR = MINUTE * 60;
 const DAY = HOUR * 24;
