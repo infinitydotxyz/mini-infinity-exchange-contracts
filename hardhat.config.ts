@@ -27,7 +27,7 @@ export default {
       gasPrice: parseUnits('30', 'gwei').toNumber()
     },
     polygonprod: {
-      url: 'https://polygon-rpc.com/',
+      url: 'https://polygon-mainnet.g.alchemy.com/v2/' + process.env.ALCHEMY_POLYGON_MAIN_KEY,
       accounts: [process.env.POLYGON_PROD_PRIV_KEY, process.env.POLYGON_PROD_PRIV_KEY_2],
       gasPrice: parseUnits('80', 'gwei').toNumber()
     }

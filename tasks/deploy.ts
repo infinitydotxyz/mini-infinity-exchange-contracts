@@ -30,9 +30,7 @@ const TIMELOCK = 30 * DAY;
 const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT);
 
 // other vars
-let signer1: SignerWithAddress,
-  signer2: SignerWithAddress,
-  infinityToken: Contract,
+let infinityToken: Contract,
   infinityExchange: Contract,
   infinityCurrencyRegistry: Contract,
   infinityComplicationRegistry: Contract,
@@ -51,16 +49,10 @@ function toBN(val: string | number) {
 task('deployAll', 'Deploy all contracts')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
-    signer1 = (await ethers.getSigners())[0];
-    signer2 = (await ethers.getSigners())[1];
+    const signer1 = (await ethers.getSigners())[0];
+    const signer2 = (await ethers.getSigners())[1];
 
     infinityToken = await run('deployInfinityToken', {
-      inflation: INFLATION.toString(),
-      epochduration: EPOCH_DURATION.toString(),
-      cliff: CLIFF_PERIOD.toString(),
-      maxepochs: MAX_EPOCHS.toString(),
-      timelock: TIMELOCK.toString(),
-      supply: INITIAL_SUPPLY.toString(),
       verify: args.verify
     });
 
@@ -68,7 +60,7 @@ task('deployAll', 'Deploy all contracts')
 
     infinityComplicationRegistry = await run('deployComplicationRegistry', { verify: args.verify });
 
-    infinityExchange = await run('deployExchange', {
+    infinityExchange = await run('deployInfinityExchange', {
       verify: args.verify,
       currencyregistry: infinityCurrencyRegistry.address,
       complicationregistry: infinityComplicationRegistry.address,
@@ -76,7 +68,7 @@ task('deployAll', 'Deploy all contracts')
       matchexecutor: signer2.address
     });
 
-    infinityOBComplication = await run('deployOBComplication', {
+    infinityOBComplication = await run('deployInfinityOrderBookComplication', {
       verify: args.verify,
       protocolfee: '0',
       errorbound: parseEther('0.01').toString()
@@ -119,22 +111,18 @@ task('deployAll', 'Deploy all contracts')
   });
 
 task('deployInfinityToken', 'Deploy Infinity token contract')
-  .addParam('inflation', 'per epoch inflation')
-  .addParam('epochduration', 'epoch duration in days')
-  .addParam('cliff', 'initial cliff in days')
-  .addParam('maxepochs', 'max number of epochs')
-  .addParam('timelock', 'timelock duration in days')
-  .addParam('supply', 'initial supply')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run }) => {
+    const signer1 = (await ethers.getSigners())[0];
+
     const tokenArgs = [
       signer1.address,
-      args.inflation,
-      args.epochduration,
-      args.cliff,
-      args.maxepochs,
-      args.timelock,
-      args.supply
+      INFLATION.toString(),
+      EPOCH_DURATION.toString(),
+      CLIFF_PERIOD.toString(),
+      MAX_EPOCHS.toString(),
+      TIMELOCK.toString(),
+      INITIAL_SUPPLY.toString()
     ];
 
     const infinityToken = await deployContract(
@@ -161,6 +149,7 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
 task('deployCurrencyRegistry', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const currencyRegistry = await deployContract(
       'InfinityCurrencyRegistry',
       await ethers.getContractFactory('InfinityCurrencyRegistry'),
@@ -182,6 +171,7 @@ task('deployCurrencyRegistry', 'Deploy')
 task('deployComplicationRegistry', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const complicationRegistry = await deployContract(
       'InfinityComplicationRegistry',
       await ethers.getContractFactory('InfinityComplicationRegistry'),
@@ -200,13 +190,14 @@ task('deployComplicationRegistry', 'Deploy')
     return complicationRegistry;
   });
 
-task('deployExchange', 'Deploy')
+task('deployInfinityExchange', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .addParam('currencyregistry', 'currency registry address')
   .addParam('complicationregistry', 'complication registry address')
   .addParam('wethaddress', 'weth address')
   .addParam('matchexecutor', 'matchexecutor address')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const infinityExchange = await deployContract(
       'InfinityExchange',
       await ethers.getContractFactory('InfinityExchange'),
@@ -227,11 +218,12 @@ task('deployExchange', 'Deploy')
     return infinityExchange;
   });
 
-task('deployOBComplication', 'Deploy')
+task('deployInfinityOrderBookComplication', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .addParam('protocolfee', 'protocol fee')
   .addParam('errorbound', 'error bound')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const obComplication = await deployContract(
       'InfinityOrderBookComplication',
       await ethers.getContractFactory('InfinityOrderBookComplication'),
@@ -257,6 +249,7 @@ task('deployInfinityStaker', 'Deploy')
   .addParam('token', 'infinity token address')
   .addParam('treasurer', 'treasurer address')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const staker = await deployContract('InfinityStaker', await ethers.getContractFactory('InfinityStaker'), signer1, [
       args.token,
       args.treasurer
@@ -281,6 +274,7 @@ task('deployInfinityTradingRewards', 'Deploy')
   .addParam('staker', 'staker address')
   .addParam('token', 'token address')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const rewards = await deployContract(
       'InfinityTradingRewards',
       await ethers.getContractFactory('InfinityTradingRewards'),
@@ -304,6 +298,7 @@ task('deployInfinityTradingRewards', 'Deploy')
 task('deployInfinityCreatorsFeeRegistry', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const creatorsFeeRegistry = await deployContract(
       'InfinityCreatorsFeeRegistry',
       await ethers.getContractFactory('InfinityCreatorsFeeRegistry'),
@@ -327,6 +322,7 @@ task('deployInfinityCreatorsFeeManager', 'Deploy')
   .addParam('royaltyengine', 'royalty engine address')
   .addParam('creatorsfeeregistry', 'creators fee registry address')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const infinityCreatorsFeeManager = await deployContract(
       'InfinityCreatorsFeeManager',
       await ethers.getContractFactory('InfinityCreatorsFeeManager'),
@@ -353,6 +349,7 @@ task('deployInfinityFeeTreasury', 'Deploy')
   .addParam('staker', 'staker address')
   .addParam('creatorsfeemanager', 'creators fee manager address')
   .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
     const infinityFeeTreasury = await deployContract(
       'InfinityFeeTreasury',
       await ethers.getContractFactory('InfinityFeeTreasury'),
@@ -414,5 +411,6 @@ task('postDeployActions', 'Post deploy').setAction(async (args, { ethers, run, n
   // await infinityTradingRewards.fundWithRewardToken(infinityToken.address, signer1.address, rewardTokenFundAmount);
 
   // send assets
-  await infinityToken.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
+  // const signer2 = (await ethers.getSigners())[1];
+  // await infinityToken.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
 });
