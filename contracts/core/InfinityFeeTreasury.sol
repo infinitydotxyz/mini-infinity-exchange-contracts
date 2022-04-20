@@ -9,7 +9,8 @@ import {IComplication} from '../interfaces/IComplication.sol';
 import {IStaker, StakeLevel} from '../interfaces/IStaker.sol';
 import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
 import {IMerkleDistributor} from '../interfaces/IMerkleDistributor.sol';
-import 'hardhat/console.sol';
+
+// import 'hardhat/console.sol';
 
 /**
  * @title InfinityFeeTreasury
@@ -74,14 +75,14 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     address execComplication,
     bool feeDiscountEnabled
   ) external override nonReentrant {
-    console.log('allocating fees');
+    // console.log('allocating fees');
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     // token staker discount
     uint16 effectiveFeeBps = 10000;
     if (feeDiscountEnabled) {
       effectiveFeeBps = _getEffectiveFeeBps(seller);
     }
-    console.log('effective fee bps', effectiveFeeBps);
+    // console.log('effective fee bps', effectiveFeeBps);
 
     // creator fee
     uint256 totalFees = _allocateFeesToCreators(execComplication, items, amount, currency);
@@ -90,7 +91,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     totalFees += _allocateFeesToCurators(amount, currency, effectiveFeeBps);
 
     // transfer fees to contract
-    console.log('transferring total fees', totalFees);
+    // console.log('transferring total fees', totalFees);
     IERC20(currency).safeTransferFrom(buyer, address(this), totalFees);
 
     // check min bps to seller is met
@@ -118,7 +119,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     address matchExecutor,
     address weth
   ) external override nonReentrant {
-    console.log('refunding gas fees');
+    // console.log('refunding gas fees');
     require(msg.sender == INFINITY_EXCHANGE, 'Gas fee refund: Only Infinity exchange');
     for (uint256 i = 0; i < sells.length; ) {
       _refundMatchExecutionGasFee(startGas, sells[i].signer, matchExecutor, weth);
@@ -134,10 +135,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     address matchExecutor,
     address weth
   ) internal {
-    console.log('refunding gas fees to executor for sale executed on behalf of', seller);
+    // console.log('refunding gas fees to executor for sale executed on behalf of', seller);
     // todo: check weth transfer gas cost
     uint256 gasCost = (startGas - gasleft() + 30000) * tx.gasprice;
-    console.log('gasCost:', gasCost);
+    // console.log('gasCost:', gasCost);
     IERC20(weth).safeTransferFrom(seller, matchExecutor, gasCost);
   }
 
@@ -197,16 +198,16 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   function _getEffectiveFeeBps(address user) internal view returns (uint16) {
     StakeLevel stakeLevel = IStaker(STAKER_CONTRACT).getUserStakeLevel(user);
     if (stakeLevel == StakeLevel.BRONZE) {
-      console.log('user is bronze');
+      // console.log('user is bronze');
       return BRONZE_EFFECTIVE_FEE_BPS;
     } else if (stakeLevel == StakeLevel.SILVER) {
-      console.log('user is silver');
+      // console.log('user is silver');
       return SILVER_EFFECTIVE_FEE_BPS;
     } else if (stakeLevel == StakeLevel.GOLD) {
-      console.log('user is gold');
+      // console.log('user is gold');
       return GOLD_EFFECTIVE_FEE_BPS;
     } else if (stakeLevel == StakeLevel.PLATINUM) {
-      console.log('user is platinum');
+      // console.log('user is platinum');
       return PLATINUM_EFFECTIVE_FEE_BPS;
     }
     return 10000;
@@ -218,8 +219,8 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     uint256 amount,
     address currency
   ) internal returns (uint256) {
-    console.log('allocating fees to creators');
-    console.log('avg sale price', amount / items.length);
+    // console.log('allocating fees to creators');
+    // console.log('avg sale price', amount / items.length);
     uint256 creatorsFee = 0;
     IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
     for (uint256 h = 0; h < items.length; ) {
@@ -229,10 +230,10 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
         0, // to comply with ierc2981 and royalty registry
         amount / items.length // amount per collection on avg
       );
-      console.log('collection', items[h].collection, 'num feeRecipients:', feeRecipients.length);
+      // console.log('collection', items[h].collection, 'num feeRecipients:', feeRecipients.length);
       for (uint256 i = 0; i < feeRecipients.length; ) {
         if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
-          console.log('fee amount', i, feeAmounts[i]);
+          // console.log('fee amount', i, feeAmounts[i]);
           creatorFees[feeRecipients[i]][currency] += feeAmounts[i];
           creatorsFee += feeAmounts[i];
         }
@@ -244,7 +245,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
         ++h;
       }
     }
-    console.log('creatorsFee:', creatorsFee);
+    // console.log('creatorsFee:', creatorsFee);
     return creatorsFee;
   }
 
@@ -253,11 +254,11 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     address currency,
     uint16 effectiveFeeBps
   ) internal returns (uint256) {
-    console.log('allocating fees to curators');
+    // console.log('allocating fees to curators');
     uint256 curatorsFee = (((CURATOR_FEE_BPS * amount) / 10000) * effectiveFeeBps) / 10000;
     // update storage
     curatorFees[currency] += curatorsFee;
-    console.log('curatorsFee:', curatorsFee);
+    // console.log('curatorsFee:', curatorsFee);
     return curatorsFee;
   }
 

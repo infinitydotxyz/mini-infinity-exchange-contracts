@@ -4,7 +4,8 @@ pragma solidity 0.8.9;
 import {IRoyaltyEngine} from './interfaces/IRoyaltyEngine.sol';
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
-import 'hardhat/console.sol';
+
+// import 'hardhat/console.sol';
 
 contract MockRoyaltyEngine is IRoyaltyEngine, Ownable {
   mapping(address => uint16) royaltyBps;
@@ -14,7 +15,7 @@ contract MockRoyaltyEngine is IRoyaltyEngine, Ownable {
     uint256,
     uint256 salePrice
   ) external view returns (address[] memory, uint256[] memory) {
-    console.log('mockRoyaltyEngine.getRoyalty owner', owner());
+    // console.log('mockRoyaltyEngine.getRoyalty owner', owner());
     address[] memory recipients = new address[](1);
     uint256[] memory amounts = new uint256[](1);
     recipients[0] = owner();

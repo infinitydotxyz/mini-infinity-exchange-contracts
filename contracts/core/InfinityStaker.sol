@@ -6,7 +6,8 @@ import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {IStaker, Duration, StakeLevel} from '../interfaces/IStaker.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import 'hardhat/console.sol'; // todo: remove this
+
+// import 'hardhat/console.sol'; // todo: remove this
 
 contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
   using SafeERC20 for IERC20;
@@ -47,24 +48,24 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     uint256 amount,
     Duration duration
   ) external override nonReentrant whenNotPaused {
-    console.log('stake msg sender', msg.sender, 'infinity rewards contract', INFINITY_REWARDS_CONTRACT);
+    // console.log('stake msg sender', msg.sender, 'infinity rewards contract', INFINITY_REWARDS_CONTRACT);
     require(msg.sender == user || msg.sender == INFINITY_REWARDS_CONTRACT, 'Only user or infinity rewards can stake');
     require(amount != 0, 'stake amount cant be 0');
     require(IERC20(INFINITY_TOKEN).balanceOf(user) >= amount, 'insufficient balance to stake');
-    console.log('staking for user', user, 'amount', amount);
+    // console.log('staking for user', user, 'amount', amount);
     // update storage
-    console.log('block timestmap at stake', block.timestamp);
+    // console.log('block timestmap at stake', block.timestamp);
     userstakedAmounts[user][duration].amount += amount;
     userstakedAmounts[user][duration].timestamp = block.timestamp;
     // perform transfer
-    console.log('transferring', amount, 'from', user);
-    console.log('user balance before', IERC20(INFINITY_TOKEN).balanceOf(user));
-    console.log('contract balance before', IERC20(INFINITY_TOKEN).balanceOf(address(this)));
+    // console.log('transferring', amount, 'from', user);
+    // console.log('user balance before', IERC20(INFINITY_TOKEN).balanceOf(user));
+    // console.log('contract balance before', IERC20(INFINITY_TOKEN).balanceOf(address(this)));
     if (msg.sender != INFINITY_REWARDS_CONTRACT) {
       IERC20(INFINITY_TOKEN).safeTransferFrom(user, address(this), amount);
     }
-    console.log('user balance after', IERC20(INFINITY_TOKEN).balanceOf(user));
-    console.log('contract balance after', IERC20(INFINITY_TOKEN).balanceOf(address(this)));
+    // console.log('user balance after', IERC20(INFINITY_TOKEN).balanceOf(user));
+    // console.log('contract balance after', IERC20(INFINITY_TOKEN).balanceOf(address(this)));
     // emit event
     emit Staked(user, amount, duration);
   }
@@ -134,7 +135,7 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
 
   function getUserStakeLevel(address user) external view override returns (StakeLevel) {
     uint256 totalPower = _getUserStakePower(user);
-    console.log('totalPower', totalPower);
+    // console.log('totalPower', totalPower);
     if (totalPower <= BRONZE_STAKE_THRESHOLD) {
       return StakeLevel.NONE;
     } else if (totalPower > BRONZE_STAKE_THRESHOLD && totalPower <= SILVER_STAKE_THRESHOLD) {
@@ -212,12 +213,12 @@ contract InfinityStaker is IStaker, Ownable, Pausable, ReentrancyGuard {
     }
     uint256 durationInSeconds = _getDurationInSeconds(duration);
     uint256 secondsSinceStake = block.timestamp - timestamp;
-    console.log('====================== fetching vested amount =========================');
-    console.log('stake amount', amount);
-    console.log('durationInSeconds', durationInSeconds);
-    console.log('current block timestamp', block.timestamp);
-    console.log('stake timestamp', timestamp);
-    console.log('secondsSinceStake', secondsSinceStake);
+    // console.log('====================== fetching vested amount =========================');
+    // console.log('stake amount', amount);
+    // console.log('durationInSeconds', durationInSeconds);
+    // console.log('current block timestamp', block.timestamp);
+    // console.log('stake timestamp', timestamp);
+    // console.log('secondsSinceStake', secondsSinceStake);
     return secondsSinceStake >= durationInSeconds ? amount : 0;
   }
 
