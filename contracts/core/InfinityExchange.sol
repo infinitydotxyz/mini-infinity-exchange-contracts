@@ -711,7 +711,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     );
   }
 
-  function _hash(OrderTypes.Order calldata order) internal view returns (bytes32) {
+  function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {
     // keccak256('Order(bool isSellOrder,address signer,uint256[] constraints,OrderItem[] nfts,address[] execParams,bytes extraParams)OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)')
     bytes32 ORDER_HASH = 0x7bcfb5a29031e6b8d34ca1a14dd0a1f5cb11b20f755bb2a31ee3c4b143477e4a;
     bytes32 orderHash = keccak256(
@@ -730,7 +730,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     return orderHash;
   }
 
-  function _nftsHash(OrderTypes.OrderItem[] calldata nfts) internal view returns (bytes32) {
+  function _nftsHash(OrderTypes.OrderItem[] calldata nfts) internal pure returns (bytes32) {
     // keccak256('OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)')
     // console.log('calculating nfts hash');
     bytes32 ORDER_ITEM_HASH = 0xf73f37e9f570369ceaab59cef16249ae1c0ad1afd592d656afac0be6f63b87e0;
