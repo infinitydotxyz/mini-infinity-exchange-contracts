@@ -120,6 +120,9 @@ task('deployAll', 'Deploy all contracts')
       staker: infinityStaker.address,
       creatorsfeemanager: infinityCreatorsFeeManager.address
     });
+
+    // run post deploy actions
+    await run('postDeployActions');
   });
 
 task('deployInfinityToken', 'Deploy Infinity token contract')
@@ -407,17 +410,17 @@ task('postDeployActions', 'Post deploy').setAction(async (args, { ethers, run, n
   await infinityCreatorsFeeRegistry.updateCreatorsFeeManager(infinityCreatorsFeeManager.address);
 
   // set reward token
-  await infinityTradingRewards.addRewardToken(infinityToken.address);
-  let rewardTokenFundAmount = INITIAL_SUPPLY.div(4);
-  // @ts-ignore
-  await approveERC20(
-    signer1.address,
-    infinityToken.address,
-    rewardTokenFundAmount,
-    signer1,
-    infinityTradingRewards.address
-  );
-  await infinityTradingRewards.fundWithRewardToken(infinityToken.address, signer1.address, rewardTokenFundAmount);
+  // await infinityTradingRewards.addRewardToken(infinityToken.address);
+  // let rewardTokenFundAmount = INITIAL_SUPPLY.div(4);
+  // // @ts-ignore
+  // await approveERC20(
+  //   signer1.address,
+  //   infinityToken.address,
+  //   rewardTokenFundAmount,
+  //   signer1,
+  //   infinityTradingRewards.address
+  // );
+  // await infinityTradingRewards.fundWithRewardToken(infinityToken.address, signer1.address, rewardTokenFundAmount);
 
   // send assets
   await infinityToken.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
