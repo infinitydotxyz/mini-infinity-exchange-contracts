@@ -1,6 +1,5 @@
 import { task } from 'hardhat/config';
 import { deployContract } from './utils';
-import { expect } from 'chai';
 import { BigNumber, Contract } from 'ethers';
 import { parseEther } from 'ethers/lib/utils';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
