@@ -23,12 +23,12 @@ export default {
     },
     mainnet: {
       url: 'https://eth-mainnet.alchemyapi.io/v2/' + process.env.ALCHEMY_MAINNET_KEY,
-      accounts: [process.env.ETH_MAINNET_PRIV_KEY],
+      accounts: [process.env.ETH_MAINNET_PRIV_KEY, process.env.ETH_MAINNET_PRIV_KEY_2],
       gasPrice: parseUnits('30', 'gwei').toNumber()
     },
     polygonprod: {
       url: 'https://polygon-rpc.com/',
-      accounts: [process.env.POLYGON_PROD_PRIV_KEY],
+      accounts: [process.env.POLYGON_PROD_PRIV_KEY, process.env.POLYGON_PROD_PRIV_KEY_2],
       gasPrice: parseUnits('50', 'gwei').toNumber()
     }
   },
@@ -46,12 +46,12 @@ export default {
       }
     ]
   },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
-  },
   // etherscan: {
-  //   apiKey: process.env.POLYGONSCAN_API_KEY
+  //   apiKey: process.env.ETHERSCAN_API_KEY
   // },
+  etherscan: {
+    apiKey: process.env.POLYGONSCAN_API_KEY
+  },
   contractSizer: {
     alphaSort: true,
     runOnCompile: true,

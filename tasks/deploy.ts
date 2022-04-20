@@ -33,7 +33,6 @@ const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT);
 // other vars
 let signer1: SignerWithAddress,
   signer2: SignerWithAddress,
-  signer3: SignerWithAddress,
   infinityToken: Contract,
   infinityExchange: Contract,
   infinityCurrencyRegistry: Contract,
@@ -55,7 +54,6 @@ task('deployAll', 'Deploy all contracts')
   .setAction(async (args, { ethers, run, network }) => {
     signer1 = (await ethers.getSigners())[0];
     signer2 = (await ethers.getSigners())[1];
-    signer3 = (await ethers.getSigners())[2];
 
     infinityToken = await run('deployInfinityToken', {
       inflation: INFLATION.toString(),
@@ -76,7 +74,7 @@ task('deployAll', 'Deploy all contracts')
       currencyregistry: infinityCurrencyRegistry.address,
       complicationregistry: infinityComplicationRegistry.address,
       wethaddress: WETH_ADDRESS,
-      matchexecutor: signer3.address
+      matchexecutor: signer2.address
     });
 
     infinityOBComplication = await run('deployOBComplication', {
@@ -85,7 +83,7 @@ task('deployAll', 'Deploy all contracts')
       errorbound: parseEther('0.01').toString()
     });
 
-    infinityTreasurer = (await ethers.getSigners())[0].address;
+    infinityTreasurer = signer1.address;
 
     infinityStaker = await run('deployInfinityStaker', {
       verify: args.verify,
