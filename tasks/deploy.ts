@@ -374,22 +374,30 @@ task('deployInfinityFeeTreasury', 'Deploy')
   });
 
 task('postDeployActions', 'Post deploy').setAction(async (args, { ethers, run, network }) => {
+  console.log('Post deploy actions');
+
   // add currencies to registry
+  console.log('Adding currency to registry');
   await infinityCurrencyRegistry.addCurrency(WETH_ADDRESS);
 
   // add complications to registry
+  console.log('Adding complication to registry');
   await infinityComplicationRegistry.addComplication(infinityOBComplication.address);
 
   // set infinity fee treasury on exchange
+  console.log('Updating infinity fee treasury on exchange');
   await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
 
   // set infinity rewards on exchange
+  console.log('Updating infinity trading rewards on exchange');
   await infinityExchange.updateInfinityTradingRewards(infinityTradingRewards.address);
 
   // set infinity rewards on staker
+  console.log('Updating infinity trading rewards on staker');
   await infinityStaker.updateInfinityRewardsContract(infinityTradingRewards.address);
 
   // set creator fee manager on registry
+  console.log('Updating creators fee manager on creators fee registry');
   await infinityCreatorsFeeRegistry.updateCreatorsFeeManager(infinityCreatorsFeeManager.address);
 
   // set reward token
