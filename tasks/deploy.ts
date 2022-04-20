@@ -147,16 +147,6 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
       tokenArgs
     );
 
-    // post deployment checks
-
-    console.log('Validating deployment');
-
-    expect(await infinityToken.balanceOf(signer1.address)).to.be.eq(args.supply);
-    expect(await infinityToken.getAdmin()).to.be.eq(signer1.address);
-    expect(await infinityToken.getTimelock()).to.be.eq(args.timelock);
-    expect(await infinityToken.getInflation()).to.be.eq(args.inflation);
-    expect(await infinityToken.getEpochDuration()).to.be.eq(args.epochduration);
-
     // verify etherscan
     if (args.verify) {
       console.log('Verifying source on etherscan');
