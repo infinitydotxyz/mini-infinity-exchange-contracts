@@ -9,7 +9,7 @@ interface IInfinityExchange {
     OrderTypes.Order[] calldata takerOrders,
     bool tradingRewards,
     bool feeDiscountEnabled
-  ) external;
+  ) external payable;
 
   function matchOrders(
     OrderTypes.Order[] calldata sells,

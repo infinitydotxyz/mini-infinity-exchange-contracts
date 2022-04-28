@@ -23,7 +23,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
   address public STAKER_CONTRACT;
   address public CREATOR_FEE_MANAGER;
 
-  uint16 public CURATOR_FEE_BPS = 150;
+  uint16 public CURATOR_FEE_BPS = 250;
 
   uint16 public BRONZE_EFFECTIVE_FEE_BPS = 10000;
   uint16 public SILVER_EFFECTIVE_FEE_BPS = 10000;
@@ -74,7 +74,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     uint256 minBpsToSeller,
     address execComplication,
     bool feeDiscountEnabled
-  ) external override nonReentrant {
+  ) external payable override nonReentrant {
     // console.log('allocating fees');
     require(msg.sender == INFINITY_EXCHANGE, 'Fee distribution: Only Infinity exchange');
     // token staker discount
@@ -90,18 +90,26 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     // curator fee
     totalFees += _allocateFeesToCurators(amount, currency, effectiveFeeBps);
 
-    // transfer fees to contract
-    // console.log('transferring total fees', totalFees);
-    IERC20(currency).safeTransferFrom(buyer, address(this), totalFees);
-
     // check min bps to seller is met
     // console.log('amount:', amount);
     // console.log('totalFees:', totalFees);
     uint256 remainingAmount = amount - totalFees;
     // console.log('remainingAmount:', remainingAmount);
     require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
-    // transfer final amount (post-fees) to seller
-    IERC20(currency).safeTransferFrom(buyer, seller, remainingAmount);
+
+    // transfer fees to contract
+    // console.log('transferring total fees', totalFees);
+    // ETH
+    if (currency == address(0)) {
+      require(msg.value >= amount, 'insufficient amount sent');
+      // transfer amount to seller
+      (bool sent, ) = seller.call{value: remainingAmount}('');
+      require(sent, 'failed to send ether to seller');
+    } else {
+      IERC20(currency).safeTransferFrom(buyer, address(this), totalFees);
+      // transfer final amount (post-fees) to seller
+      IERC20(currency).safeTransferFrom(buyer, seller, remainingAmount);
+    }
 
     // emit events
     for (uint256 i = 0; i < items.length; ) {
@@ -144,7 +152,13 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   function claimCreatorFees(address currency) external override nonReentrant {
     require(creatorFees[msg.sender][currency] > 0, 'Fees: No creator fees to claim');
-    IERC20(currency).safeTransfer(msg.sender, creatorFees[msg.sender][currency]);
+    // ETH
+    if (currency == address(0)) {
+      (bool sent, ) = msg.sender.call{value: creatorFees[msg.sender][currency]}('');
+      require(sent, 'failed to send ether');
+    } else {
+      IERC20(currency).safeTransfer(msg.sender, creatorFees[msg.sender][currency]);
+    }
     creatorFees[msg.sender][currency] = 0;
     emit CreatorFeesClaimed(msg.sender, currency, creatorFees[msg.sender][currency]);
   }
@@ -162,7 +176,12 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
     unchecked {
       uint256 amount = cumulativeAmount - cumulativeClaimed[msg.sender][currency];
       curatorFees[currency] -= amount;
-      IERC20(currency).safeTransfer(msg.sender, amount);
+      if (currency == address(0)) {
+        (bool sent, ) = msg.sender.call{value: amount}('');
+        require(sent, 'failed to send ether');
+      } else {
+        IERC20(currency).safeTransfer(msg.sender, amount);
+      }
       emit CuratorFeesClaimed(msg.sender, currency, amount);
     }
   }

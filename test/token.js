@@ -1,7 +1,7 @@
 const { expect } = require('chai');
 const { ethers, network } = require('hardhat');
 
-describe('Infinity Token', function () {
+describe('Infinity_Token', function () {
   let signers, token; //leaves, proofs, root
 
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';

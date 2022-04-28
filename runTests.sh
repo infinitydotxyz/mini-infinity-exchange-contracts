@@ -25,6 +25,9 @@ printSeparator
 npx hardhat test --grep Exchange_Creator
 printSeparator
 
+npx hardhat test --grep Exchange_Creator_Fee_Maker_Sell_Taker_Buy_ETH
+printSeparator
+
 npx hardhat test --grep Exchange_Invalid
 printSeparator
 
@@ -32,6 +35,9 @@ npx hardhat test --grep Exchange_Maker_Buy
 printSeparator
 
 npx hardhat test --grep Exchange_Maker_Sell
+printSeparator
+
+npx hardhat test --grep Exchange_Maker_Sell_Taker_Buy_ETH
 printSeparator
 
 npx hardhat test --grep Exchange_Match
@@ -49,5 +55,5 @@ printSeparator
 npx hardhat test --grep Staker_Tests
 printSeparator
 
-npx hardhat test --grep 'Infinity Token'
+npx hardhat test --grep Infinity_Token
 echo 'All tests complete!'

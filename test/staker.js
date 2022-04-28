@@ -43,7 +43,7 @@ describe('Staker_Tests', function () {
   let orderNonce = 0;
   let numTakeOrders = -1;
 
-  const CURATOR_FEE_BPS = 150;
+  const CURATOR_FEE_BPS = 250;
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const MINUTE = 60;
   const HOUR = MINUTE * 60;
@@ -380,9 +380,7 @@ describe('Staker_Tests', function () {
       expect(await token.balanceOf(infinityStaker.address)).to.equal(totalStaked);
 
       // try unstaking a large amount
-      await expect(infinityStaker.unstake(amountStaked2.mul(5))).to.be.revertedWith(
-        'insufficient balance to unstake'
-      );
+      await expect(infinityStaker.unstake(amountStaked2.mul(5))).to.be.revertedWith('insufficient balance to unstake');
 
       // unstake all vested amount
       await infinityStaker.unstake(totalVested);
@@ -396,9 +394,7 @@ describe('Staker_Tests', function () {
       signer1Balance = signer1Balance.add(totalVested);
 
       // try unstaking
-      await expect(infinityStaker.unstake(amountStaked2)).to.be.revertedWith(
-        'insufficient balance to unstake'
-      );
+      await expect(infinityStaker.unstake(amountStaked2)).to.be.revertedWith('insufficient balance to unstake');
 
       // increase time
       await network.provider.send('evm_increaseTime', [91 * DAY]);

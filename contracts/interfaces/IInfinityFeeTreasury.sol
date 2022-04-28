@@ -14,7 +14,7 @@ interface IInfinityFeeTreasury {
     uint256 minBpsToSeller,
     address execComplication,
     bool feeDiscountEnabled
-  ) external;
+  ) external payable;
 
   function refundMatchExecutionGasFee(
     uint256 startGas,

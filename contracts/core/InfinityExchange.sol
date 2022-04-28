@@ -14,7 +14,6 @@ import {SignatureChecker} from '../libs/SignatureChecker.sol';
 import {IERC165} from '@openzeppelin/contracts/interfaces/IERC165.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
-
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 // import 'hardhat/console.sol'; // todo: remove this
@@ -138,10 +137,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     for (uint256 i = 0; i < orderNonces.length; i++) {
       // console.log('order nonce', orderNonces[i]);
       require(orderNonces[i] > userMinOrderNonce[msg.sender], 'nonce too low');
-      require(
-        !isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]],
-        'nonce already executed or cancelled'
-      );
+      require(!isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]], 'nonce already executed or cancelled');
       isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
     }
     emit CancelMultipleOrders(msg.sender, orderNonces);
@@ -194,7 +190,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     OrderTypes.Order[] calldata takerOrders,
     bool tradingRewards,
     bool feeDiscountEnabled
-  ) external override nonReentrant {
+  ) external payable override nonReentrant {
     // check pre-conditions
     require(makerOrders.length == takerOrders.length, 'mismatched lengths');
 
@@ -699,7 +695,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bool feeDiscountEnabled
   ) internal {
     // console.log('transfering fees');
-    infinityFeeTreasury.allocateFees(
+    infinityFeeTreasury.allocateFees{value: msg.value}(
       seller,
       buyer,
       nfts,

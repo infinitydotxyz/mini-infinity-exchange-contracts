@@ -46,7 +46,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
   let orderNonce = 0;
   let numTakeOrders = -1;
 
-  const CURATOR_FEE_BPS = 150;
+  const CURATOR_FEE_BPS = 250;
   const CREATOR_FEE_BPS_ENGINE = 200;
   const CREATOR_FEE_BPS = 400;
   const CREATOR_FEE_BPS_IERC2981 = 300;
@@ -2004,7 +2004,7 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
     });
   });
 
-  describe('Try_Setup_Collection_NonOwner_ButAdmin', () => {
+  describe('Setup_Collection_NonOwner_ButAdmin', () => {
     it('Should succeed', async function () {
       await infinityCreatorsFeeManager
         .connect(signer1)

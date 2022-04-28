@@ -42,7 +42,7 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
   let orderNonce = 0;
   let numTakeOrders = -1;
 
-  const CURATOR_FEE_BPS = 150;
+  const CURATOR_FEE_BPS = 250;
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
   const MINUTE = 60;
   const HOUR = MINUTE * 60;
