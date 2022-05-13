@@ -21,6 +21,10 @@ export default {
       url: 'https://eth-ropsten.alchemyapi.io/v2/' + process.env.ALCHEMY_ROPSTEN_KEY,
       accounts: [process.env.ETH_ROPSTEN_PRIV_KEY]
     },
+    goerli: {
+      url: 'https://eth-goerli.alchemyapi.io/v2/' + process.env.ALCHEMY_GOERLI_KEY,
+      accounts: [process.env.ETH_GOERLI_PRIV_KEY]
+    },
     mainnet: {
       url: 'https://eth-mainnet.alchemyapi.io/v2/' + process.env.ALCHEMY_MAINNET_KEY,
       accounts: [process.env.ETH_MAINNET_PRIV_KEY, process.env.ETH_MAINNET_PRIV_KEY_2],
