@@ -31,6 +31,7 @@ const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT);
 
 // other vars
 let infinityToken: Contract,
+  mockRoyaltyEngine: Contract,
   infinityExchange: Contract,
   infinityCurrencyRegistry: Contract,
   infinityComplicationRegistry: Contract,
@@ -53,6 +54,10 @@ task('deployAll', 'Deploy all contracts')
     const signer2 = (await ethers.getSigners())[1];
 
     infinityToken = await run('deployInfinityToken', {
+      verify: args.verify
+    });
+
+    mockRoyaltyEngine = await run('deployMockRoyaltyEngine', {
       verify: args.verify
     });
 
@@ -144,6 +149,28 @@ task('deployInfinityToken', 'Deploy Infinity token contract')
     }
 
     return infinityToken;
+  });
+
+task('deployMockRoyaltyEngine', 'Deploy')
+  .addFlag('verify', 'verify contracts on etherscan')
+  .setAction(async (args, { ethers, run, network }) => {
+    const signer1 = (await ethers.getSigners())[0];
+    const mockRoyaltyEngine = await deployContract(
+      'MockRoyaltyEngine',
+      await ethers.getContractFactory('MockRoyaltyEngine'),
+      signer1
+    );
+
+    // verify source
+    if (args.verify) {
+      // console.log('Verifying source on etherscan');
+      await mockRoyaltyEngine.deployTransaction.wait(5);
+      await run('verify:verify', {
+        address: mockRoyaltyEngine.address,
+        contract: 'contracts/MockRoyaltyEngine.sol:MockRoyaltyEngine'
+      });
+    }
+    return mockRoyaltyEngine;
   });
 
 task('deployCurrencyRegistry', 'Deploy')
