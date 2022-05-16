@@ -12,7 +12,6 @@ interface IInfinityTradingRewards {
   ) external;
 
   function claimRewards(
-    address destination,
     address currency,
     uint256 amount
   ) external;

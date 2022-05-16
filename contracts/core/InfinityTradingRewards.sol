@@ -79,14 +79,13 @@ contract InfinityTradingRewards is IInfinityTradingRewards, Ownable, ReentrancyG
   }
 
   function claimRewards(
-    address destination,
     address currency,
     uint256 amount
   ) external override nonReentrant {
-    require(earnedRewards[destination][currency] >= amount, 'Not enough rewards to claim');
-    earnedRewards[destination][currency] -= amount;
-    IERC20(currency).safeTransfer(destination, amount);
-    emit RewardClaimed(destination, currency, amount);
+    require(earnedRewards[msg.sender][currency] >= amount, 'Not enough rewards to claim');
+    earnedRewards[msg.sender][currency] -= amount;
+    IERC20(currency).safeTransfer(msg.sender, amount);
+    emit RewardClaimed(msg.sender, currency, amount);
   }
 
   function stakeInfinityRewards(uint256 amount, Duration duration) external override nonReentrant {

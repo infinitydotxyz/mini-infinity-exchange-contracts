@@ -1587,8 +1587,8 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
       // console.log('total reward earned', totalRewardEarned);
       expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
 
-      await infinityTradingRewards.claimRewards(signer1.address, token.address, claimAmount);
-      await infinityTradingRewards.claimRewards(signer2.address, token.address, claimAmount);
+      await infinityTradingRewards.connect(signer1).claimRewards(token.address, claimAmount);
+      await infinityTradingRewards.connect(signer2).claimRewards(token.address, claimAmount);
 
       infinityRewardsBalance = infinityRewardsBalance.sub(claimAmount.mul(2));
       totalRewardEarned = totalRewardEarned.sub(claimAmount);
@@ -1602,7 +1602,7 @@ describe('Exchange_Rewards_Maker_Sell_Taker_Buy', function () {
       const claimAmount = ethers.utils.parseEther('100000');
       expect(await token.balanceOf(infinityTradingRewards.address)).to.equal(infinityRewardsBalance);
 
-      await expect(infinityTradingRewards.claimRewards(signer1.address, token.address, claimAmount)).to.be.revertedWith(
+      await expect(infinityTradingRewards.connect(signer1).claimRewards(token.address, claimAmount)).to.be.revertedWith(
         'Not enough rewards to claim'
       );
 
