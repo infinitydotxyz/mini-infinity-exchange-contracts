@@ -318,7 +318,7 @@ contract InfinityFeeTreasury is IInfinityFeeTreasury, IMerkleDistributor, Ownabl
 
   // ====================================================== VIEW FUNCTIONS ================================================
 
-  function getEffectiveFeeBps(address user) external view returns (uint16) {
+  function getEffectiveFeeBps(address user) external view override returns (uint16) {
     return _getEffectiveFeeBps(user);
   }
 
