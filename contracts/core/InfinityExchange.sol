@@ -2,19 +2,18 @@
 pragma solidity 0.8.9;
 
 import {OrderTypes} from '../libs/OrderTypes.sol';
+import {IComplication} from '../interfaces/IComplication.sol';
+import {SignatureChecker} from '../libs/SignatureChecker.sol';
+import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
+
+// external imports
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import {ICurrencyRegistry} from '../interfaces/ICurrencyRegistry.sol';
-import {IComplicationRegistry} from '../interfaces/IComplicationRegistry.sol';
-import {IComplication} from '../interfaces/IComplication.sol';
-import {IInfinityExchange} from '../interfaces/IInfinityExchange.sol';
-import {IInfinityFeeTreasury} from '../interfaces/IInfinityFeeTreasury.sol';
-import {IInfinityTradingRewards} from '../interfaces/IInfinityTradingRewards.sol';
-import {SignatureChecker} from '../libs/SignatureChecker.sol';
 import {IERC165} from '@openzeppelin/contracts/interfaces/IERC165.sol';
 import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 
 // import 'hardhat/console.sol'; // todo: remove this
 
@@ -46,30 +45,31 @@ NFTNFT                                                 NFTNFT
 NFTNFTNFT...........................................NFTNFTNFT 
 
 */
-contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
+contract InfinityExchange is ReentrancyGuard, Ownable {
   using OrderTypes for OrderTypes.Order;
   using OrderTypes for OrderTypes.OrderItem;
   using SafeERC20 for IERC20;
+  using EnumerableSet for EnumerableSet.AddressSet;
+
+  EnumerableSet.AddressSet private _currencies;
+  EnumerableSet.AddressSet private _complications;
 
   address public immutable WETH;
+  address public CREATOR_FEE_MANAGER;
+  address public MATCH_EXECUTOR;
   bytes32 public immutable DOMAIN_SEPARATOR;
-
-  ICurrencyRegistry public currencyRegistry;
-  IComplicationRegistry public complicationRegistry;
-  IInfinityFeeTreasury public infinityFeeTreasury;
-  IInfinityTradingRewards public infinityTradingRewards;
 
   mapping(address => uint256) public userMinOrderNonce;
   mapping(address => mapping(uint256 => bool)) public isUserOrderNonceExecutedOrCancelled;
-  address public matchExecutor;
 
   event CancelAllOrders(address user, uint256 newMinNonce);
   event CancelMultipleOrders(address user, uint256[] orderNonces);
-  event NewCurrencyRegistry(address currencyRegistry);
-  event NewComplicationRegistry(address complicationRegistry);
-  event NewInfinityFeeTreasury(address infinityFeeTreasury);
-  event NewInfinityTradingRewards(address infinityTradingRewards);
+  event CurrencyAdded(address currencyRegistry);
+  event ComplicationAdded(address complicationRegistry);
+  event CurrencyRemoved(address currencyRegistry);
+  event ComplicationRemoved(address complicationRegistry);
   event NewMatchExecutor(address matchExecutor);
+  event FeeSent(address collection, address currency, uint256 totalFees);
 
   event OrderFulfilled(
     bytes32 sellOrderHash, // hash of the sell order
@@ -82,18 +82,10 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount // amount spent on the order
   );
 
-  /**
-   * @notice Constructor
-   * @param _currencyRegistry currency manager address
-   * @param _complicationRegistry execution manager address
-   * @param _WETH wrapped ether address (for other chains, use wrapped native asset)
-   * @param _matchExecutor executor address for matches
-   */
   constructor(
-    address _currencyRegistry,
-    address _complicationRegistry,
     address _WETH,
-    address _matchExecutor
+    address _matchExecutor,
+    address _creatorFeeManager
   ) {
     // Calculate the domain separator
     DOMAIN_SEPARATOR = keccak256(
@@ -105,12 +97,14 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         address(this)
       )
     );
-
-    currencyRegistry = ICurrencyRegistry(_currencyRegistry);
-    complicationRegistry = IComplicationRegistry(_complicationRegistry);
     WETH = _WETH;
-    matchExecutor = _matchExecutor;
+    MATCH_EXECUTOR = _matchExecutor;
+    CREATOR_FEE_MANAGER = _creatorFeeManager;
   }
+
+  fallback() external payable {}
+
+  receive() external payable {}
 
   // =================================================== USER FUNCTIONS =======================================================
 
@@ -146,79 +140,35 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
   function matchOrders(
     OrderTypes.Order[] calldata sells,
     OrderTypes.Order[] calldata buys,
-    OrderTypes.Order[] calldata constructs,
-    bool tradingRewards,
-    bool feeDiscountEnabled
-  ) external override nonReentrant {
+    OrderTypes.Order[] calldata constructs
+  ) external nonReentrant {
     uint256 startGas = gasleft();
     // check pre-conditions
     require(sells.length == buys.length, 'mismatched lengths');
     require(sells.length == constructs.length, 'mismatched lengths');
 
-    if (tradingRewards) {
-      address[] memory sellers = new address[](sells.length);
-      address[] memory buyers = new address[](sells.length);
-      address[] memory currencies = new address[](sells.length);
-      uint256[] memory amounts = new uint256[](sells.length);
-      // execute orders one by one
-      for (uint256 i = 0; i < sells.length; ) {
-        (sellers[i], buyers[i], currencies[i], amounts[i]) = _matchOrders(
-          sells[i],
-          buys[i],
-          constructs[i],
-          feeDiscountEnabled
-        );
-        unchecked {
-          ++i;
-        }
-      }
-      infinityTradingRewards.updateRewards(sellers, buyers, currencies, amounts);
-    } else {
-      for (uint256 i = 0; i < sells.length; ) {
-        _matchOrders(sells[i], buys[i], constructs[i], feeDiscountEnabled);
-        unchecked {
-          ++i;
-        }
+    for (uint256 i = 0; i < sells.length; ) {
+      _matchOrders(sells[i], buys[i], constructs[i]);
+      unchecked {
+        ++i;
       }
     }
     // refund gas to match executor
-    infinityFeeTreasury.refundMatchExecutionGasFee(startGas, sells, matchExecutor, WETH);
+    _refundMatchExecutionGasFee(startGas, sells);
   }
 
-  function takeOrders(
-    OrderTypes.Order[] calldata makerOrders,
-    OrderTypes.Order[] calldata takerOrders,
-    bool tradingRewards,
-    bool feeDiscountEnabled
-  ) external payable override nonReentrant {
+  function takeOrders(OrderTypes.Order[] calldata makerOrders, OrderTypes.Order[] calldata takerOrders)
+    external
+    payable
+    nonReentrant
+  {
     // check pre-conditions
     require(makerOrders.length == takerOrders.length, 'mismatched lengths');
-
-    if (tradingRewards) {
-      // console.log('trading rewards enabled');
-      address[] memory sellers = new address[](makerOrders.length);
-      address[] memory buyers = new address[](makerOrders.length);
-      address[] memory currencies = new address[](makerOrders.length);
-      uint256[] memory amounts = new uint256[](makerOrders.length);
-      // execute orders one by one
-      for (uint256 i = 0; i < makerOrders.length; ) {
-        (sellers[i], buyers[i], currencies[i], amounts[i]) = _takeOrders(
-          makerOrders[i],
-          takerOrders[i],
-          feeDiscountEnabled
-        );
-        unchecked {
-          ++i;
-        }
-      }
-      infinityTradingRewards.updateRewards(sellers, buyers, currencies, amounts);
-    } else {
-      // console.log('no trading rewards');
-      for (uint256 i = 0; i < makerOrders.length; ) {
-        _takeOrders(makerOrders[i], takerOrders[i], feeDiscountEnabled);
-        unchecked {
-          ++i;
-        }
+    // console.log('no trading rewards');
+    for (uint256 i = 0; i < makerOrders.length; ) {
+      _takeOrders(makerOrders[i], takerOrders[i]);
+      unchecked {
+        ++i;
       }
     }
   }
@@ -256,13 +206,36 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     return SignatureChecker.verify(_hash(order), order.signer, r, s, v, DOMAIN_SEPARATOR);
   }
 
+  function numCurrencies() external view returns (uint256) {
+    return _currencies.length();
+  }
+
+  function getCurrencyAt(uint256 index) external view returns (address) {
+    return _currencies.at(index);
+  }
+
+  function isValidCurrency(address currency) external view returns (bool) {
+    return _currencies.contains(currency);
+  }
+
+  function numComplications() external view returns (uint256) {
+    return _complications.length();
+  }
+
+  function getComplicationAt(uint256 index) external view returns (address) {
+    return _complications.at(index);
+  }
+
+  function isValidComplication(address complication) external view returns (bool) {
+    return _complications.contains(complication);
+  }
+
   // ====================================================== INTERNAL FUNCTIONS ================================================
 
   function _matchOrders(
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
-    OrderTypes.Order calldata constructed,
-    bool feeDiscountEnabled
+    OrderTypes.Order calldata constructed
   )
     internal
     returns (
@@ -282,7 +255,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       return (address(0), address(0), address(0), 0);
     }
 
-    return _execMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed, execPrice, feeDiscountEnabled);
+    return _execMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed, execPrice);
   }
 
   function _execMatchOrders(
@@ -291,8 +264,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed,
-    uint256 execPrice,
-    bool feeDiscountEnabled
+    uint256 execPrice
   )
     internal
     returns (
@@ -313,16 +285,11 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         buy.constraints[6],
         sell.constraints[5],
         constructed,
-        execPrice,
-        feeDiscountEnabled
+        execPrice
       );
   }
 
-  function _takeOrders(
-    OrderTypes.Order calldata makerOrder,
-    OrderTypes.Order calldata takerOrder,
-    bool feeDiscountEnabled
-  )
+  function _takeOrders(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     internal
     returns (
       address,
@@ -343,7 +310,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     }
 
     // exec order
-    return _exectakeOrders(makerOrderHash, takerOrderHash, makerOrder, takerOrder, execPrice, feeDiscountEnabled);
+    return _exectakeOrders(makerOrderHash, takerOrderHash, makerOrder, takerOrder, execPrice);
   }
 
   function _exectakeOrders(
@@ -351,8 +318,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 takerOrderHash,
     OrderTypes.Order calldata makerOrder,
     OrderTypes.Order calldata takerOrder,
-    uint256 execPrice,
-    bool feeDiscountEnabled
+    uint256 execPrice
   )
     internal
     returns (
@@ -365,9 +331,9 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     // exec order
     bool isTakerSell = takerOrder.isSellOrder;
     if (isTakerSell) {
-      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice, feeDiscountEnabled);
+      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice);
     } else {
-      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice, feeDiscountEnabled);
+      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice);
     }
   }
 
@@ -376,8 +342,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 makerOrderHash,
     OrderTypes.Order calldata takerOrder,
     OrderTypes.Order calldata makerOrder,
-    uint256 execPrice,
-    bool feeDiscountEnabled
+    uint256 execPrice
   )
     internal
     returns (
@@ -398,8 +363,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         makerOrder.constraints[6],
         takerOrder.constraints[5],
         takerOrder,
-        execPrice,
-        feeDiscountEnabled
+        execPrice
       );
   }
 
@@ -408,8 +372,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     bytes32 makerOrderHash,
     OrderTypes.Order calldata takerOrder,
     OrderTypes.Order calldata makerOrder,
-    uint256 execPrice,
-    bool feeDiscountEnabled
+    uint256 execPrice
   )
     internal
     returns (
@@ -430,8 +393,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
         takerOrder.constraints[6],
         makerOrder.constraints[5],
         takerOrder,
-        execPrice,
-        feeDiscountEnabled
+        execPrice
       );
   }
 
@@ -521,8 +483,8 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       orderExpired ||
       !sigValid ||
       signer == address(0) ||
-      !currencyRegistry.isCurrencyWhitelisted(currency) ||
-      !complicationRegistry.isComplicationWhitelisted(complication)
+      !_currencies.contains(currency) ||
+      !_complications.contains(complication)
     ) {
       return false;
     }
@@ -538,8 +500,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 buyNonce,
     uint256 minBpsToSeller,
     OrderTypes.Order calldata constructed,
-    uint256 execPrice,
-    bool feeDiscountEnabled
+    uint256 execPrice
   )
     internal
     returns (
@@ -561,8 +522,7 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
       execPrice,
       constructed.execParams[1],
       minBpsToSeller,
-      constructed.execParams[0],
-      feeDiscountEnabled
+      constructed.execParams[0]
     );
 
     _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, execPrice);
@@ -611,14 +571,13 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
-    address complication,
-    bool feeDiscountEnabled
+    address complication
   ) internal {
     // console.log('transfering nfts and fees');
     // transfer NFTs
     _batchTransferNFTs(seller, buyer, nfts);
     // transfer fees
-    _transferFees(seller, buyer, nfts, amount, currency, minBpsToSeller, complication, feeDiscountEnabled);
+    _transferFees(seller, buyer, nfts, amount, currency, minBpsToSeller, complication);
   }
 
   function _batchTransferNFTs(
@@ -691,20 +650,134 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     uint256 amount,
     address currency,
     uint256 minBpsToSeller,
-    address complication,
-    bool feeDiscountEnabled
+    address complication
   ) internal {
     // console.log('transfering fees');
-    infinityFeeTreasury.allocateFees{value: msg.value}(
-      seller,
-      buyer,
-      nfts,
-      amount,
-      currency,
-      minBpsToSeller,
-      complication,
-      feeDiscountEnabled
-    );
+    _sendFees(seller, buyer, nfts, amount, currency, minBpsToSeller, complication);
+  }
+
+  function _sendFees(
+    address seller,
+    address buyer,
+    OrderTypes.OrderItem[] calldata items,
+    uint256 amount,
+    address currency,
+    uint256 minBpsToSeller,
+    address execComplication
+  ) internal {
+    // console.log('allocating fees');
+    // creator fee
+    uint256 totalFees = _sendFeesToCreators(execComplication, seller, items, amount, currency);
+
+    // protocol fee
+    totalFees += _sendFeesToProtocol(execComplication, seller, amount, currency);
+
+    // check min bps to seller is met
+    // console.log('amount:', amount);
+    // console.log('totalFees:', totalFees);
+    uint256 remainingAmount = amount - totalFees;
+    // console.log('remainingAmount:', remainingAmount);
+    require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
+
+    // ETH
+    if (currency == address(0)) {
+      require(msg.value >= amount, 'insufficient amount sent');
+      // transfer amount to seller
+      (bool sent, ) = seller.call{value: remainingAmount}('');
+      require(sent, 'failed to send ether to seller');
+    } else {
+      // transfer final amount (post-fees) to seller
+      IERC20(currency).safeTransferFrom(buyer, seller, remainingAmount);
+    }
+
+    // emit events
+    for (uint256 i = 0; i < items.length; ) {
+      // fee allocated per collection is simply totalFee divided by number of collections in the order
+      emit FeeSent(items[i].collection, currency, totalFees / items.length);
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _sendFeesToCreators(
+    address execComplication,
+    address seller,
+    OrderTypes.OrderItem[] calldata items,
+    uint256 amount,
+    address currency
+  ) internal returns (uint256) {
+    // console.log('allocating fees to creators');
+    // console.log('avg sale price', amount / items.length);
+    uint256 creatorsFee = 0;
+    IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
+    for (uint256 h = 0; h < items.length; ) {
+      (, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager.calcFeesAndGetRecipients(
+        execComplication,
+        items[h].collection,
+        0, // to comply with ierc2981 and royalty registry
+        amount / items.length // amount per collection on avg
+      );
+      // console.log('collection', items[h].collection, 'num feeRecipients:', feeRecipients.length);
+      for (uint256 i = 0; i < feeRecipients.length; ) {
+        if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
+          // console.log('fee amount', i, feeAmounts[i]);
+          if (currency == address(0)) {
+            // transfer amount to fee recipient
+            (bool sent, ) = feeRecipients[i].call{value: feeAmounts[i]}('');
+            require(sent, 'failed to send creator fee to creator');
+          } else {
+            IERC20(currency).safeTransferFrom(seller, feeRecipients[i], feeAmounts[i]);
+          }
+          creatorsFee += feeAmounts[i];
+        }
+        unchecked {
+          ++i;
+        }
+      }
+      unchecked {
+        ++h;
+      }
+    }
+    // console.log('creatorsFee:', creatorsFee);
+    return creatorsFee;
+  }
+
+  function _sendFeesToProtocol(
+    address execComplication,
+    address seller,
+    uint256 amount,
+    address currency
+  ) internal returns (uint256) {
+    // console.log('allocating fees to protocol');
+    uint256 protocolFeeBps = IComplication(execComplication).getProtocolFee();
+    uint256 protocolFee = (protocolFeeBps * amount) / 10000;
+    if (currency == address(0)) {
+      // transfer amount to protocol
+      (bool sent, ) = address(this).call{value: protocolFee}('');
+      require(sent, 'failed to send protocol fee to protocol');
+    } else {
+      IERC20(currency).safeTransferFrom(seller, address(this), protocolFee);
+    }
+    return protocolFee;
+  }
+
+  function _refundMatchExecutionGasFee(uint256 startGas, OrderTypes.Order[] calldata sells) internal nonReentrant {
+    // console.log('refunding gas fees');
+    for (uint256 i = 0; i < sells.length; ) {
+      _refundMatchExecutionGasFeeFromSeller(startGas, sells[i].signer);
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _refundMatchExecutionGasFeeFromSeller(uint256 startGas, address seller) internal {
+    // console.log('refunding gas fees to executor for sale executed on behalf of', seller);
+    // todo: check weth transfer gas cost
+    uint256 gasCost = (startGas - gasleft() + 30000) * tx.gasprice;
+    // console.log('gasCost:', gasCost);
+    IERC20(WETH).safeTransferFrom(seller, MATCH_EXECUTOR, gasCost);
   }
 
   function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {
@@ -779,40 +852,28 @@ contract InfinityExchange is IInfinityExchange, ReentrancyGuard, Ownable {
     require(sent, 'failed');
   }
 
-  /**
-   * @notice Update currency manager
-   * @param _currencyRegistry new currency manager address
-   */
-  function updateCurrencyRegistry(address _currencyRegistry) external onlyOwner {
-    currencyRegistry = ICurrencyRegistry(_currencyRegistry);
-    emit NewCurrencyRegistry(_currencyRegistry);
+  function addCurrency(address _currency) external onlyOwner {
+    _currencies.add(_currency);
+    emit CurrencyAdded(_currency);
   }
 
-  /**
-   * @notice Update execution manager
-   * @param _complicationRegistry new execution manager address
-   */
-  function updateComplicationRegistry(address _complicationRegistry) external onlyOwner {
-    complicationRegistry = IComplicationRegistry(_complicationRegistry);
-    emit NewComplicationRegistry(_complicationRegistry);
+  function addComplication(address _complication) external onlyOwner {
+    _complications.add(_complication);
+    emit ComplicationAdded(_complication);
   }
 
-  /**
-   * @notice Update fee distributor
-   * @param _infinityFeeTreasury new address
-   */
-  function updateInfinityFeeTreasury(address _infinityFeeTreasury) external onlyOwner {
-    infinityFeeTreasury = IInfinityFeeTreasury(_infinityFeeTreasury);
-    emit NewInfinityFeeTreasury(_infinityFeeTreasury);
+  function removeCurrency(address _currency) external onlyOwner {
+    _currencies.remove(_currency);
+    emit CurrencyRemoved(_currency);
   }
 
-  function updateInfinityTradingRewards(address _infinityTradingRewards) external onlyOwner {
-    infinityTradingRewards = IInfinityTradingRewards(_infinityTradingRewards);
-    emit NewInfinityTradingRewards(_infinityTradingRewards);
+  function removeComplication(address _complication) external onlyOwner {
+    _complications.remove(_complication);
+    emit ComplicationRemoved(_complication);
   }
 
   function updateMatchExecutor(address _matchExecutor) external onlyOwner {
-    matchExecutor = _matchExecutor;
+    MATCH_EXECUTOR = _matchExecutor;
     emit NewMatchExecutor(_matchExecutor);
   }
 }
