@@ -11,18 +11,13 @@ contract InfinityCreatorsFeeRegistry is IFeeRegistry, Ownable {
   address CREATORS_FEE_MANAGER;
   struct FeeInfo {
     address setter;
-    address[] destinations;
-    uint16[] bpsSplits;
+    address destination;
+    uint16 bps;
   }
 
   mapping(address => FeeInfo) private _creatorsFeeInfo;
 
-  event CreatorsFeeUpdate(
-    address indexed collection,
-    address indexed setter,
-    address[] destinations,
-    uint16[] bpsSplits
-  );
+  event CreatorsFeeUpdate(address indexed collection, address indexed setter, address destination, uint16 bps);
 
   event CreatorsFeeManagerUpdated(address indexed manager);
 
@@ -30,18 +25,18 @@ contract InfinityCreatorsFeeRegistry is IFeeRegistry, Ownable {
    * @notice Update creators fee for collection
    * @param collection address of the NFT contract
    * @param setter address that sets destinations
-   * @param destinations receivers for the fee
-   * @param bpsSplits fee (500 = 5%, 1,000 = 10%)
+   * @param destination receiver for the fee
+   * @param bps fee (500 = 5%, 1,000 = 10%)
    */
-  function registerFeeDestinations(
+  function registerFeeDestination(
     address collection,
     address setter,
-    address[] calldata destinations,
-    uint16[] calldata bpsSplits
+    address destination,
+    uint16 bps
   ) external override {
     require(msg.sender == CREATORS_FEE_MANAGER, 'Creators Fee Registry: Only creators fee manager');
-    _creatorsFeeInfo[collection] = FeeInfo({setter: setter, destinations: destinations, bpsSplits: bpsSplits});
-    emit CreatorsFeeUpdate(collection, setter, destinations, bpsSplits);
+    _creatorsFeeInfo[collection] = FeeInfo({setter: setter, destination: destination, bps: bps});
+    emit CreatorsFeeUpdate(collection, setter, destination, bps);
   }
 
   /**
@@ -54,14 +49,14 @@ contract InfinityCreatorsFeeRegistry is IFeeRegistry, Ownable {
     override
     returns (
       address,
-      address[] memory,
-      uint16[] memory
+      address,
+      uint16
     )
   {
     return (
       _creatorsFeeInfo[collection].setter,
-      _creatorsFeeInfo[collection].destinations,
-      _creatorsFeeInfo[collection].bpsSplits
+      _creatorsFeeInfo[collection].destination,
+      _creatorsFeeInfo[collection].bps
     );
   }
 

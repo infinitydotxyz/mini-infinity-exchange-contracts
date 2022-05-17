@@ -9,11 +9,6 @@ require('dotenv').config();
 // polygon
 const WETH_ADDRESS = '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619';
 
-// mainnet
-// const ROYALTY_ENGINE = '0x0385603ab55642cb4dd5de3ae9e306809991804f';
-// polygon
-const ROYALTY_ENGINE = '0x28edfcf0be7e86b07493466e7631a213bde8eef2';
-
 // other vars
 let infinityExchange: Contract,
   infinityOBComplication: Contract,
@@ -27,7 +22,6 @@ function toBN(val: string | number) {
 task('deployAll', 'Deploy all contracts')
   .addFlag('verify', 'verify contracts on etherscan')
   .setAction(async (args, { ethers, run, network }) => {
-    const signer1 = (await ethers.getSigners())[0];
     const signer2 = (await ethers.getSigners())[1];
 
     infinityCreatorsFeeRegistry = await run('deployInfinityCreatorsFeeRegistry', {
@@ -36,7 +30,6 @@ task('deployAll', 'Deploy all contracts')
 
     infinityCreatorsFeeManager = await run('deployInfinityCreatorsFeeManager', {
       verify: args.verify,
-      royaltyengine: ROYALTY_ENGINE,
       creatorsfeeregistry: infinityCreatorsFeeRegistry.address
     });
 
@@ -55,28 +48,6 @@ task('deployAll', 'Deploy all contracts')
 
     // run post deploy actions
     await run('postDeployActions');
-  });
-
-task('deployMockRoyaltyEngine', 'Deploy')
-  .addFlag('verify', 'verify contracts on etherscan')
-  .setAction(async (args, { ethers, run, network }) => {
-    const signer1 = (await ethers.getSigners())[0];
-    const mockRoyaltyEngine = await deployContract(
-      'MockRoyaltyEngine',
-      await ethers.getContractFactory('MockRoyaltyEngine'),
-      signer1
-    );
-
-    // verify source
-    if (args.verify) {
-      // console.log('Verifying source on etherscan');
-      await mockRoyaltyEngine.deployTransaction.wait(5);
-      await run('verify:verify', {
-        address: mockRoyaltyEngine.address,
-        contract: 'contracts/MockRoyaltyEngine.sol:MockRoyaltyEngine'
-      });
-    }
-    return mockRoyaltyEngine;
   });
 
 task('deployInfinityCreatorsFeeRegistry', 'Deploy')
@@ -103,7 +74,6 @@ task('deployInfinityCreatorsFeeRegistry', 'Deploy')
 
 task('deployInfinityCreatorsFeeManager', 'Deploy')
   .addFlag('verify', 'verify contracts on etherscan')
-  .addParam('royaltyengine', 'royalty engine address')
   .addParam('creatorsfeeregistry', 'creators fee registry address')
   .setAction(async (args, { ethers, run, network }) => {
     const signer1 = (await ethers.getSigners())[0];
@@ -111,7 +81,7 @@ task('deployInfinityCreatorsFeeManager', 'Deploy')
       'InfinityCreatorsFeeManager',
       await ethers.getContractFactory('InfinityCreatorsFeeManager'),
       signer1,
-      [args.royaltyengine, args.creatorsfeeregistry]
+      [args.creatorsfeeregistry]
     );
 
     // verify source
@@ -121,7 +91,7 @@ task('deployInfinityCreatorsFeeManager', 'Deploy')
       await run('verify:verify', {
         address: infinityCreatorsFeeManager.address,
         contract: 'contracts/core/InfinityCreatorsFeeManager.sol:InfinityCreatorsFeeManager',
-        constructorArguments: [args.royaltyengine, args.creatorsfeeregistry]
+        constructorArguments: [args.creatorsfeeregistry]
       });
     }
     return infinityCreatorsFeeManager;

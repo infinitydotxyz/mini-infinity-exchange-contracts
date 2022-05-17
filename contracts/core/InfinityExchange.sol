@@ -4,7 +4,7 @@ pragma solidity 0.8.9;
 import {OrderTypes} from '../libs/OrderTypes.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
 import {SignatureChecker} from '../libs/SignatureChecker.sol';
-import {IFeeManager, FeeParty} from '../interfaces/IFeeManager.sol';
+import {IFeeManager} from '../interfaces/IFeeManager.sol';
 
 // external imports
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
@@ -69,7 +69,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   event CurrencyRemoved(address currencyRegistry);
   event ComplicationRemoved(address complicationRegistry);
   event NewMatchExecutor(address matchExecutor);
-  event FeeSent(address collection, address currency, uint256 totalFees);
+  event FeeSent(address collection, address currency, uint256 totalFees); // todo: is this reqd?
 
   event OrderFulfilled(
     bytes32 sellOrderHash, // hash of the sell order
@@ -712,28 +712,21 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     uint256 creatorsFee = 0;
     IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
     for (uint256 h = 0; h < items.length; ) {
-      (, address[] memory feeRecipients, uint256[] memory feeAmounts) = feeManager.calcFeesAndGetRecipients(
+      (address feeRecipient, uint256 feeAmount) = feeManager.calcFeesAndGetRecipient(
         execComplication,
         items[h].collection,
-        0, // to comply with ierc2981 and royalty registry
         amount / items.length // amount per collection on avg
       );
-      // console.log('collection', items[h].collection, 'num feeRecipients:', feeRecipients.length);
-      for (uint256 i = 0; i < feeRecipients.length; ) {
-        if (feeRecipients[i] != address(0) && feeAmounts[i] != 0) {
-          // console.log('fee amount', i, feeAmounts[i]);
-          if (currency == address(0)) {
-            // transfer amount to fee recipient
-            (bool sent, ) = feeRecipients[i].call{value: feeAmounts[i]}('');
-            require(sent, 'failed to send creator fee to creator');
-          } else {
-            IERC20(currency).safeTransferFrom(seller, feeRecipients[i], feeAmounts[i]);
-          }
-          creatorsFee += feeAmounts[i];
+      if (feeRecipient != address(0) && feeAmount != 0) {
+        // console.log('fee amount', i, feeAmount);
+        if (currency == address(0)) {
+          // transfer amount to fee recipient
+          (bool sent, ) = feeRecipient.call{value: feeAmount}('');
+          require(sent, 'failed to send creator fee to creator');
+        } else {
+          IERC20(currency).safeTransferFrom(seller, feeRecipient, feeAmount);
         }
-        unchecked {
-          ++i;
-        }
+        creatorsFee += feeAmount;
       }
       unchecked {
         ++h;
