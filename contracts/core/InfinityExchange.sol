@@ -14,7 +14,6 @@ import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
-
 // import 'hardhat/console.sol'; // todo: remove this
 
 /**
@@ -478,7 +477,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // Verify the validity of the signature
     (bytes32 r, bytes32 s, uint8 v) = abi.decode(sig, (bytes32, bytes32, uint8));
     bool sigValid = SignatureChecker.verify(orderHash, signer, r, s, v, DOMAIN_SEPARATOR);
-
+    // console.log('is sig valid:', sigValid);
+    // console.log('is currency valid:', _currencies.contains(currency));
+    // console.log('is complication valid:', _complications.contains(complication));
+    // console.log('currency:', currency);
     if (
       orderExpired ||
       !sigValid ||
@@ -653,24 +655,11 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     address complication
   ) internal {
     // console.log('transfering fees');
-    _sendFees(seller, buyer, nfts, amount, currency, minBpsToSeller, complication);
-  }
-
-  function _sendFees(
-    address seller,
-    address buyer,
-    OrderTypes.OrderItem[] calldata items,
-    uint256 amount,
-    address currency,
-    uint256 minBpsToSeller,
-    address execComplication
-  ) internal {
-    // console.log('allocating fees');
     // creator fee
-    uint256 totalFees = _sendFeesToCreators(execComplication, seller, items, amount, currency);
+    uint256 totalFees = _sendFeesToCreators(complication, buyer, nfts, amount, currency);
 
     // protocol fee
-    totalFees += _sendFeesToProtocol(execComplication, seller, amount, currency);
+    totalFees += _sendFeesToProtocol(complication, buyer, amount, currency);
 
     // check min bps to seller is met
     // console.log('amount:', amount);
@@ -691,9 +680,9 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     }
 
     // emit events
-    for (uint256 i = 0; i < items.length; ) {
+    for (uint256 i = 0; i < nfts.length; ) {
       // fee allocated per collection is simply totalFee divided by number of collections in the order
-      emit FeeSent(items[i].collection, currency, totalFees / items.length);
+      emit FeeSent(nfts[i].collection, currency, totalFees / nfts.length);
       unchecked {
         ++i;
       }
@@ -702,12 +691,12 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
 
   function _sendFeesToCreators(
     address execComplication,
-    address seller,
+    address buyer,
     OrderTypes.OrderItem[] calldata items,
     uint256 amount,
     address currency
   ) internal returns (uint256) {
-    // console.log('allocating fees to creators');
+    // console.log('sending fees to creators');
     // console.log('avg sale price', amount / items.length);
     uint256 creatorsFee = 0;
     IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
@@ -718,13 +707,13 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
         amount / items.length // amount per collection on avg
       );
       if (feeRecipient != address(0) && feeAmount != 0) {
-        // console.log('fee amount', i, feeAmount);
+        // console.log('fee amount', feeAmount);
         if (currency == address(0)) {
           // transfer amount to fee recipient
           (bool sent, ) = feeRecipient.call{value: feeAmount}('');
           require(sent, 'failed to send creator fee to creator');
         } else {
-          IERC20(currency).safeTransferFrom(seller, feeRecipient, feeAmount);
+          IERC20(currency).safeTransferFrom(buyer, feeRecipient, feeAmount);
         }
         creatorsFee += feeAmount;
       }
@@ -738,11 +727,11 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
 
   function _sendFeesToProtocol(
     address execComplication,
-    address seller,
+    address buyer,
     uint256 amount,
     address currency
   ) internal returns (uint256) {
-    // console.log('allocating fees to protocol');
+    // console.log('sending fees to protocol');
     uint256 protocolFeeBps = IComplication(execComplication).getProtocolFee();
     uint256 protocolFee = (protocolFeeBps * amount) / 10000;
     if (currency == address(0)) {
@@ -750,12 +739,12 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       (bool sent, ) = address(this).call{value: protocolFee}('');
       require(sent, 'failed to send protocol fee to protocol');
     } else {
-      IERC20(currency).safeTransferFrom(seller, address(this), protocolFee);
+      IERC20(currency).safeTransferFrom(buyer, address(this), protocolFee);
     }
     return protocolFee;
   }
 
-  function _refundMatchExecutionGasFee(uint256 startGas, OrderTypes.Order[] calldata sells) internal nonReentrant {
+  function _refundMatchExecutionGasFee(uint256 startGas, OrderTypes.Order[] calldata sells) internal {
     // console.log('refunding gas fees');
     for (uint256 i = 0; i < sells.length; ) {
       _refundMatchExecutionGasFeeFromSeller(startGas, sells[i].signer);

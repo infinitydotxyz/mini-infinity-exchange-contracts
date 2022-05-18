@@ -42,7 +42,7 @@ task('deployAll', 'Deploy all contracts')
 
     infinityOBComplication = await run('deployInfinityOrderBookComplication', {
       verify: args.verify,
-      protocolfee: '0',
+      protocolfee: '250',
       errorbound: parseEther('0.01').toString()
     });
 

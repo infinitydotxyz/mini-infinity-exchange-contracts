@@ -151,8 +151,7 @@ export async function prepareOBOrder(
   chainId: BigNumberish,
   signer: JsonRpcSigner,
   order: OBOrder,
-  infinityExchange: Contract,
-  infinityFeeTreasuryAddress: string
+  infinityExchange: Contract
 ): Promise<SignedOBOrder | undefined> {
   // check if order is still valid
   const validOrder = await isOrderValid(user, order, infinityExchange, signer);
@@ -161,7 +160,7 @@ export async function prepareOBOrder(
   }
 
   // grant approvals
-  const approvals = await grantApprovals(user, order, signer, infinityExchange.address, infinityFeeTreasuryAddress);
+  const approvals = await grantApprovals(user, order, signer, infinityExchange.address);
   if (!approvals) {
     return undefined;
   }
@@ -219,8 +218,7 @@ export async function grantApprovals(
   user: User,
   order: OBOrder,
   signer: JsonRpcSigner,
-  exchange: string,
-  infinityFeeTreasuryAddress: string
+  exchange: string
 ): Promise<boolean> {
   try {
     // console.log('Granting approvals');
@@ -232,7 +230,7 @@ export async function grantApprovals(
         order.execParams.currencyAddress,
         currentPrice,
         signer,
-        infinityFeeTreasuryAddress
+        exchange
       );
     } else {
       // approve collections
@@ -250,15 +248,15 @@ export async function approveERC20(
   currencyAddress: string,
   price: BigNumberish,
   signer: JsonRpcSigner,
-  infinityFeeTreasuryAddress: string
+  grantee: string
 ) {
   try {
     // console.log('Granting ERC20 approval');
     if (currencyAddress !== NULL_ADDRESS) {
       const contract = new Contract(currencyAddress, erc20Abi, signer);
-      const allowance = BigNumber.from(await contract.allowance(user, infinityFeeTreasuryAddress));
+      const allowance = BigNumber.from(await contract.allowance(user, grantee));
       if (allowance.lt(price)) {
-        await contract.approve(infinityFeeTreasuryAddress, constants.MaxUint256);
+        await contract.approve(grantee, constants.MaxUint256);
       } else {
         // console.log('ERC20 approval already granted');
       }

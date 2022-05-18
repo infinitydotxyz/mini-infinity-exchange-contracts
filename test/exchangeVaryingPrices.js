@@ -11,7 +11,7 @@ const {
   calculateSignedOrderPriceAt,
   signFormattedOrder
 } = require('../helpers/orders');
-const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
+const { nowSeconds, trimLowerCase, NULL_ADDRESS } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
 const { erc20Abi } = require('../abi/erc20');
 
@@ -20,20 +20,14 @@ describe('Exchange_Varying_Prices', function () {
     signer1,
     signer2,
     signer3,
+    signer4,
     token,
     infinityExchange,
     mock721Contract1,
     mock721Contract2,
     mock721Contract3,
-    currencyRegistry,
-    complicationRegistry,
     obComplication,
-    infinityTreasury,
-    infinityStaker,
-    infinityTradingRewards,
-    infinityFeeTreasury,
     infinityCreatorsFeeRegistry,
-    mockRoyaltyEngine,
     infinityCreatorsFeeManager;
 
   const buyOrders = [];
@@ -41,30 +35,19 @@ describe('Exchange_Varying_Prices', function () {
 
   let signer1Balance = toBN(0);
   let signer2Balance = toBN(0);
-  let totalCuratorFees = toBN(0);
+  let totalProtocolFees = toBN(0);
   let orderNonce = 0;
 
-  const CURATOR_FEE_BPS = 250;
-  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+  const FEE_BPS = 250;
   const MINUTE = 60;
   const HOUR = MINUTE * 60;
   const DAY = HOUR * 24;
-  const MONTH = DAY * 30;
-  const YEAR = MONTH * 12;
   const UNIT = toBN(1e18);
-  const INFLATION = toBN(300_000_000).mul(UNIT); // 40m
-  const EPOCH_DURATION = YEAR;
-  const CLIFF = toBN(3);
-  const CLIFF_PERIOD = CLIFF.mul(YEAR);
-  const MAX_EPOCHS = 6;
-  const TIMELOCK = 30 * DAY;
-  const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT); // 1b
+  const INITIAL_SUPPLY = toBN(1_000_000).mul(UNIT);
 
   const totalNFTSupply = 100;
   const numNFTsToTransfer = 50;
   const numNFTsLeft = totalNFTSupply - numNFTsToTransfer;
-
-  const ERROR_BOUND = '10000000000000000'; // 0.01 WETH
 
   function toBN(val) {
     return ethers.BigNumber.from(val.toString());
@@ -78,21 +61,7 @@ describe('Exchange_Varying_Prices', function () {
     signer3 = signers[2];
 
     // token
-    const tokenArgs = [
-      signer1.address,
-      INFLATION.toString(),
-      EPOCH_DURATION.toString(),
-      CLIFF_PERIOD.toString(),
-      MAX_EPOCHS.toString(),
-      TIMELOCK.toString(),
-      INITIAL_SUPPLY.toString()
-    ];
-    token = await deployContract(
-      'InfinityToken',
-      await ethers.getContractFactory('InfinityToken'),
-      signers[0],
-      tokenArgs
-    );
+    token = await deployContract('MockERC20', await ethers.getContractFactory('MockERC20'), signers[0]);
 
     // NFT contracts
     mock721Contract1 = await deployContract('MockERC721', await ethers.getContractFactory('MockERC721'), signer1, [
@@ -108,55 +77,6 @@ describe('Exchange_Varying_Prices', function () {
       'MCKNFT3'
     ]);
 
-    // Currency registry
-    currencyRegistry = await deployContract(
-      'InfinityCurrencyRegistry',
-      await ethers.getContractFactory('InfinityCurrencyRegistry'),
-      signer1
-    );
-
-    // Complication registry
-    complicationRegistry = await deployContract(
-      'InfinityComplicationRegistry',
-      await ethers.getContractFactory('InfinityComplicationRegistry'),
-      signer1
-    );
-
-    // Exchange
-    infinityExchange = await deployContract(
-      'InfinityExchange',
-      await ethers.getContractFactory('InfinityExchange'),
-      signer1,
-      [currencyRegistry.address, complicationRegistry.address, token.address, signer3.address]
-    );
-
-    // OB complication
-    obComplication = await deployContract(
-      'InfinityOrderBookComplication',
-      await ethers.getContractFactory('InfinityOrderBookComplication'),
-      signer1,
-      [0, ERROR_BOUND]
-    );
-
-    // Infinity treasury
-    infinityTreasury = signer1.address;
-
-    // Infinity Staker
-    infinityStaker = await deployContract(
-      'InfinityStaker',
-      await ethers.getContractFactory('InfinityStaker'),
-      signer1,
-      [token.address, infinityTreasury]
-    );
-
-    // Infinity Trading Rewards
-    infinityTradingRewards = await deployContract(
-      'InfinityTradingRewards',
-      await ethers.getContractFactory('contracts/core/InfinityTradingRewards.sol:InfinityTradingRewards'),
-      signer1,
-      [infinityExchange.address, infinityStaker.address, token.address]
-    );
-
     // Infinity Creator Fee Registry
     infinityCreatorsFeeRegistry = await deployContract(
       'InfinityCreatorsFeeRegistry',
@@ -165,41 +85,43 @@ describe('Exchange_Varying_Prices', function () {
     );
 
     // Infinity Creators Fee Manager
-    mockRoyaltyEngine = await deployContract(
-      'MockRoyaltyEngine',
-      await ethers.getContractFactory('MockRoyaltyEngine'),
-      signer1
-    );
-
-    // Infinity Creators Fee Manager
     infinityCreatorsFeeManager = await deployContract(
       'InfinityCreatorsFeeManager',
       await ethers.getContractFactory('InfinityCreatorsFeeManager'),
       signer1,
-      [mockRoyaltyEngine.address, infinityCreatorsFeeRegistry.address]
+      [infinityCreatorsFeeRegistry.address]
     );
 
-    // Infinity Fee Treasury
-    infinityFeeTreasury = await deployContract(
-      'InfinityFeeTreasury',
-      await ethers.getContractFactory('InfinityFeeTreasury'),
+    // Exchange
+    infinityExchange = await deployContract(
+      'InfinityExchange',
+      await ethers.getContractFactory('InfinityExchange'),
       signer1,
-      [infinityExchange.address, infinityStaker.address, infinityCreatorsFeeManager.address]
+      [token.address, signer3.address, infinityCreatorsFeeManager.address]
+    );
+
+    // OB complication
+    obComplication = await deployContract(
+      'InfinityOrderBookComplication',
+      await ethers.getContractFactory('InfinityOrderBookComplication'),
+      signer1,
+      [FEE_BPS, 1_000_000]
     );
 
     // add currencies to registry
-    await currencyRegistry.addCurrency(token.address);
+    await infinityExchange.addCurrency(token.address);
+    await infinityExchange.addCurrency(NULL_ADDRESS);
 
     // add complications to registry
-    await complicationRegistry.addComplication(obComplication.address);
+    await infinityExchange.addComplication(obComplication.address);
 
     // set infinity fee treasury on exchange
-    await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
+    await infinityCreatorsFeeRegistry.updateCreatorsFeeManager(infinityCreatorsFeeManager.address);
 
     // send assets
-    await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
     signer1Balance = INITIAL_SUPPLY.div(2);
     signer2Balance = INITIAL_SUPPLY.div(2);
+    await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
     for (let i = 0; i < numNFTsToTransfer; i++) {
       await mock721Contract1.transferFrom(signer1.address, signer2.address, i);
       await mock721Contract2.transferFrom(signer1.address, signer2.address, i);
@@ -209,8 +131,6 @@ describe('Exchange_Varying_Prices', function () {
 
   describe('Setup', () => {
     it('Should init properly', async function () {
-      expect(await token.name()).to.equal('Infinity');
-      expect(await token.symbol()).to.equal('NFT');
       expect(await token.decimals()).to.equal(18);
       expect(await token.totalSupply()).to.equal(INITIAL_SUPPLY);
 
@@ -267,14 +187,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer1,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -321,14 +234,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer1,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -375,14 +281,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer1,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
     });
@@ -430,16 +329,9 @@ describe('Exchange_Varying_Prices', function () {
 
       // approve currency (required for automatic execution)
       const salePrice = getCurrentOrderPrice(order);
-      await approveERC20(user.address, execParams.currencyAddress, salePrice, signer2, infinityFeeTreasury.address);
+      await approveERC20(user.address, execParams.currencyAddress, salePrice, signer2, infinityExchange.address);
 
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -486,14 +378,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -540,14 +425,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -605,7 +483,7 @@ describe('Exchange_Varying_Prices', function () {
       const salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
       // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
       // perform exchange
-      await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder], false, false);
+      await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
       // owners after sale
       for (const item of nfts) {
@@ -618,16 +496,16 @@ describe('Exchange_Varying_Prices', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      totalCuratorFees = totalCuratorFees.add(fee);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
+      totalProtocolFees = totalProtocolFees.add(fee);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      const infinityFeeTreasuryBalance = await token.balanceOf(infinityFeeTreasury.address);
+      const infinityFeeTreasuryBalance = await token.balanceOf(infinityExchange.address);
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
       // due to time delay
       expect(parseFloat(ethers.utils.formatEther(infinityFeeTreasuryBalance))).to.be.lessThanOrEqual(
-        parseFloat(ethers.utils.formatEther(totalCuratorFees))
+        parseFloat(ethers.utils.formatEther(totalProtocolFees))
       );
       expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.greaterThanOrEqual(
         parseFloat(ethers.utils.formatEther(signer1Balance))
@@ -636,7 +514,7 @@ describe('Exchange_Varying_Prices', function () {
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
       // update balances
-      totalCuratorFees = infinityFeeTreasuryBalance;
+      totalProtocolFees = infinityFeeTreasuryBalance;
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });
@@ -741,7 +619,7 @@ describe('Exchange_Varying_Prices', function () {
       const totalEvmIncreasedTimeSoFarInTestCases = 1 * HOUR + 30 * MINUTE;
       const salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
       // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
-      await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder], false, false);
+      await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
       // owners after sale
       for (const item of nfts) {
@@ -754,16 +632,16 @@ describe('Exchange_Varying_Prices', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      totalCuratorFees = totalCuratorFees.add(fee);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
+      totalProtocolFees = totalProtocolFees.add(fee);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      const infinityFeeTreasuryBalance = await token.balanceOf(infinityFeeTreasury.address);
+      const infinityFeeTreasuryBalance = await token.balanceOf(infinityExchange.address);
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
       // due to time delay
       expect(parseFloat(ethers.utils.formatEther(infinityFeeTreasuryBalance))).to.be.greaterThanOrEqual(
-        parseFloat(ethers.utils.formatEther(totalCuratorFees))
+        parseFloat(ethers.utils.formatEther(totalProtocolFees))
       );
       expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.lessThanOrEqual(
         parseFloat(ethers.utils.formatEther(signer1Balance))
@@ -772,7 +650,7 @@ describe('Exchange_Varying_Prices', function () {
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
       // update balances
-      totalCuratorFees = infinityFeeTreasuryBalance;
+      totalProtocolFees = infinityFeeTreasuryBalance;
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });
@@ -826,8 +704,8 @@ describe('Exchange_Varying_Prices', function () {
       const salePrice = calculateSignedOrderPriceAt(nowSeconds(), sellOrder);
       // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
       // approve currency
-      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityExchange.address);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
 
       // owners after sale
       for (const item of nfts) {
@@ -840,16 +718,16 @@ describe('Exchange_Varying_Prices', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      totalCuratorFees = totalCuratorFees.add(fee);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
+      totalProtocolFees = totalProtocolFees.add(fee);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      const infinityFeeTreasuryBalance = await token.balanceOf(infinityFeeTreasury.address);
+      const infinityFeeTreasuryBalance = await token.balanceOf(infinityExchange.address);
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
       // due to time delay
       expect(parseFloat(ethers.utils.formatEther(infinityFeeTreasuryBalance))).to.be.greaterThanOrEqual(
-        parseFloat(ethers.utils.formatEther(totalCuratorFees))
+        parseFloat(ethers.utils.formatEther(totalProtocolFees))
       );
       expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.lessThanOrEqual(
         parseFloat(ethers.utils.formatEther(signer1Balance))
@@ -858,7 +736,7 @@ describe('Exchange_Varying_Prices', function () {
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
       // update balances
-      totalCuratorFees = infinityFeeTreasuryBalance;
+      totalProtocolFees = infinityFeeTreasuryBalance;
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });
@@ -928,7 +806,7 @@ describe('Exchange_Varying_Prices', function () {
 
       // approve currency
       let salePrice = getCurrentSignedOrderPrice(sellOrder);
-      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityFeeTreasury.address);
+      await approveERC20(signer1.address, execParams[1], salePrice, signer1, infinityExchange.address);
       // console.log('current salePrice', ethers.utils.formatEther(salePrice.toString()));
 
       // sign order
@@ -964,7 +842,7 @@ describe('Exchange_Varying_Prices', function () {
       const totalEvmIncreasedTimeSoFarInTestCases = 5 * HOUR + 30 * MINUTE;
       salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
       // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
 
       // owners after sale
       for (const item of nfts) {
@@ -977,16 +855,16 @@ describe('Exchange_Varying_Prices', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      totalCuratorFees = totalCuratorFees.add(fee);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
+      totalProtocolFees = totalProtocolFees.add(fee);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      const infinityFeeTreasuryBalance = await token.balanceOf(infinityFeeTreasury.address);
+      const infinityFeeTreasuryBalance = await token.balanceOf(infinityExchange.address);
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
       // due to time delay
       expect(parseFloat(ethers.utils.formatEther(infinityFeeTreasuryBalance))).to.be.lessThanOrEqual(
-        parseFloat(ethers.utils.formatEther(totalCuratorFees))
+        parseFloat(ethers.utils.formatEther(totalProtocolFees))
       );
       expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.greaterThanOrEqual(
         parseFloat(ethers.utils.formatEther(signer1Balance))
@@ -995,7 +873,7 @@ describe('Exchange_Varying_Prices', function () {
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
       // update balances
-      totalCuratorFees = infinityFeeTreasuryBalance;
+      totalProtocolFees = infinityFeeTreasuryBalance;
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });
@@ -1032,7 +910,7 @@ describe('Exchange_Varying_Prices', function () {
 
       const gasEstimate = await infinityExchange
         .connect(signer3)
-        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
+        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
       // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
       // console.log('gasPrice', gasPrice);
@@ -1050,7 +928,7 @@ describe('Exchange_Varying_Prices', function () {
 
       const buyPrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), buyOrder);
       // initiate exchange by 3rd party
-      await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
+      await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder]);
 
       // owners after sale; should remain same
       for (const item of nfts) {
@@ -1115,14 +993,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer1,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer1, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       buyOrders.push(signedOrder);
       // increase time
@@ -1165,14 +1036,7 @@ describe('Exchange_Varying_Prices', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -1231,7 +1095,7 @@ describe('Exchange_Varying_Prices', function () {
 
       const gasEstimate = await infinityExchange
         .connect(signer3)
-        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
+        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
       // console.log('gasEstimate', gasEstimate);
       const gasPrice = await signer3.provider.getGasPrice();
       // console.log('gasPrice', gasPrice);
@@ -1251,7 +1115,7 @@ describe('Exchange_Varying_Prices', function () {
         sellOrder
       );
       // initiate exchange by 3rd party
-      await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder], false, false);
+      await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder]);
 
       // owners after sale
       for (const item of nfts) {
@@ -1263,16 +1127,16 @@ describe('Exchange_Varying_Prices', function () {
         }
       }
 
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
-      totalCuratorFees = totalCuratorFees.add(fee);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
+      totalProtocolFees = totalProtocolFees.add(fee);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      const infinityFeeTreasuryBalance = await token.balanceOf(infinityFeeTreasury.address);
+      const infinityFeeTreasuryBalance = await token.balanceOf(infinityExchange.address);
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
       // due to time delay
       expect(parseFloat(ethers.utils.formatEther(infinityFeeTreasuryBalance))).to.be.lessThanOrEqual(
-        parseFloat(ethers.utils.formatEther(totalCuratorFees))
+        parseFloat(ethers.utils.formatEther(totalProtocolFees))
       );
       expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.greaterThanOrEqual(
         parseFloat(ethers.utils.formatEther(signer1Balance))
@@ -1285,7 +1149,7 @@ describe('Exchange_Varying_Prices', function () {
       // console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
       expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
       // update balances
-      totalCuratorFees = infinityFeeTreasuryBalance;
+      totalProtocolFees = infinityFeeTreasuryBalance;
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });

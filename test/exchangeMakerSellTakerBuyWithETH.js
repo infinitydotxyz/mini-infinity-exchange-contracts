@@ -2,30 +2,24 @@ const { expect } = require('chai');
 const { ethers, network } = require('hardhat');
 const { deployContract } = require('../tasks/utils');
 const { prepareOBOrder, getCurrentSignedOrderPrice, signFormattedOrder } = require('../helpers/orders');
-const { nowSeconds } = require('@infinityxyz/lib/utils');
+const { nowSeconds, NULL_ADDRESS } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
 const { Signer } = require('ethers');
 const { SignerWithAddress } = require('@nomiclabs/hardhat-ethers/signers');
 
-describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
+describe('Exchange_ETH_Maker_Sell_Taker_Buy', function () {
   let signers,
     signer1,
     signer2,
     signer3,
+    signer4,
     token,
     infinityExchange,
     mock721Contract1,
     mock721Contract2,
     mock721Contract3,
-    currencyRegistry,
-    complicationRegistry,
     obComplication,
-    infinityTreasury,
-    infinityStaker,
-    infinityTradingRewards,
-    infinityFeeTreasury,
     infinityCreatorsFeeRegistry,
-    mockRoyaltyEngine,
     infinityCreatorsFeeManager;
 
   const sellOrders = [];
@@ -34,25 +28,14 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
   let signer2EthBalance = 0;
   let signer1Balance = toBN(0);
   let signer2Balance = toBN(0);
-  let totalCuratorFees = toBN(0);
+  let totalProtocolFees = toBN(0);
   let orderNonce = 0;
   let numTakeOrders = -1;
 
-  const CURATOR_FEE_BPS = 250;
+  const FEE_BPS = 250;
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-  const MINUTE = 60;
-  const HOUR = MINUTE * 60;
-  const DAY = HOUR * 24;
-  const MONTH = DAY * 30;
-  const YEAR = MONTH * 12;
   const UNIT = toBN(1e18);
-  const INFLATION = toBN(300_000_000).mul(UNIT); // 40m
-  const EPOCH_DURATION = YEAR;
-  const CLIFF = toBN(3);
-  const CLIFF_PERIOD = CLIFF.mul(YEAR);
-  const MAX_EPOCHS = 6;
-  const TIMELOCK = 30 * DAY;
-  const INITIAL_SUPPLY = toBN(1_000_000_000).mul(UNIT); // 1b
+  const INITIAL_SUPPLY = toBN(1_000_000).mul(UNIT);
 
   const totalNFTSupply = 100;
   const numNFTsToTransfer = 50;
@@ -69,21 +52,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
     signer2 = signers[1];
     signer3 = signers[2];
     // token
-    const tokenArgs = [
-      signer1.address,
-      INFLATION.toString(),
-      EPOCH_DURATION.toString(),
-      CLIFF_PERIOD.toString(),
-      MAX_EPOCHS.toString(),
-      TIMELOCK.toString(),
-      INITIAL_SUPPLY.toString()
-    ];
-    token = await deployContract(
-      'InfinityToken',
-      await ethers.getContractFactory('InfinityToken'),
-      signers[0],
-      tokenArgs
-    );
+    token = await deployContract('MockERC20', await ethers.getContractFactory('MockERC20'), signers[0]);
 
     // NFT contracts
     mock721Contract1 = await deployContract('MockERC721', await ethers.getContractFactory('MockERC721'), signer1, [
@@ -99,55 +68,6 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       'MCKNFT3'
     ]);
 
-    // Currency registry
-    currencyRegistry = await deployContract(
-      'InfinityCurrencyRegistry',
-      await ethers.getContractFactory('InfinityCurrencyRegistry'),
-      signer1
-    );
-
-    // Complication registry
-    complicationRegistry = await deployContract(
-      'InfinityComplicationRegistry',
-      await ethers.getContractFactory('InfinityComplicationRegistry'),
-      signer1
-    );
-
-    // Exchange
-    infinityExchange = await deployContract(
-      'InfinityExchange',
-      await ethers.getContractFactory('InfinityExchange'),
-      signer1,
-      [currencyRegistry.address, complicationRegistry.address, token.address, signer3.address]
-    );
-
-    // OB complication
-    obComplication = await deployContract(
-      'InfinityOrderBookComplication',
-      await ethers.getContractFactory('InfinityOrderBookComplication'),
-      signer1,
-      [0, 1_000_000]
-    );
-
-    // Infinity treasury
-    infinityTreasury = signer1.address;
-
-    // Infinity Staker
-    infinityStaker = await deployContract(
-      'InfinityStaker',
-      await ethers.getContractFactory('InfinityStaker'),
-      signer1,
-      [token.address, infinityTreasury]
-    );
-
-    // Infinity Trading Rewards
-    infinityTradingRewards = await deployContract(
-      'InfinityTradingRewards',
-      await ethers.getContractFactory('contracts/core/InfinityTradingRewards.sol:InfinityTradingRewards'),
-      signer1,
-      [infinityExchange.address, infinityStaker.address, token.address]
-    );
-
     // Infinity Creator Fee Registry
     infinityCreatorsFeeRegistry = await deployContract(
       'InfinityCreatorsFeeRegistry',
@@ -156,37 +76,38 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
     );
 
     // Infinity Creators Fee Manager
-    mockRoyaltyEngine = await deployContract(
-      'MockRoyaltyEngine',
-      await ethers.getContractFactory('MockRoyaltyEngine'),
-      signer1
-    );
-
-    // Infinity Creators Fee Manager
     infinityCreatorsFeeManager = await deployContract(
       'InfinityCreatorsFeeManager',
       await ethers.getContractFactory('InfinityCreatorsFeeManager'),
       signer1,
-      [mockRoyaltyEngine.address, infinityCreatorsFeeRegistry.address]
+      [infinityCreatorsFeeRegistry.address]
     );
 
-    // Infinity Fee Treasury
-    infinityFeeTreasury = await deployContract(
-      'InfinityFeeTreasury',
-      await ethers.getContractFactory('InfinityFeeTreasury'),
+    // Exchange
+    infinityExchange = await deployContract(
+      'InfinityExchange',
+      await ethers.getContractFactory('InfinityExchange'),
       signer1,
-      [infinityExchange.address, infinityStaker.address, infinityCreatorsFeeManager.address]
+      [token.address, signer3.address, infinityCreatorsFeeManager.address]
+    );
+
+    // OB complication
+    obComplication = await deployContract(
+      'InfinityOrderBookComplication',
+      await ethers.getContractFactory('InfinityOrderBookComplication'),
+      signer1,
+      [FEE_BPS, 1_000_000]
     );
 
     // add currencies to registry
-    await currencyRegistry.addCurrency(token.address);
-    await currencyRegistry.addCurrency(ZERO_ADDRESS);
+    await infinityExchange.addCurrency(token.address);
+    await infinityExchange.addCurrency(NULL_ADDRESS);
 
     // add complications to registry
-    await complicationRegistry.addComplication(obComplication.address);
+    await infinityExchange.addComplication(obComplication.address);
 
     // set infinity fee treasury on exchange
-    await infinityExchange.updateInfinityFeeTreasury(infinityFeeTreasury.address);
+    await infinityCreatorsFeeRegistry.updateCreatorsFeeManager(infinityCreatorsFeeManager.address);
 
     // send assets
     await token.transfer(signer2.address, INITIAL_SUPPLY.div(2).toString());
@@ -199,8 +120,6 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
 
   describe('Setup', () => {
     it('Should init properly', async function () {
-      expect(await token.name()).to.equal('Infinity');
-      expect(await token.symbol()).to.equal('NFT');
       expect(await token.decimals()).to.equal(18);
       expect(await token.totalSupply()).to.equal(INITIAL_SUPPLY);
 
@@ -257,14 +176,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -311,14 +223,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -362,14 +267,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -408,14 +306,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -454,14 +345,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -519,14 +403,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -573,14 +450,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -614,14 +484,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -655,14 +518,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
         execParams,
         extraParams
       };
-      const signedOrder = await prepareOBOrder(
-        user,
-        chainId,
-        signer2,
-        order,
-        infinityExchange,
-        infinityFeeTreasury.address
-      );
+      const signedOrder = await prepareOBOrder(user, chainId, signer2, order, infinityExchange);
       expect(signedOrder).to.not.be.undefined;
       sellOrders.push(signedOrder);
     });
@@ -717,7 +573,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -730,11 +586,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -792,7 +647,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -805,11 +660,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -882,7 +736,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -895,11 +749,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -972,7 +825,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -985,11 +838,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -1074,7 +926,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -1087,11 +939,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -1148,7 +999,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -1161,11 +1012,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -1272,7 +1122,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -1285,11 +1135,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -1359,7 +1208,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -1372,11 +1221,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
@@ -1502,7 +1350,7 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       const options = {
         value: salePrice
       };
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], false, false, options);
+      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
       for (const item of nfts) {
@@ -1515,11 +1363,10 @@ describe('Exchange_Maker_Sell_Taker_Buy_ETH', function () {
       }
 
       // balance after sale
-      const fee = salePrice.mul(CURATOR_FEE_BPS).div(10000);
+      const fee = salePrice.mul(FEE_BPS).div(10000);
       const feeInEth = parseFloat(ethers.utils.formatEther(fee));
-      totalCuratorFees = totalCuratorFees.add(fee);
-      expect(await ethers.provider.getBalance(infinityFeeTreasury.address)).to.equal(totalCuratorFees);
-      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(0);
+      totalProtocolFees = totalProtocolFees.add(fee);
+      expect(await ethers.provider.getBalance(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1EthBalance = signer1EthBalance - salePriceInEth;
       signer2EthBalance = signer2EthBalance + (salePriceInEth - feeInEth);
       const signer1EthBalanceAfter = parseFloat(
