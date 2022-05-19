@@ -173,11 +173,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   }
 
   function batchTransferNFTs(
-    address from,
     address to,
     OrderTypes.OrderItem[] calldata items
   ) external nonReentrant {
-    _batchTransferNFTs(from, to, items);
+    _batchTransferNFTs(msg.sender, to, items);
   }
 
   // ====================================================== VIEW FUNCTIONS ======================================================
