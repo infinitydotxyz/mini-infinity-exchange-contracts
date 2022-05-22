@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.14;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC165, IERC2981} from '@openzeppelin/contracts/interfaces/IERC2981.sol';
@@ -35,15 +35,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
     address,
     address collection,
     uint256 amount
-  )
-    external
-    view
-    override
-    returns (
-      address,
-      uint256
-    )
-  {
+  ) external view override returns (address, uint256) {
     // check if the creators fee is registered
     (, address recipient, , uint256 fee) = _getCreatorsFeeInfo(collection, amount);
     return (recipient, fee);
@@ -90,10 +82,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
 
   // ============================================== INTERNAL FUNCTIONS ==============================================
 
-  function _getCreatorsFeeInfo(
-    address collection,
-    uint256 amount
-  )
+  function _getCreatorsFeeInfo(address collection, uint256 amount)
     internal
     view
     returns (
@@ -109,10 +98,7 @@ contract InfinityCreatorsFeeManager is IFeeManager, Ownable {
 
   // ============================================== VIEW FUNCTIONS ==============================================
 
-  function getCreatorsFeeInfo(
-    address collection,
-    uint256 amount
-  )
+  function getCreatorsFeeInfo(address collection, uint256 amount)
     external
     view
     returns (

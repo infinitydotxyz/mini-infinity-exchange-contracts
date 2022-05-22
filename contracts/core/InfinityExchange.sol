@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.9;
+pragma solidity 0.8.14;
 
 import {OrderTypes} from '../libs/OrderTypes.sol';
 import {IComplication} from '../interfaces/IComplication.sol';
@@ -14,6 +14,7 @@ import {IERC721} from '@openzeppelin/contracts/token/ERC721/IERC721.sol';
 import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
+
 // import 'hardhat/console.sol'; // todo: remove this
 
 /**
@@ -172,10 +173,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     }
   }
 
-  function batchTransferNFTs(
-    address to,
-    OrderTypes.OrderItem[] calldata items
-  ) external nonReentrant {
+  function batchTransferNFTs(address to, OrderTypes.OrderItem[] calldata items) external nonReentrant {
     _batchTransferNFTs(msg.sender, to, items);
   }
 
