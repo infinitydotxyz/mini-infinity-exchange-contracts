@@ -71,8 +71,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   event FeeSent(address collection, address currency, uint256 totalFees); // todo: is this reqd?
 
   event OrderFulfilled(
-    bytes32 sellOrderHash, // hash of the sell order
-    bytes32 buyOrderHash, // hash of the sell order
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
     address indexed seller,
     address indexed buyer,
     address indexed complication, // address of the complication that defines the execution
