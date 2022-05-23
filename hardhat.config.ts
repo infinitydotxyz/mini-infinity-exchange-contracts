@@ -57,11 +57,11 @@ export default {
   // etherscan: {
   //   apiKey: process.env.POLYGONSCAN_API_KEY
   // }
-  contractSizer: {
-    alphaSort: true,
-    runOnCompile: true,
-    disambiguatePaths: false
-  },
+  // contractSizer: {
+  //   alphaSort: true,
+  //   runOnCompile: true,
+  //   disambiguatePaths: false
+  // },
   gasReporter: {
     enabled: true,
     currency: 'USD'

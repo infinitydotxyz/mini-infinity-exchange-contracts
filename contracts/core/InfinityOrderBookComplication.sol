@@ -37,14 +37,14 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   ) external view returns (bool, uint256) {
     // console.log('running canExecOrder in InfinityOrderBookComplication');
     bool isTimeValid = _isTimeValid(sell, buy);
-    (bool isAmountValid, uint256 execPrice) = _isAmountValid(sell, buy, constructed);
+    (bool isPriceValid, uint256 execPrice) = _isPriceValid(sell, buy);
     bool numItemsValid = _areNumItemsValid(sell, buy, constructed);
     bool itemsIntersect = _checkItemsIntersect(sell, constructed) && _checkItemsIntersect(buy, constructed);
     // console.log('isTimeValid', isTimeValid);
     // console.log('isAmountValid', isAmountValid);
     // console.log('numItemsValid', numItemsValid);
     // console.log('itemsIntersect', itemsIntersect);
-    return (isTimeValid && isAmountValid && numItemsValid && itemsIntersect, execPrice);
+    return (isTimeValid && isPriceValid && numItemsValid && itemsIntersect, execPrice);
   }
 
   function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
@@ -61,7 +61,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       _getCurrentPrice(makerOrder),
       _getCurrentPrice(takerOrder)
     );
-    bool isAmountValid = _arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice);
+    bool isPriceValid = _arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice);
     bool numItemsValid = _areTakerNumItemsValid(makerOrder, takerOrder);
     bool itemsIntersect = _checkItemsIntersect(makerOrder, takerOrder);
     // console.log('isTimeValid', isTimeValid);
@@ -69,7 +69,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     // console.log('numItemsValid', numItemsValid);
     // console.log('itemsIntersect', itemsIntersect);
 
-    return (isTimeValid && isAmountValid && numItemsValid && itemsIntersect, currentTakerPrice);
+    return (isTimeValid && isPriceValid && numItemsValid && itemsIntersect, currentTakerPrice);
   }
 
   /**
@@ -98,20 +98,13 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   }
 
   // todo: make this function public
-  function _isAmountValid(
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy,
-    OrderTypes.Order calldata constructed
-  ) internal view returns (bool, uint256) {
-    (uint256 currentSellPrice, uint256 currentBuyPrice, uint256 currentConstructedPrice) = (
-      _getCurrentPrice(sell),
-      _getCurrentPrice(buy),
-      _getCurrentPrice(constructed)
-    );
-    return (
-      currentBuyPrice >= currentSellPrice && currentConstructedPrice <= currentSellPrice,
-      currentConstructedPrice
-    );
+  function _isPriceValid(OrderTypes.Order calldata sell, OrderTypes.Order calldata buy)
+    internal
+    view
+    returns (bool, uint256)
+  {
+    (uint256 currentSellPrice, uint256 currentBuyPrice) = (_getCurrentPrice(sell), _getCurrentPrice(buy));
+    return (currentBuyPrice >= currentSellPrice, currentBuyPrice);
   }
 
   function _areNumItemsValid(
@@ -163,28 +156,18 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     // console.log('block.timestamp', block.timestamp);
     uint256 duration = endTime - startTime;
     // console.log('duration', duration);
-    uint256 priceDiff;
-    if (startPrice > endPrice) {
-      priceDiff = startPrice - endPrice;
-    } else {
-      priceDiff = endPrice - startPrice;
-    }
+    uint256 priceDiff = startPrice > endPrice ? startPrice - endPrice : endPrice - startPrice;
     if (priceDiff == 0 || duration == 0) {
       return startPrice;
     }
     uint256 elapsedTime = block.timestamp - startTime;
     // console.log('elapsedTime', elapsedTime);
     uint256 PRECISION = 10**4; // precision for division; similar to bps
-    uint256 portionBps = elapsedTime > duration ? 1 : ((elapsedTime * PRECISION) / duration);
+    uint256 portionBps = elapsedTime > duration ? 1 * PRECISION : ((elapsedTime * PRECISION) / duration);
     // console.log('portion', portionBps);
     priceDiff = (priceDiff * portionBps) / PRECISION;
     // console.log('priceDiff', priceDiff);
-    uint256 currentPrice;
-    if (startPrice > endPrice) {
-      currentPrice = startPrice - priceDiff;
-    } else {
-      currentPrice = startPrice + priceDiff;
-    }
+    uint256 currentPrice = startPrice > endPrice ? startPrice - priceDiff : startPrice + priceDiff;
     // console.log('current price', currentPrice);
     return currentPrice;
   }

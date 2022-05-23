@@ -482,6 +482,20 @@ describe('Exchange_Varying_Prices', function () {
       const totalEvmIncreasedTimeSoFarInTestCases = 1 * HOUR;
       const salePrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), sellOrder);
       // console.log('======current salePrice=======', ethers.utils.formatEther(salePrice.toString()));
+
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
@@ -613,6 +627,20 @@ describe('Exchange_Varying_Prices', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await network.provider.send('evm_increaseTime', [30 * MINUTE]);
       // sale price
@@ -697,6 +725,20 @@ describe('Exchange_Varying_Prices', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       // not increasing time here
@@ -837,6 +879,20 @@ describe('Exchange_Varying_Prices', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await network.provider.send('evm_increaseTime', [4 * HOUR]);
       const totalEvmIncreasedTimeSoFarInTestCases = 5 * HOUR + 30 * MINUTE;
@@ -908,15 +964,6 @@ describe('Exchange_Varying_Prices', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const gasEstimate = await infinityExchange
-        .connect(signer3)
-        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
-      // console.log('gasEstimate', gasEstimate);
-      const gasPrice = await signer3.provider.getGasPrice();
-      // console.log('gasPrice', gasPrice);
-      const gasCost = gasEstimate.mul(gasPrice);
-      // console.log('gasCost', gasCost.toString());
-
       // increase time
       await network.provider.send('evm_increaseTime', [13 * HOUR]);
       // sale price
@@ -927,6 +974,23 @@ describe('Exchange_Varying_Prices', function () {
       );
 
       const buyPrice = calculateSignedOrderPriceAt(nowSeconds().add(totalEvmIncreasedTimeSoFarInTestCases), buyOrder);
+
+      // estimate gas
+      const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange
+        .connect(signer3)
+        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder]);
 
@@ -1093,15 +1157,6 @@ describe('Exchange_Varying_Prices', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const gasEstimate = await infinityExchange
-        .connect(signer3)
-        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
-      // console.log('gasEstimate', gasEstimate);
-      const gasPrice = await signer3.provider.getGasPrice();
-      // console.log('gasPrice', gasPrice);
-      const gasCost = gasEstimate.mul(gasPrice);
-      // console.log('gasCost', gasCost.toString());
-
       // sale price
       const totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced = 3 * DAY;
       const totalEvmIncreasedTimeSoFarSinceSellOrderPlaced = 10;
@@ -1114,6 +1169,23 @@ describe('Exchange_Varying_Prices', function () {
         nowSeconds().add(totalEvmIncreasedTimeSoFarSinceSellOrderPlaced),
         sellOrder
       );
+
+      // estimate gas
+      const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange
+        .connect(signer3)
+        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // initiate exchange by 3rd party
       await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder]);
 

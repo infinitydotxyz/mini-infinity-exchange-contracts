@@ -519,6 +519,20 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
       expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
 
@@ -587,6 +601,20 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
@@ -717,6 +745,20 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       creatorFees[dest1] = creatorFees[dest1].add(amount1);
       const destBalanceBeforeSale = await token.balanceOf(dest1);
       // console.log('creatorFees dest1', dest1, creatorFees[dest1]);
+
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
@@ -859,6 +901,20 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       creatorFees[dest1] = creatorFees[dest1].add(amount1);
       const destBalanceBeforeSale = await token.balanceOf(dest1);
 
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
 
@@ -981,6 +1037,20 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       //   dest2_1,
       //   creatorFees[dest2_1]
       // );
+
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
@@ -1122,6 +1192,20 @@ describe('Exchange_Creator_Fee_Maker_Sell_Taker_Buy', function () {
       expect(amount1).to.equal(creatorFeeInfinityRegistry.mul(bpsSplit1).div(CREATOR_FEE_BPS));
       creatorFees[dest1] = creatorFees[dest1].add(amount1);
       const destBalanceBeforeSale = await token.balanceOf(dest1);
+
+      // estimate gas
+      const numTokens = buyOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);

@@ -575,6 +575,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(INITIAL_SUPPLY.div(2));
       expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
@@ -644,6 +658,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
@@ -731,6 +759,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
@@ -816,6 +858,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
@@ -916,6 +972,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
@@ -986,6 +1056,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
@@ -1108,6 +1192,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
+
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
 
@@ -1192,6 +1290,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);
@@ -1333,6 +1445,20 @@ describe('Exchange_Maker_Buy_Taker_Sell', function () {
       // balance before sale
       expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
+
+      // estimate gas
+      const numTokens = sellOrder.nfts.reduce((acc, nft) => {
+        return (
+          acc +
+          nft.tokens.reduce((acc, token) => {
+            return acc + token.numTokens;
+          }, 0)
+        );
+      }, 0);
+      console.log('total numTokens in order', numTokens);
+      const gasEstimate = await infinityExchange.connect(signer2).estimateGas.takeOrders([buyOrder], [sellOrder]);
+      console.log('gasEstimate', gasEstimate.toNumber());
+      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // perform exchange
       await infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder]);

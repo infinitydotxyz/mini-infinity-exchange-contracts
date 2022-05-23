@@ -144,8 +144,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   ) external nonReentrant {
     uint256 startGas = gasleft();
     // check pre-conditions
-    require(sells.length == buys.length, 'mismatched lengths');
-    require(sells.length == constructs.length, 'mismatched lengths');
+    require(sells.length == buys.length && sells.length == constructs.length, 'mismatched lengths');
 
     for (uint256 i = 0; i < sells.length; ) {
       _matchOrders(sells[i], buys[i], constructs[i]);
