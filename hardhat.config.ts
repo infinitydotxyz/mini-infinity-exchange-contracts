@@ -61,5 +61,9 @@ export default {
     alphaSort: true,
     runOnCompile: true,
     disambiguatePaths: false
+  },
+  gasReporter: {
+    enabled: true,
+    currency: 'USD'
   }
 } as HardhatUserConfig;
