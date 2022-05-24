@@ -982,16 +982,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = INITIAL_SUPPLY.div(2).sub(salePrice);
       signer2Balance = INITIAL_SUPPLY.div(2).add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer1Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1017,7 +1017,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1054,16 +1054,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1105,7 +1105,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1142,16 +1142,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1193,7 +1193,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1230,16 +1230,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer1Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1293,7 +1293,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1330,16 +1330,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1365,7 +1365,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1402,16 +1402,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1487,7 +1487,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1528,16 +1528,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1577,7 +1577,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1614,16 +1614,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });
@@ -1720,7 +1720,7 @@ describe('Exchange_Match', function () {
       const salePrice = getCurrentSignedOrderPrice(constructedOrder);
 
       // balance before sale
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // estimate gas
       const numTokens = constructedOrder.nfts.reduce((acc, nft) => {
@@ -1757,16 +1757,16 @@ describe('Exchange_Match', function () {
       expect(await token.balanceOf(infinityExchange.address)).to.equal(totalProtocolFees);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      expect(await token.balanceOf(signer1.address)).to.equal(signer1Balance);
+      expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
-      const signer2TokenBalance = await token.balanceOf(signer2.address);
+      const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer3TokenBalance = await token.balanceOf(signer3.address);
 
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
 
-      signer3Balance = signer2Balance.sub(signer2TokenBalance);
+      signer3Balance = signer1Balance.sub(signer1TokenBalance);
       expect(signer3TokenBalance).to.equal(signer3Balance);
     });
   });

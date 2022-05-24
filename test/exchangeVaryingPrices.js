@@ -1007,17 +1007,17 @@ describe('Exchange_Varying_Prices', function () {
       // balance after sale
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
-      expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.equal(
-        parseFloat(ethers.utils.formatEther(signer1Balance))
-      );
-      // gas cost
-      expect(parseFloat(ethers.utils.formatEther(signer2TokenBalance))).to.be.lessThanOrEqual(
+      expect(parseFloat(ethers.utils.formatEther(signer2TokenBalance))).to.be.equal(
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      // console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
+      // gas cost
+      expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.lessThan(
+        parseFloat(ethers.utils.formatEther(signer1Balance))
+      );
+      const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
+      const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer1Balance));
+      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
+      signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });
   });
@@ -1164,10 +1164,15 @@ describe('Exchange_Varying_Prices', function () {
         nowSeconds().add(totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced),
         buyOrder
       );
-      // console.log('=========current buy order price for match=========', ethers.utils.formatEther(buyPrice.toString()));
+      console.log('=========current buy order price for match=========', ethers.utils.formatEther(buyPrice.toString()));
       const salePrice = calculateSignedOrderPriceAt(
-        nowSeconds().add(totalEvmIncreasedTimeSoFarSinceSellOrderPlaced),
+        nowSeconds().add(totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced + totalEvmIncreasedTimeSoFarSinceSellOrderPlaced),
         sellOrder
+      );
+
+      console.log(
+        '=========current sale order price for match=========',
+        ethers.utils.formatEther(salePrice.toString())
       );
 
       // estimate gas
@@ -1203,11 +1208,12 @@ describe('Exchange_Varying_Prices', function () {
       totalProtocolFees = totalProtocolFees.add(fee);
       signer1Balance = signer1Balance.sub(salePrice);
       signer2Balance = signer2Balance.add(salePrice.sub(fee));
-      const infinityFeeTreasuryBalance = await token.balanceOf(infinityExchange.address);
+      const infinityExchangeBalance = await token.balanceOf(infinityExchange.address);
       const signer1TokenBalance = await token.balanceOf(signer1.address);
       const signer2TokenBalance = await token.balanceOf(signer2.address);
+      console.log(signer1Balance, signer1TokenBalance);
       // due to time delay
-      expect(parseFloat(ethers.utils.formatEther(infinityFeeTreasuryBalance))).to.be.lessThanOrEqual(
+      expect(parseFloat(ethers.utils.formatEther(infinityExchangeBalance))).to.be.lessThanOrEqual(
         parseFloat(ethers.utils.formatEther(totalProtocolFees))
       );
       expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.greaterThanOrEqual(
@@ -1216,12 +1222,8 @@ describe('Exchange_Varying_Prices', function () {
       expect(parseFloat(ethers.utils.formatEther(signer2TokenBalance))).to.be.lessThanOrEqual(
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
-      const sellerBalance1 = parseFloat(ethers.utils.formatEther(signer2TokenBalance));
-      const sellerBalance2 = parseFloat(ethers.utils.formatEther(signer2Balance));
-      // console.log('sellerBalance1', sellerBalance1, 'sellerBalance2', sellerBalance2);
-      expect(sellerBalance1).to.be.lessThan(sellerBalance2); // less than because of the gas refund
       // update balances
-      totalProtocolFees = infinityFeeTreasuryBalance;
+      totalProtocolFees = infinityExchangeBalance;
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });

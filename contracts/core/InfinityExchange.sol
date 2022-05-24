@@ -153,7 +153,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       }
     }
     // refund gas to match executor
-    _refundMatchExecutionGasFee(startGas, sells);
+    _refundMatchExecutionGasFee(startGas, buys);
   }
 
   function takeOrders(OrderTypes.Order[] calldata makerOrders, OrderTypes.Order[] calldata takerOrders)
@@ -740,22 +740,22 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     return protocolFee;
   }
 
-  function _refundMatchExecutionGasFee(uint256 startGas, OrderTypes.Order[] calldata sells) internal {
+  function _refundMatchExecutionGasFee(uint256 startGas, OrderTypes.Order[] calldata buys) internal {
     // console.log('refunding gas fees');
-    for (uint256 i = 0; i < sells.length; ) {
-      _refundMatchExecutionGasFeeFromSeller(startGas, sells[i].signer);
+    for (uint256 i = 0; i < buys.length; ) {
+      _refundMatchExecutionGasFeeFromBuyer(startGas, buys[i].signer);
       unchecked {
         ++i;
       }
     }
   }
 
-  function _refundMatchExecutionGasFeeFromSeller(uint256 startGas, address seller) internal {
+  function _refundMatchExecutionGasFeeFromBuyer(uint256 startGas, address buyer) internal {
     // console.log('refunding gas fees to executor for sale executed on behalf of', seller);
     // todo: check weth transfer gas cost
     uint256 gasCost = (startGas - gasleft() + 30000) * tx.gasprice;
     // console.log('gasCost:', gasCost);
-    IERC20(WETH).safeTransferFrom(seller, MATCH_EXECUTOR, gasCost);
+    IERC20(WETH).safeTransferFrom(buyer, MATCH_EXECUTOR, gasCost);
   }
 
   function _hash(OrderTypes.Order calldata order) internal pure returns (bytes32) {
