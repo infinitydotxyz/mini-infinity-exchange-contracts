@@ -243,6 +243,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
           unchecked {
             ++numTokenIdsPerCollMatched;
           }
+          // short circuit
           break;
         }
         unchecked {
