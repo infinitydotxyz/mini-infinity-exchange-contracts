@@ -253,37 +253,6 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     return _execMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed, execPrice);
   }
 
-  function _execMatchOrders(
-    bytes32 sellOrderHash,
-    bytes32 buyOrderHash,
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy,
-    OrderTypes.Order calldata constructed,
-    uint256 execPrice
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    // exec order
-    return
-      _execOrder(
-        sellOrderHash,
-        buyOrderHash,
-        sell.signer,
-        buy.signer,
-        sell.constraints[6],
-        buy.constraints[6],
-        sell.constraints[5],
-        constructed,
-        execPrice
-      );
-  }
-
   function _takeOrders(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     internal
     returns (
@@ -305,91 +274,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     }
 
     // exec order
-    return _exectakeOrders(makerOrderHash, takerOrderHash, makerOrder, takerOrder, execPrice);
-  }
-
-  function _exectakeOrders(
-    bytes32 makerOrderHash,
-    bytes32 takerOrderHash,
-    OrderTypes.Order calldata makerOrder,
-    OrderTypes.Order calldata takerOrder,
-    uint256 execPrice
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    // exec order
-    bool isTakerSell = takerOrder.isSellOrder;
-    if (isTakerSell) {
-      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice);
-    } else {
-      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice);
-    }
-  }
-
-  function _execTakerSellOrder(
-    bytes32 takerOrderHash,
-    bytes32 makerOrderHash,
-    OrderTypes.Order calldata takerOrder,
-    OrderTypes.Order calldata makerOrder,
-    uint256 execPrice
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    // console.log('executing taker sell order');
-    return
-      _execOrder(
-        takerOrderHash,
-        makerOrderHash,
-        takerOrder.signer,
-        makerOrder.signer,
-        takerOrder.constraints[6],
-        makerOrder.constraints[6],
-        takerOrder.constraints[5],
-        takerOrder,
-        execPrice
-      );
-  }
-
-  function _execTakerBuyOrder(
-    bytes32 takerOrderHash,
-    bytes32 makerOrderHash,
-    OrderTypes.Order calldata takerOrder,
-    OrderTypes.Order calldata makerOrder,
-    uint256 execPrice
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    // console.log('executing taker buy order');
-    return
-      _execOrder(
-        makerOrderHash,
-        takerOrderHash,
-        makerOrder.signer,
-        takerOrder.signer,
-        makerOrder.constraints[6],
-        takerOrder.constraints[6],
-        makerOrder.constraints[5],
-        takerOrder,
-        execPrice
-      );
+    return _execTakeOrders(makerOrderHash, takerOrderHash, makerOrder, takerOrder, execPrice);
   }
 
   function _verifyMatchOrders(
@@ -405,7 +290,11 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     bool currenciesMatch = sell.execParams[1] == buy.execParams[1];
     bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
     bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
-    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecMatchOrder(sell, buy, constructed);
+    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecMatchOrder(
+      sell,
+      buy,
+      constructed
+    );
     // console.log('sidesMatch', sidesMatch);
     // console.log('complicationsMatch', complicationsMatch);
     // console.log('currenciesMatch', currenciesMatch);
@@ -489,7 +378,126 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     return true;
   }
 
-  function _execOrder(
+  function _execMatchOrders(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed,
+    uint256 execPrice
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    // exec order
+    return
+      _execMatchOrder(
+        sellOrderHash,
+        buyOrderHash,
+        sell.signer,
+        buy.signer,
+        sell.constraints[6],
+        buy.constraints[6],
+        sell.constraints[5],
+        constructed,
+        execPrice
+      );
+  }
+
+  function _execTakeOrders(
+    bytes32 makerOrderHash,
+    bytes32 takerOrderHash,
+    OrderTypes.Order calldata makerOrder,
+    OrderTypes.Order calldata takerOrder,
+    uint256 execPrice
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    // exec order
+    bool isTakerSell = takerOrder.isSellOrder;
+    if (isTakerSell) {
+      return _execTakerSellOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice);
+    } else {
+      return _execTakerBuyOrder(takerOrderHash, makerOrderHash, takerOrder, makerOrder, execPrice);
+    }
+  }
+
+  function _execTakerSellOrder(
+    bytes32 takerOrderHash,
+    bytes32 makerOrderHash,
+    OrderTypes.Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
+    uint256 execPrice
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    isUserOrderNonceExecutedOrCancelled[makerOrder.signer][makerOrder.constraints[6]] = true;
+
+    _transferNFTsAndFees(
+      takerOrder.signer,
+      makerOrder.signer,
+      takerOrder.nfts,
+      execPrice,
+      takerOrder.execParams[1],
+      takerOrder.constraints[5],
+      takerOrder.execParams[0]
+    );
+
+    _emitEvent(takerOrderHash, makerOrderHash, takerOrder.signer, makerOrder.signer, takerOrder, execPrice);
+
+    return (takerOrder.signer, makerOrder.signer, takerOrder.execParams[1], execPrice);
+  }
+
+  function _execTakerBuyOrder(
+    bytes32 takerOrderHash,
+    bytes32 makerOrderHash,
+    OrderTypes.Order calldata takerOrder,
+    OrderTypes.Order calldata makerOrder,
+    uint256 execPrice
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    isUserOrderNonceExecutedOrCancelled[makerOrder.signer][makerOrder.constraints[6]] = true;
+
+    _transferNFTsAndFees(
+      makerOrder.signer,
+      takerOrder.signer,
+      takerOrder.nfts,
+      execPrice,
+      takerOrder.execParams[1],
+      makerOrder.constraints[5],
+      takerOrder.execParams[0]
+    );
+
+    _emitEvent(makerOrderHash, takerOrderHash, makerOrder.signer, takerOrder.signer, takerOrder, execPrice);
+
+    return (makerOrder.signer, takerOrder.signer, takerOrder.execParams[1], execPrice);
+  }
+
+  function _execMatchOrder(
     bytes32 sellOrderHash,
     bytes32 buyOrderHash,
     address seller,
