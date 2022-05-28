@@ -244,7 +244,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     bytes32 buyOrderHash = _hash(buy);
 
     // if this order is not valid, just return and continue with other orders
-    (bool orderVerified, uint256 execPrice) = _verifyOrders(sellOrderHash, buyOrderHash, sell, buy, constructed);
+    (bool orderVerified, uint256 execPrice) = _verifyMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed);
     if (!orderVerified) {
       // console.log('skipping invalid order');
       return (address(0), address(0), address(0), 0);
@@ -392,7 +392,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       );
   }
 
-  function _verifyOrders(
+  function _verifyMatchOrders(
     bytes32 sellOrderHash,
     bytes32 buyOrderHash,
     OrderTypes.Order calldata sell,
@@ -405,7 +405,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     bool currenciesMatch = sell.execParams[1] == buy.execParams[1];
     bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
     bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
-    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecOrder(sell, buy, constructed);
+    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecMatchOrder(sell, buy, constructed);
     // console.log('sidesMatch', sidesMatch);
     // console.log('complicationsMatch', complicationsMatch);
     // console.log('currenciesMatch', currenciesMatch);
@@ -526,20 +526,6 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, execPrice);
 
     return (seller, buyer, constructed.execParams[1], execPrice);
-  }
-
-  function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
-    (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
-    (uint256 startTime, uint256 endTime) = (order.constraints[3], order.constraints[4]);
-    uint256 duration = endTime - startTime;
-    uint256 priceDiff = startPrice - endPrice;
-    if (priceDiff == 0 || duration == 0) {
-      return startPrice;
-    }
-    uint256 elapsedTime = block.timestamp - startTime;
-    uint256 portion = elapsedTime > duration ? 1 : elapsedTime / duration;
-    priceDiff = priceDiff * portion;
-    return startPrice - priceDiff;
   }
 
   function _emitEvent(

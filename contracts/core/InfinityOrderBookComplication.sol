@@ -30,7 +30,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     ERROR_BOUND = _errorBound;
   }
 
-  function canExecOrder(
+  function canExecMatchOrder(
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed

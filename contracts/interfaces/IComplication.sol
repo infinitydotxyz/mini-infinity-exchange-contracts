@@ -4,7 +4,7 @@ pragma solidity 0.8.14;
 import {OrderTypes} from '../libs/OrderTypes.sol';
 
 interface IComplication {
-  function canExecOrder(
+  function canExecMatchOrder(
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
