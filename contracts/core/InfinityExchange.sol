@@ -142,18 +142,17 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     OrderTypes.Order[] calldata buys,
     OrderTypes.Order[] calldata constructs
   ) external nonReentrant {
-    uint256 startGas = gasleft();
-    // check pre-conditions
+    require(msg.sender == MATCH_EXECUTOR, 'only match executor can call this');
     require(sells.length == buys.length && sells.length == constructs.length, 'mismatched lengths');
-
     for (uint256 i = 0; i < sells.length; ) {
+      uint256 startGas = gasleft();
       _matchOrders(sells[i], buys[i], constructs[i]);
+      // refund gas to match executor
+      _refundMatchExecutionGasFeeFromBuyer(startGas, buys[i].signer);
       unchecked {
         ++i;
       }
     }
-    // refund gas to match executor
-    _refundMatchExecutionGasFee(startGas, buys);
   }
 
   function takeOrders(OrderTypes.Order[] calldata makerOrders, OrderTypes.Order[] calldata takerOrders)
@@ -732,16 +731,6 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       IERC20(currency).safeTransferFrom(buyer, address(this), protocolFee);
     }
     return protocolFee;
-  }
-
-  function _refundMatchExecutionGasFee(uint256 startGas, OrderTypes.Order[] calldata buys) internal {
-    // console.log('refunding gas fees');
-    for (uint256 i = 0; i < buys.length; ) {
-      _refundMatchExecutionGasFeeFromBuyer(startGas, buys[i].signer);
-      unchecked {
-        ++i;
-      }
-    }
   }
 
   function _refundMatchExecutionGasFeeFromBuyer(uint256 startGas, address buyer) internal {
