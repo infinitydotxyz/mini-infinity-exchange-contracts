@@ -749,7 +749,7 @@ describe('Exchange_Match', function () {
   });
 
   // multiple specific collections, multiple specific tokens per collection, min aggregate price
-  describe('MultipleCollectionsMultipleTokensSell', () => {
+  describe('MultipleCollectionsMultipleTokensSell_ETH', () => {
     it('Signed order should be valid', async function () {
       const user = {
         address: signer2.address
@@ -776,7 +776,7 @@ describe('Exchange_Match', function () {
           ]
         }
       ];
-      const execParams = { complicationAddress: obComplication.address, currencyAddress: token.address };
+      const execParams = { complicationAddress: obComplication.address, currencyAddress: NULL_ADDRESS };
       const extraParams = {};
       const nonce = ++orderNonce;
       const orderId = ethers.utils.solidityKeccak256(['address', 'uint256', 'uint256'], [user.address, nonce, chainId]);
@@ -1348,7 +1348,7 @@ describe('Exchange_Match', function () {
     it('Should match valid order', async function () {
       const buyOrder = buyOrders[5];
       const sellOrder = sellOrders[5];
-      const constructedOrder = { ...sellOrder };
+      const constructedOrder = { ...buyOrder };
       const nfts = constructedOrder.nfts;
 
       // owners before sale

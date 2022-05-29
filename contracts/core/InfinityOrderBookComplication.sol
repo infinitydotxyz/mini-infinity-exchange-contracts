@@ -34,7 +34,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     OrderTypes.Order calldata sell,
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
-  ) external view returns (bool, uint256) {
+  ) external view override returns (bool, uint256) {
     // console.log('running canExecOrder in InfinityOrderBookComplication');
     // bool isTimeValid = _isTimeValid(sell, buy);
     (bool isPriceValid, uint256 execPrice) = _isPriceValid(sell, buy);
@@ -50,7 +50,8 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
         isPriceValid &&
         _areNumItemsValid(sell, buy, constructed) &&
         _checkItemsIntersect(sell, constructed) &&
-        _checkItemsIntersect(buy, constructed),
+        _checkItemsIntersect(buy, constructed) &&
+        _checkItemsIntersect(sell, buy),
       execPrice
     );
   }
@@ -58,6 +59,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   function canExecTakeOrder(OrderTypes.Order calldata makerOrder, OrderTypes.Order calldata takerOrder)
     external
     view
+    override
     returns (bool, uint256)
   {
     // console.log('running canExecTakeOrder in InfinityOrderBookComplication');
@@ -85,6 +87,75 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
         _checkItemsIntersect(makerOrder, takerOrder),
       currentTakerPrice
     );
+  }
+
+  function canExecOneToMany(OrderTypes.Order calldata makerOrder, OrderTypes.Order[] calldata takerOrders)
+    external
+    view
+    override
+    returns (bool)
+  {
+    uint256 numTakerItems;
+    bool isTakerOrdersTimeValid = true;
+    bool itemsIntersect = true;
+    for (uint256 i = 0; i < takerOrders.length; ) {
+      if (!isTakerOrdersTimeValid || !itemsIntersect) {
+        // console.log('isTakerOrdersTimeValid', isTakerOrdersTimeValid);
+        // console.log('itemsIntersect', itemsIntersect);
+        return false; // short circuit
+      }
+
+      for (uint256 j = 0; j < takerOrders[i].nfts.length; ) {
+        numTakerItems += takerOrders[i].nfts[j].tokens.length;
+        unchecked {
+          ++j;
+        }
+      }
+
+      isTakerOrdersTimeValid =
+        isTakerOrdersTimeValid &&
+        takerOrders[i].constraints[3] <= block.timestamp &&
+        takerOrders[i].constraints[4] >= block.timestamp;
+
+      itemsIntersect = itemsIntersect && _checkItemsIntersect(makerOrder, takerOrders[i]);
+
+      unchecked {
+        ++i;
+      }
+    }
+
+    bool isTimeValid = isTakerOrdersTimeValid &&
+      makerOrder.constraints[3] <= block.timestamp &&
+      makerOrder.constraints[4] >= block.timestamp;
+
+    // console.log('isTimeValid', isTimeValid);
+
+    uint256 currentMakerOrderPrice = _getCurrentPrice(makerOrder);
+    uint256 sumCurrentTakerOrderPrices = _sumCurrentPrices(takerOrders);
+    // console.log('currentMakerOrderPrice', currentMakerOrderPrice);
+    // console.log('sumCurrentTakerOrderPrices', sumCurrentTakerOrderPrices);
+    bool isPriceValid = false;
+    if (makerOrder.isSellOrder) {
+      isPriceValid = sumCurrentTakerOrderPrices >= currentMakerOrderPrice;
+    } else {
+      isPriceValid = sumCurrentTakerOrderPrices <= currentMakerOrderPrice;
+    }
+
+    // console.log('isPriceValid', isPriceValid);
+    // console.log('numTakerItems', numTakerItems, 'makerOrder numItems', makerOrder.constraints[0]);
+
+    return (numTakerItems == makerOrder.constraints[0]) && isTimeValid && itemsIntersect && isPriceValid;
+  }
+
+  function _sumCurrentPrices(OrderTypes.Order[] calldata orders) internal view returns (uint256) {
+    uint256 sum = 0;
+    for (uint256 i = 0; i < orders.length; ) {
+      sum += _getCurrentPrice(orders[i]);
+      unchecked {
+        ++i;
+      }
+    }
+    return sum;
   }
 
   /**
