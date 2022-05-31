@@ -214,137 +214,6 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     }
   }
 
-  function _matchOneToManyOrders(
-    bool isTakerSeller,
-    bytes32 makerOrderHash,
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    bytes32 sellOrderHash = isTakerSeller ? _hash(sell) : makerOrderHash;
-    bytes32 buyOrderHash = isTakerSeller ? makerOrderHash : _hash(buy);
-
-    // if this order is not valid, just return and continue with other orders
-    bool orderVerified = _verifyOneToManyOrders(sellOrderHash, buyOrderHash, sell, buy);
-    require(orderVerified, 'order not verified');
-
-    return _execOneToManyOrders(isTakerSeller, sellOrderHash, buyOrderHash, sell, buy);
-  }
-
-  function _verifyOneToManyOrders(
-    bytes32 sellOrderHash,
-    bytes32 buyOrderHash,
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy
-  ) internal view returns (bool) {
-    // console.log('verifying match orders');
-    bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
-    bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
-    bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
-      (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
-    bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
-    bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
-    // console.log('sidesMatch', sidesMatch);
-    // console.log('complicationsMatch', complicationsMatch);
-    // console.log('currenciesMatch', currenciesMatch);
-    // console.log('sellOrderValid', sellOrderValid);
-    // console.log('buyOrderValid', buyOrderValid);
-    return (sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid);
-  }
-
-  function _execOneToManyOrders(
-    bool isTakerSeller,
-    bytes32 sellOrderHash,
-    bytes32 buyOrderHash,
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    // exec order
-    isTakerSeller
-      ? isUserOrderNonceExecutedOrCancelled[sell.signer][sell.constraints[6]] = true
-      : isUserOrderNonceExecutedOrCancelled[buy.signer][buy.constraints[6]] = true;
-    return
-      _doExecOneToManyOrders(
-        sellOrderHash,
-        buyOrderHash,
-        sell.signer,
-        buy.signer,
-        sell.constraints[5],
-        isTakerSeller ? sell : buy,
-        buy.execParams[1],
-        isTakerSeller ? _getCurrentPrice(sell) : _getCurrentPrice(buy)
-      );
-  }
-
-  function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
-    (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
-    // console.log('startPrice', startPrice, 'endPrice', endPrice);
-    // console.log('block.timestamp', block.timestamp);
-    uint256 duration = order.constraints[4] - order.constraints[3];
-    // console.log('duration', duration);
-    uint256 priceDiff = startPrice > endPrice ? startPrice - endPrice : endPrice - startPrice;
-    if (priceDiff == 0 || duration == 0) {
-      return startPrice;
-    }
-    uint256 elapsedTime = block.timestamp - order.constraints[3];
-    // console.log('elapsedTime', elapsedTime);
-    uint256 PRECISION = 10**4; // precision for division; similar to bps
-    uint256 portionBps = elapsedTime > duration ? 1 * PRECISION : ((elapsedTime * PRECISION) / duration);
-    // console.log('portion', portionBps);
-    priceDiff = (priceDiff * portionBps) / PRECISION;
-    // console.log('priceDiff', priceDiff);
-    return startPrice > endPrice ? startPrice - priceDiff : startPrice + priceDiff;
-  }
-
-  function _doExecOneToManyOrders(
-    bytes32 sellOrderHash,
-    bytes32 buyOrderHash,
-    address seller,
-    address buyer,
-    uint256 minBpsToSeller,
-    OrderTypes.Order calldata constructed,
-    address currency,
-    uint256 execPrice
-  )
-    internal
-    returns (
-      address,
-      address,
-      address,
-      uint256
-    )
-  {
-    // console.log('executing order');
-    _transferNFTsAndFees(
-      seller,
-      buyer,
-      constructed.nfts,
-      execPrice,
-      currency,
-      minBpsToSeller,
-      constructed.execParams[0]
-    );
-
-    _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, execPrice);
-
-    return (seller, buyer, constructed.execParams[1], execPrice);
-  }
-
   function batchTransferNFTs(address to, OrderTypes.OrderItem[] calldata items) external nonReentrant {
     _batchTransferNFTs(msg.sender, to, items);
   }
@@ -503,6 +372,137 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid,
       execPrice
     );
+  }
+
+  function _matchOneToManyOrders(
+    bool isTakerSeller,
+    bytes32 makerOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    bytes32 sellOrderHash = isTakerSeller ? _hash(sell) : makerOrderHash;
+    bytes32 buyOrderHash = isTakerSeller ? makerOrderHash : _hash(buy);
+
+    // if this order is not valid, just return and continue with other orders
+    bool orderVerified = _verifyOneToManyOrders(sellOrderHash, buyOrderHash, sell, buy);
+    require(orderVerified, 'order not verified');
+
+    return _execOneToManyOrders(isTakerSeller, sellOrderHash, buyOrderHash, sell, buy);
+  }
+
+  function _verifyOneToManyOrders(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy
+  ) internal view returns (bool) {
+    // console.log('verifying match orders');
+    bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
+    bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
+    bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
+      (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
+    bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
+    bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
+    // console.log('sidesMatch', sidesMatch);
+    // console.log('complicationsMatch', complicationsMatch);
+    // console.log('currenciesMatch', currenciesMatch);
+    // console.log('sellOrderValid', sellOrderValid);
+    // console.log('buyOrderValid', buyOrderValid);
+    return (sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid);
+  }
+
+  function _execOneToManyOrders(
+    bool isTakerSeller,
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    // exec order
+    isTakerSeller
+      ? isUserOrderNonceExecutedOrCancelled[sell.signer][sell.constraints[6]] = true
+      : isUserOrderNonceExecutedOrCancelled[buy.signer][buy.constraints[6]] = true;
+    return
+      _doExecOneToManyOrders(
+        sellOrderHash,
+        buyOrderHash,
+        sell.signer,
+        buy.signer,
+        sell.constraints[5],
+        isTakerSeller ? sell : buy,
+        buy.execParams[1],
+        isTakerSeller ? _getCurrentPrice(sell) : _getCurrentPrice(buy)
+      );
+  }
+
+  function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
+    (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
+    // console.log('startPrice', startPrice, 'endPrice', endPrice);
+    // console.log('block.timestamp', block.timestamp);
+    uint256 duration = order.constraints[4] - order.constraints[3];
+    // console.log('duration', duration);
+    uint256 priceDiff = startPrice > endPrice ? startPrice - endPrice : endPrice - startPrice;
+    if (priceDiff == 0 || duration == 0) {
+      return startPrice;
+    }
+    uint256 elapsedTime = block.timestamp - order.constraints[3];
+    // console.log('elapsedTime', elapsedTime);
+    uint256 PRECISION = 10**4; // precision for division; similar to bps
+    uint256 portionBps = elapsedTime > duration ? 1 * PRECISION : ((elapsedTime * PRECISION) / duration);
+    // console.log('portion', portionBps);
+    priceDiff = (priceDiff * portionBps) / PRECISION;
+    // console.log('priceDiff', priceDiff);
+    return startPrice > endPrice ? startPrice - priceDiff : startPrice + priceDiff;
+  }
+
+  function _doExecOneToManyOrders(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    address seller,
+    address buyer,
+    uint256 minBpsToSeller,
+    OrderTypes.Order calldata constructed,
+    address currency,
+    uint256 execPrice
+  )
+    internal
+    returns (
+      address,
+      address,
+      address,
+      uint256
+    )
+  {
+    // console.log('executing order');
+    _transferNFTsAndFees(
+      seller,
+      buyer,
+      constructed.nfts,
+      execPrice,
+      currency,
+      minBpsToSeller,
+      constructed.execParams[0]
+    );
+
+    _emitEvent(sellOrderHash, buyOrderHash, seller, buyer, constructed, execPrice);
+
+    return (seller, buyer, constructed.execParams[1], execPrice);
   }
 
   /**
