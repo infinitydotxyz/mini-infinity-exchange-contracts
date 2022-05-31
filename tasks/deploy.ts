@@ -7,17 +7,15 @@ require('dotenv').config();
 // mainnet
 // const WETH_ADDRESS = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
 // polygon
-const WETH_ADDRESS = '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619';
+// const WETH_ADDRESS = '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619';
+// goerli
+const WETH_ADDRESS = '0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6';
 
 // other vars
 let infinityExchange: Contract,
   infinityOBComplication: Contract,
   infinityCreatorsFeeRegistry: Contract,
   infinityCreatorsFeeManager: Contract;
-
-function toBN(val: string | number) {
-  return BigNumber.from(val.toString());
-}
 
 task('deployAll', 'Deploy all contracts')
   .addFlag('verify', 'verify contracts on etherscan')

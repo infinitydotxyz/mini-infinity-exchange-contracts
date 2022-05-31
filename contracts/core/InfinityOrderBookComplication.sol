@@ -15,9 +15,10 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
   using OrderTypes for OrderTypes.Order;
   using OrderTypes for OrderTypes.OrderItem;
 
-  uint256 public immutable PROTOCOL_FEE;
+  uint256 public PROTOCOL_FEE;
   uint256 public ERROR_BOUND; // error bound for prices in wei; todo: check if this is reqd
 
+  event NewProtocolFee(uint256 protocolFee);
   event NewErrorbound(uint256 errorBound);
 
   /**
@@ -167,11 +168,6 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
    */
   function getProtocolFee() external view override returns (uint256) {
     return PROTOCOL_FEE;
-  }
-
-  function setErrorBound(uint256 _errorBound) external onlyOwner {
-    ERROR_BOUND = _errorBound;
-    emit NewErrorbound(_errorBound);
   }
 
   // ============================================== INTERNAL FUNCTIONS ===================================================
@@ -358,5 +354,17 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     }
     // console.log('token ids per collection intersect', numTokenIdsPerCollMatched == takerItem.tokens.length);
     return numTokenIdsPerCollMatched == takerItemTokensLength;
+  }
+
+  // ====================================== ADMIN FUNCTIONS ======================================
+
+  function setErrorBound(uint256 _errorBound) external onlyOwner {
+    ERROR_BOUND = _errorBound;
+    emit NewErrorbound(_errorBound);
+  }
+
+  function setProtocolFee(uint256 _protocolFee) external onlyOwner {
+    PROTOCOL_FEE = _protocolFee;
+    emit NewProtocolFee(_protocolFee);
   }
 }
