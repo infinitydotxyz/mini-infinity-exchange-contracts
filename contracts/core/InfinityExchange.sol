@@ -214,8 +214,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     }
   }
 
-  function batchTransferNFTs(address to, OrderTypes.OrderItem[] calldata items) external nonReentrant {
-    _batchTransferNFTs(msg.sender, to, items);
+  function transferMultipleNFTs(address to, OrderTypes.OrderItem[] calldata items) external nonReentrant {
+    _transferMultipleNFTs(msg.sender, to, items);
   }
 
   // ====================================================== VIEW FUNCTIONS ======================================================
@@ -741,12 +741,12 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   ) internal {
     // console.log('transfering nfts and fees');
     // transfer NFTs
-    _batchTransferNFTs(seller, buyer, nfts);
+    _transferMultipleNFTs(seller, buyer, nfts);
     // transfer fees
     _transferFees(seller, buyer, nfts, amount, currency, minBpsToSeller, complication);
   }
 
-  function _batchTransferNFTs(
+  function _transferMultipleNFTs(
     address from,
     address to,
     OrderTypes.OrderItem[] calldata nfts
