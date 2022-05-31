@@ -126,13 +126,17 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
    * @param orderNonces array of order nonces
    */
   function cancelMultipleOrders(uint256[] calldata orderNonces) external {
-    require(orderNonces.length > 0, 'cannot be empty');
+    uint256 numNonces = orderNonces.length;
+    require(numNonces > 0, 'cannot be empty');
     // console.log('user min order nonce', msg.sender, userMinOrderNonce[msg.sender]);
-    for (uint256 i = 0; i < orderNonces.length; i++) {
+    for (uint256 i = 0; i < numNonces;) {
       // console.log('order nonce', orderNonces[i]);
       require(orderNonces[i] > userMinOrderNonce[msg.sender], 'nonce too low');
       require(!isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]], 'nonce already executed or cancelled');
       isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
+      unchecked {
+        ++i;
+      }
     }
     emit CancelMultipleOrders(msg.sender, orderNonces);
   }
@@ -143,10 +147,11 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     OrderTypes.Order[] calldata constructs
   ) external nonReentrant {
     uint256 startGas = gasleft();
+    uint256 numSells = sells.length;
     require(msg.sender == MATCH_EXECUTOR, 'only match executor can call this');
-    require(sells.length == buys.length && sells.length == constructs.length, 'mismatched lengths');
-    for (uint256 i = 0; i < sells.length; ) {
-      uint256 startGasPerOrder = gasleft() + ((startGas - gasleft()) / sells.length);
+    require(numSells == buys.length && numSells == constructs.length, 'mismatched lengths');
+    for (uint256 i = 0; i < numSells; ) {
+      uint256 startGasPerOrder = gasleft() + ((startGas - gasleft()) / numSells);
       _matchOrders(sells[i], buys[i], constructs[i]);
       // refund gas to match executor
       _refundMatchExecutionGasFeeFromBuyer(startGasPerOrder, buys[i].signer);
@@ -161,10 +166,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     payable
     nonReentrant
   {
-    // check pre-conditions
-    require(makerOrders.length == takerOrders.length, 'mismatched lengths');
+    uint256 ordersLength = makerOrders.length;
+    require(ordersLength == takerOrders.length, 'mismatched lengths');
     // console.log('no trading rewards');
-    for (uint256 i = 0; i < makerOrders.length; ) {
+    for (uint256 i = 0; i < ordersLength; ) {
       _takeOrders(makerOrders[i], takerOrders[i]);
       unchecked {
         ++i;
@@ -185,9 +190,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
 
     bytes32 makerOrderHash = _hash(makerOrder);
     if (makerOrder.isSellOrder) {
-      for (uint256 i = 0; i < takerOrders.length; ) {
+      uint256 ordersLength = takerOrders.length;
+      for (uint256 i = 0; i < ordersLength; ) {
         // 20000 for the SSTORE op that updates maker nonce status
-        uint256 startGasPerOrder = gasleft() + ((startGas + 20000 - gasleft()) / takerOrders.length);
+        uint256 startGasPerOrder = gasleft() + ((startGas + 20000 - gasleft()) / ordersLength);
         _matchOneToManyOrders(false, makerOrderHash, makerOrder, takerOrders[i]);
         _refundMatchExecutionGasFeeFromBuyer(startGasPerOrder, takerOrders[i].signer);
         unchecked {
@@ -196,7 +202,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       }
       isUserOrderNonceExecutedOrCancelled[makerOrder.signer][makerOrder.constraints[6]] = true;
     } else {
-      for (uint256 i = 0; i < takerOrders.length; ) {
+      uint256 ordersLength = takerOrders.length;
+      for (uint256 i = 0; i < ordersLength; ) {
         _matchOneToManyOrders(true, makerOrderHash, takerOrders[i], makerOrder);
         unchecked {
           ++i;
@@ -745,7 +752,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     OrderTypes.OrderItem[] calldata nfts
   ) internal {
     // console.log('batch transferring nfts');
-    for (uint256 i = 0; i < nfts.length; ) {
+    uint256 numNfts = nfts.length;
+    for (uint256 i = 0; i < numNfts; ) {
       _transferNFTs(from, to, nfts[i]);
       unchecked {
         ++i;
@@ -776,7 +784,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     address to,
     OrderTypes.OrderItem calldata item
   ) internal {
-    for (uint256 i = 0; i < item.tokens.length; ) {
+    uint256 numTokens = item.tokens.length;
+    for (uint256 i = 0; i < numTokens; ) {
       // console.log('transfering erc721 from collection', item.collection, 'with tokenId', item.tokens[i].tokenId);
       // console.log('from address', from, 'to address', to);
       IERC721(item.collection).safeTransferFrom(from, to, item.tokens[i].tokenId);
@@ -791,7 +800,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     address to,
     OrderTypes.OrderItem calldata item
   ) internal {
-    for (uint256 i = 0; i < item.tokens.length; ) {
+    uint256 numTokens = item.tokens.length;
+    for (uint256 i = 0; i < numTokens; ) {
       // console.log('transfering erc1155 from collection', item.collection, 'with tokenId', item.tokens[i].tokenId);
       // console.log('num tokens', item.tokens[i].numTokens);
       // console.log('from address', from, 'to address', to);
@@ -837,9 +847,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     }
 
     // emit events
-    for (uint256 i = 0; i < nfts.length; ) {
+    uint256 numNfts = nfts.length;
+    for (uint256 i = 0; i < numNfts; ) {
       // fee allocated per collection is simply totalFee divided by number of collections in the order
-      emit FeeSent(nfts[i].collection, currency, totalFees / nfts.length);
+      emit FeeSent(nfts[i].collection, currency, totalFees / numNfts);
       unchecked {
         ++i;
       }
@@ -857,11 +868,12 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // console.log('avg sale price', amount / items.length);
     uint256 creatorsFee = 0;
     IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
-    for (uint256 h = 0; h < items.length; ) {
+    uint256 numItems = items.length;
+    for (uint256 h = 0; h < numItems; ) {
       (address feeRecipient, uint256 feeAmount) = feeManager.calcFeesAndGetRecipient(
         execComplication,
         items[h].collection,
-        amount / items.length // amount per collection on avg
+        amount / numItems // amount per collection on avg
       );
       if (feeRecipient != address(0) && feeAmount != 0) {
         // console.log('fee amount', feeAmount);
@@ -932,9 +944,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // keccak256('OrderItem(address collection,TokenInfo[] tokens)TokenInfo(uint256 tokenId,uint256 numTokens)')
     // console.log('calculating nfts hash');
     bytes32 ORDER_ITEM_HASH = 0xf73f37e9f570369ceaab59cef16249ae1c0ad1afd592d656afac0be6f63b87e0;
-    bytes32[] memory hashes = new bytes32[](nfts.length);
+    uint256 numNfts = nfts.length;
+    bytes32[] memory hashes = new bytes32[](numNfts);
     // console.log('nfts length', nfts.length);
-    for (uint256 i = 0; i < nfts.length; ) {
+    for (uint256 i = 0; i < numNfts; ) {
       bytes32 hash = keccak256(abi.encode(ORDER_ITEM_HASH, nfts[i].collection, _tokensHash(nfts[i].tokens)));
       hashes[i] = hash;
       unchecked {
@@ -951,9 +964,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // keccak256('TokenInfo(uint256 tokenId,uint256 numTokens)')
     // console.log('calculating tokens hash');
     bytes32 TOKEN_INFO_HASH = 0x88f0bd19d14f8b5d22c0605a15d9fffc285ebc8c86fb21139456d305982906f1;
-    bytes32[] memory hashes = new bytes32[](tokens.length);
+    uint256 numTokens = tokens.length;
+    bytes32[] memory hashes = new bytes32[](numTokens);
     // console.log('tokens length:', tokens.length);
-    for (uint256 i = 0; i < tokens.length; ) {
+    for (uint256 i = 0; i < numTokens; ) {
       bytes32 hash = keccak256(abi.encode(TOKEN_INFO_HASH, tokens[i].tokenId, tokens[i].numTokens));
       hashes[i] = hash;
       unchecked {

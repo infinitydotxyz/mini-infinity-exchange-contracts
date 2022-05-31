@@ -98,14 +98,16 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     uint256 numTakerItems;
     bool isTakerOrdersTimeValid = true;
     bool itemsIntersect = true;
-    for (uint256 i = 0; i < takerOrders.length; ) {
+    uint256 ordersLength = takerOrders.length;
+    for (uint256 i = 0; i < ordersLength; ) {
       if (!isTakerOrdersTimeValid || !itemsIntersect) {
         // console.log('isTakerOrdersTimeValid', isTakerOrdersTimeValid);
         // console.log('itemsIntersect', itemsIntersect);
         return false; // short circuit
       }
 
-      for (uint256 j = 0; j < takerOrders[i].nfts.length; ) {
+      uint256 nftsLength = takerOrders[i].nfts.length;
+      for (uint256 j = 0; j < nftsLength; ) {
         numTakerItems += takerOrders[i].nfts[j].tokens.length;
         unchecked {
           ++j;
@@ -149,7 +151,8 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
 
   function _sumCurrentPrices(OrderTypes.Order[] calldata orders) internal view returns (uint256) {
     uint256 sum = 0;
-    for (uint256 i = 0; i < orders.length; ) {
+    uint256 ordersLength = orders.length;
+    for (uint256 i = 0; i < ordersLength; ) {
       sum += _getCurrentPrice(orders[i]);
       unchecked {
         ++i;
@@ -207,7 +210,8 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       buy.constraints[0] <= sell.constraints[0];
 
     uint256 numConstructedItems = 0;
-    for (uint256 i = 0; i < constructed.nfts.length; ) {
+    uint256 nftsLength = constructed.nfts.length;
+    for (uint256 i = 0; i < nftsLength; ) {
       unchecked {
         numConstructedItems += constructed.nfts[i].tokens.length;
         ++i;
@@ -227,7 +231,8 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     bool numItemsEqual = makerOrder.constraints[0] == takerOrder.constraints[0];
 
     uint256 numTakerItems = 0;
-    for (uint256 i = 0; i < takerOrder.nfts.length; ) {
+    uint256 nftsLength = takerOrder.nfts.length;
+    for (uint256 i = 0; i < nftsLength; ) {
       unchecked {
         numTakerItems += takerOrder.nfts[i].tokens.length;
         ++i;
@@ -283,15 +288,18 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     pure
     returns (bool)
   {
+    uint256 takerOrderNftsLength = takerOrder.nfts.length;
+    uint256 makerOrderNftsLength = makerOrder.nfts.length;
+
     // case where maker/taker didn't specify any items
-    if (makerOrder.nfts.length == 0 || takerOrder.nfts.length == 0) {
+    if (makerOrderNftsLength == 0 || takerOrderNftsLength == 0) {
       return true;
     }
 
     uint256 numCollsMatched = 0;
     // check if taker has all items in maker
-    for (uint256 i = 0; i < takerOrder.nfts.length; ) {
-      for (uint256 j = 0; j < makerOrder.nfts.length; ) {
+    for (uint256 i = 0; i < takerOrderNftsLength; ) {
+      for (uint256 j = 0; j < makerOrderNftsLength; ) {
         if (makerOrder.nfts[j].collection == takerOrder.nfts[i].collection) {
           // increment numCollsMatched
           unchecked {
@@ -312,7 +320,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       }
     }
     // console.log('collections intersect', numCollsMatched == takerOrder.nfts.length);
-    return numCollsMatched == takerOrder.nfts.length;
+    return numCollsMatched == takerOrderNftsLength;
   }
 
   function _checkTokenIdsIntersect(OrderTypes.OrderItem calldata makerItem, OrderTypes.OrderItem calldata takerItem)
@@ -320,13 +328,15 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     pure
     returns (bool)
   {
+    uint256 takerItemTokensLength = takerItem.tokens.length;
+    uint256 makerItemTokensLength = makerItem.tokens.length;
     // case where maker/taker didn't specify any tokenIds for this collection
-    if (makerItem.tokens.length == 0 || takerItem.tokens.length == 0) {
+    if (makerItemTokensLength == 0 || takerItemTokensLength == 0) {
       return true;
     }
     uint256 numTokenIdsPerCollMatched = 0;
-    for (uint256 k = 0; k < takerItem.tokens.length; ) {
-      for (uint256 l = 0; l < makerItem.tokens.length; ) {
+    for (uint256 k = 0; k < takerItemTokensLength; ) {
+      for (uint256 l = 0; l < makerItemTokensLength; ) {
         if (
           makerItem.tokens[l].tokenId == takerItem.tokens[k].tokenId &&
           makerItem.tokens[l].numTokens == takerItem.tokens[k].numTokens
@@ -347,6 +357,6 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
       }
     }
     // console.log('token ids per collection intersect', numTokenIdsPerCollMatched == takerItem.tokens.length);
-    return numTokenIdsPerCollMatched == takerItem.tokens.length;
+    return numTokenIdsPerCollMatched == takerItemTokensLength;
   }
 }
