@@ -43,6 +43,9 @@ printSeparator
 npx hardhat test --grep Exchange_Match
 printSeparator
 
+npx hardhat test --grep Exchange_One_To_Many
+printSeparator
+
 npx hardhat test --grep Exchange_Varying
 printSeparator
 

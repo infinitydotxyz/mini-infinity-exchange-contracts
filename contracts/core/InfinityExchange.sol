@@ -243,6 +243,82 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     return SignatureChecker.verify(_hash(order), order.signer, r, s, v, DOMAIN_SEPARATOR);
   }
 
+  function verifyMatchOrders(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy,
+    OrderTypes.Order calldata constructed
+  ) public view returns (bool, uint256) {
+    // console.log('verifying match orders');
+    bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
+    bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
+    bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
+      (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
+    bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
+    bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
+    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecMatchOrder(
+      sell,
+      buy,
+      constructed
+    );
+    // console.log('sidesMatch', sidesMatch);
+    // console.log('complicationsMatch', complicationsMatch);
+    // console.log('currenciesMatch', currenciesMatch);
+    // console.log('sellOrderValid', sellOrderValid);
+    // console.log('buyOrderValid', buyOrderValid);
+    // console.log('executionValid', executionValid);
+    return (
+      sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid && executionValid,
+      execPrice
+    );
+  }
+
+  function verifyTakeOrders(
+    bytes32 makerOrderHash,
+    OrderTypes.Order calldata maker,
+    OrderTypes.Order calldata taker
+  ) public view returns (bool, uint256) {
+    // console.log('verifying take orders');
+    bool msgSenderIsTaker = msg.sender == taker.signer;
+    bool sidesMatch = (maker.isSellOrder && !taker.isSellOrder) || (!maker.isSellOrder && taker.isSellOrder);
+    bool complicationsMatch = maker.execParams[0] == taker.execParams[0];
+    bool currenciesMatch = maker.execParams[1] == taker.execParams[1];
+    bool makerOrderValid = _isOrderValid(maker, makerOrderHash);
+    (bool executionValid, uint256 execPrice) = IComplication(maker.execParams[0]).canExecTakeOrder(maker, taker);
+    // console.log('msgSenderIsTaker', msgSenderIsTaker);
+    // console.log('sidesMatch', sidesMatch);
+    // console.log('complicationsMatch', complicationsMatch);
+    // console.log('currenciesMatch', currenciesMatch);
+    // console.log('makerOrderValid', makerOrderValid);
+    // console.log('executionValid', executionValid);
+    return (
+      msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid,
+      execPrice
+    );
+  }
+
+  function verifyOneToManyOrders(
+    bytes32 sellOrderHash,
+    bytes32 buyOrderHash,
+    OrderTypes.Order calldata sell,
+    OrderTypes.Order calldata buy
+  ) public view returns (bool) {
+    // console.log('verifying match orders');
+    bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
+    bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
+    bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
+      (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
+    bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
+    bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
+    // console.log('sidesMatch', sidesMatch);
+    // console.log('complicationsMatch', complicationsMatch);
+    // console.log('currenciesMatch', currenciesMatch);
+    // console.log('sellOrderValid', sellOrderValid);
+    // console.log('buyOrderValid', buyOrderValid);
+    return (sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid);
+  }
+
   function numCurrencies() external view returns (uint256) {
     return _currencies.length();
   }
@@ -286,7 +362,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     bytes32 buyOrderHash = _hash(buy);
 
     // if this order is not valid, just return and continue with other orders
-    (bool orderVerified, uint256 execPrice) = _verifyMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed);
+    (bool orderVerified, uint256 execPrice) = verifyMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed);
     if (!orderVerified) {
       // console.log('skipping invalid order');
       return (address(0), address(0), address(0), 0);
@@ -309,7 +385,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     bytes32 takerOrderHash = _hash(takerOrder);
 
     // if this order is not valid, just return and continue with other orders
-    (bool orderVerified, uint256 execPrice) = _verifyTakeOrders(makerOrderHash, makerOrder, takerOrder);
+    (bool orderVerified, uint256 execPrice) = verifyTakeOrders(makerOrderHash, makerOrder, takerOrder);
     if (!orderVerified) {
       // console.log('skipping invalid order');
       return (address(0), address(0), address(0), 0);
@@ -317,61 +393,6 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
 
     // exec order
     return _execTakeOrders(makerOrderHash, takerOrderHash, makerOrder, takerOrder, execPrice);
-  }
-
-  function _verifyMatchOrders(
-    bytes32 sellOrderHash,
-    bytes32 buyOrderHash,
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy,
-    OrderTypes.Order calldata constructed
-  ) internal view returns (bool, uint256) {
-    // console.log('verifying match orders');
-    bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
-    bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
-    bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
-      (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
-    bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
-    bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
-    (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecMatchOrder(
-      sell,
-      buy,
-      constructed
-    );
-    // console.log('sidesMatch', sidesMatch);
-    // console.log('complicationsMatch', complicationsMatch);
-    // console.log('currenciesMatch', currenciesMatch);
-    // console.log('sellOrderValid', sellOrderValid);
-    // console.log('buyOrderValid', buyOrderValid);
-    // console.log('executionValid', executionValid);
-    return (
-      sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid && executionValid,
-      execPrice
-    );
-  }
-
-  function _verifyTakeOrders(
-    bytes32 makerOrderHash,
-    OrderTypes.Order calldata maker,
-    OrderTypes.Order calldata taker
-  ) internal view returns (bool, uint256) {
-    // console.log('verifying take orders');
-    bool msgSenderIsTaker = msg.sender == taker.signer;
-    bool sidesMatch = (maker.isSellOrder && !taker.isSellOrder) || (!maker.isSellOrder && taker.isSellOrder);
-    bool complicationsMatch = maker.execParams[0] == taker.execParams[0];
-    bool currenciesMatch = maker.execParams[1] == taker.execParams[1];
-    bool makerOrderValid = _isOrderValid(maker, makerOrderHash);
-    (bool executionValid, uint256 execPrice) = IComplication(maker.execParams[0]).canExecTakeOrder(maker, taker);
-    // console.log('msgSenderIsTaker', msgSenderIsTaker);
-    // console.log('sidesMatch', sidesMatch);
-    // console.log('complicationsMatch', complicationsMatch);
-    // console.log('currenciesMatch', currenciesMatch);
-    // console.log('makerOrderValid', makerOrderValid);
-    // console.log('executionValid', executionValid);
-    return (
-      msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid,
-      execPrice
-    );
   }
 
   function _matchOneToManyOrders(
@@ -392,31 +413,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     bytes32 buyOrderHash = isTakerSeller ? makerOrderHash : _hash(buy);
 
     // if this order is not valid, just return and continue with other orders
-    bool orderVerified = _verifyOneToManyOrders(sellOrderHash, buyOrderHash, sell, buy);
+    bool orderVerified = verifyOneToManyOrders(sellOrderHash, buyOrderHash, sell, buy);
     require(orderVerified, 'order not verified');
 
     return _execOneToManyOrders(isTakerSeller, sellOrderHash, buyOrderHash, sell, buy);
-  }
-
-  function _verifyOneToManyOrders(
-    bytes32 sellOrderHash,
-    bytes32 buyOrderHash,
-    OrderTypes.Order calldata sell,
-    OrderTypes.Order calldata buy
-  ) internal view returns (bool) {
-    // console.log('verifying match orders');
-    bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
-    bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
-    bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
-      (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
-    bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
-    bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
-    // console.log('sidesMatch', sidesMatch);
-    // console.log('complicationsMatch', complicationsMatch);
-    // console.log('currenciesMatch', currenciesMatch);
-    // console.log('sellOrderValid', sellOrderValid);
-    // console.log('buyOrderValid', buyOrderValid);
-    return (sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid);
   }
 
   function _execOneToManyOrders(
