@@ -77,7 +77,7 @@ export const getCurrentOrderPrice = (order: OBOrder): BigNumber => {
   }
   const elapsedTime = BigNumber.from(nowSeconds()).sub(startTime);
   const precision = 10000;
-  const portion = elapsedTime.gt(duration) ? 1 : elapsedTime.mul(precision).div(duration);
+  const portion = elapsedTime.gt(duration) ? precision : elapsedTime.mul(precision).div(duration);
   priceDiff = priceDiff.mul(portion).div(precision);
   let currentPrice = BigNumber.from(0);
   if (startPrice.gt(endPrice)) {

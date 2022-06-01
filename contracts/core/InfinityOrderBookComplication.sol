@@ -255,7 +255,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     uint256 elapsedTime = block.timestamp - order.constraints[3];
     // console.log('elapsedTime', elapsedTime);
     uint256 PRECISION = 10**4; // precision for division; similar to bps
-    uint256 portionBps = elapsedTime > duration ? 1 * PRECISION : ((elapsedTime * PRECISION) / duration);
+    uint256 portionBps = elapsedTime > duration ? PRECISION : ((elapsedTime * PRECISION) / duration);
     // console.log('portion', portionBps);
     priceDiff = (priceDiff * portionBps) / PRECISION;
     // console.log('priceDiff', priceDiff);
