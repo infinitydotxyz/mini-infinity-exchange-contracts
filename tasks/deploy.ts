@@ -152,8 +152,9 @@ task('postDeployActions', 'Post deploy').setAction(async (args, { ethers, run, n
   console.log('Post deploy actions');
 
   // add currencies to registry
-  console.log('Adding currency');
+  console.log('Adding currencies');
   await infinityExchange.addCurrency(WETH_ADDRESS);
+  await infinityExchange.addCurrency('0x0000000000000000000000000000000000000000');
 
   // add complications to registry
   console.log('Adding complication to registry');

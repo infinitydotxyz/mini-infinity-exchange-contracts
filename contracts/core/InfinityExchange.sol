@@ -15,7 +15,7 @@ import {IERC1155} from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import {IERC20, SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 
-// import 'hardhat/console.sol'; // todo: remove this
+import 'hardhat/console.sol'; // todo: remove this
 
 /**
  * @title InfinityExchange
@@ -129,7 +129,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     uint256 numNonces = orderNonces.length;
     require(numNonces > 0, 'cannot be empty');
     // console.log('user min order nonce', msg.sender, userMinOrderNonce[msg.sender]);
-    for (uint256 i = 0; i < numNonces;) {
+    for (uint256 i = 0; i < numNonces; ) {
       // console.log('order nonce', orderNonces[i]);
       require(orderNonces[i] >= userMinOrderNonce[msg.sender], 'nonce too low');
       require(!isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]], 'nonce already executed or cancelled');
@@ -250,28 +250,31 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     OrderTypes.Order calldata buy,
     OrderTypes.Order calldata constructed
   ) public view returns (bool, uint256) {
-    // console.log('verifying match orders');
+    console.log('verifying match orders');
     bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
+    require(sidesMatch, 'sides must match');
     bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
+    require(complicationsMatch, 'complications must match');
     bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
       (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
+    require(currenciesMatch, 'currencies must match');
     bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
+    require(sellOrderValid, 'sell order is invalid');
     bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
+    require(buyOrderValid, 'buy order is invalid');
     (bool executionValid, uint256 execPrice) = IComplication(sell.execParams[0]).canExecMatchOrder(
       sell,
       buy,
       constructed
     );
+    require(executionValid, 'execution is invalid');
     // console.log('sidesMatch', sidesMatch);
     // console.log('complicationsMatch', complicationsMatch);
     // console.log('currenciesMatch', currenciesMatch);
     // console.log('sellOrderValid', sellOrderValid);
     // console.log('buyOrderValid', buyOrderValid);
     // console.log('executionValid', executionValid);
-    return (
-      sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid && executionValid,
-      execPrice
-    );
+    return (true, execPrice);
   }
 
   function verifyTakeOrders(
@@ -279,23 +282,26 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     OrderTypes.Order calldata maker,
     OrderTypes.Order calldata taker
   ) public view returns (bool, uint256) {
-    // console.log('verifying take orders');
+    console.log('verifying take orders');
     bool msgSenderIsTaker = msg.sender == taker.signer;
+    require(msgSenderIsTaker, 'msg.sender must be taker');
     bool sidesMatch = (maker.isSellOrder && !taker.isSellOrder) || (!maker.isSellOrder && taker.isSellOrder);
+    require(sidesMatch, 'sides must match');
     bool complicationsMatch = maker.execParams[0] == taker.execParams[0];
+    require(complicationsMatch, 'complications must match');
     bool currenciesMatch = maker.execParams[1] == taker.execParams[1];
+    require(currenciesMatch, 'currencies must match');
     bool makerOrderValid = _isOrderValid(maker, makerOrderHash);
+    require(makerOrderValid, 'maker order must be valid');
     (bool executionValid, uint256 execPrice) = IComplication(maker.execParams[0]).canExecTakeOrder(maker, taker);
+    require(executionValid, 'execution must be valid');
     // console.log('msgSenderIsTaker', msgSenderIsTaker);
     // console.log('sidesMatch', sidesMatch);
     // console.log('complicationsMatch', complicationsMatch);
     // console.log('currenciesMatch', currenciesMatch);
     // console.log('makerOrderValid', makerOrderValid);
     // console.log('executionValid', executionValid);
-    return (
-      msgSenderIsTaker && sidesMatch && complicationsMatch && currenciesMatch && makerOrderValid && executionValid,
-      execPrice
-    );
+    return (true, execPrice);
   }
 
   function verifyOneToManyOrders(
@@ -306,17 +312,22 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   ) public view returns (bool) {
     // console.log('verifying match orders');
     bool sidesMatch = sell.isSellOrder && !buy.isSellOrder;
+    require(sidesMatch, 'sides must match');
     bool complicationsMatch = sell.execParams[0] == buy.execParams[0];
+    require(complicationsMatch, 'complications must match');
     bool currenciesMatch = sell.execParams[1] == buy.execParams[1] ||
       (sell.execParams[1] == address(0) && buy.execParams[1] == WETH);
+    require(currenciesMatch, 'currencies must match');
     bool sellOrderValid = _isOrderValid(sell, sellOrderHash);
+    require(sellOrderValid, 'sell order is invalid');
     bool buyOrderValid = _isOrderValid(buy, buyOrderHash);
+    require(buyOrderValid, 'buy order is invalid');
     // console.log('sidesMatch', sidesMatch);
     // console.log('complicationsMatch', complicationsMatch);
     // console.log('currenciesMatch', currenciesMatch);
     // console.log('sellOrderValid', sellOrderValid);
     // console.log('buyOrderValid', buyOrderValid);
-    return (sidesMatch && complicationsMatch && currenciesMatch && sellOrderValid && buyOrderValid);
+    return true;
   }
 
   function numCurrencies() external view returns (uint256) {
@@ -364,7 +375,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // if this order is not valid, just return and continue with other orders
     (bool orderVerified, uint256 execPrice) = verifyMatchOrders(sellOrderHash, buyOrderHash, sell, buy, constructed);
     if (!orderVerified) {
-      // console.log('skipping invalid order');
+      console.log('skipping invalid order');
       return (address(0), address(0), address(0), 0);
     }
 
@@ -387,7 +398,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // if this order is not valid, just return and continue with other orders
     (bool orderVerified, uint256 execPrice) = verifyTakeOrders(makerOrderHash, makerOrder, takerOrder);
     if (!orderVerified) {
-      // console.log('skipping invalid order');
+      console.log('skipping invalid order');
       return (address(0), address(0), address(0), 0);
     }
 
@@ -453,21 +464,28 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
 
   function _getCurrentPrice(OrderTypes.Order calldata order) internal view returns (uint256) {
     (uint256 startPrice, uint256 endPrice) = (order.constraints[1], order.constraints[2]);
-    // console.log('startPrice', startPrice, 'endPrice', endPrice);
-    // console.log('block.timestamp', block.timestamp);
+    console.log('startPrice, endPrice');
+    console.logUint(startPrice);
+    console.logUint(endPrice);
+    console.log('block.timestamp');
+    console.logUint(block.timestamp);
     uint256 duration = order.constraints[4] - order.constraints[3];
-    // console.log('duration', duration);
+    console.log('duration');
+    console.logUint(duration);
     uint256 priceDiff = startPrice > endPrice ? startPrice - endPrice : endPrice - startPrice;
     if (priceDiff == 0 || duration == 0) {
       return startPrice;
     }
     uint256 elapsedTime = block.timestamp - order.constraints[3];
-    // console.log('elapsedTime', elapsedTime);
+    console.log('elapsedTime');
+    console.logUint(elapsedTime);
     uint256 PRECISION = 10**4; // precision for division; similar to bps
     uint256 portionBps = elapsedTime > duration ? PRECISION : ((elapsedTime * PRECISION) / duration);
-    // console.log('portion', portionBps);
+    console.log('portion');
+    console.logUint(portionBps);
     priceDiff = (priceDiff * portionBps) / PRECISION;
-    // console.log('priceDiff', priceDiff);
+    console.log('priceDiff');
+    console.logUint(priceDiff);
     return startPrice > endPrice ? startPrice - priceDiff : startPrice + priceDiff;
   }
 
@@ -489,7 +507,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       uint256
     )
   {
-    // console.log('executing order');
+    console.log('executing order');
     _transferNFTsAndFees(
       seller,
       buyer,
@@ -530,9 +548,10 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     address currency,
     uint256 nonce
   ) internal view returns (bool) {
-    // console.log('checking order validity');
+    console.log('checking order validity');
     bool orderExpired = isUserOrderNonceExecutedOrCancelled[signer][nonce] || nonce < userMinOrderNonce[signer];
-    // console.log('order expired:', orderExpired);
+    console.log('order expired');
+    console.logBool(orderExpired);
     // Verify the validity of the signature
     (bytes32 r, bytes32 s, uint8 v) = abi.decode(sig, (bytes32, bytes32, uint8));
     bool sigValid = SignatureChecker.verify(orderHash, signer, r, s, v, DOMAIN_SEPARATOR);
@@ -690,7 +709,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
       uint256
     )
   {
-    // console.log('executing order');
+    console.log('executing order');
     // Update order execution status to true (prevents replay)
     isUserOrderNonceExecutedOrCancelled[seller][sellNonce] = true;
     isUserOrderNonceExecutedOrCancelled[buyer][buyNonce] = true;
@@ -739,7 +758,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     uint256 minBpsToSeller,
     address complication
   ) internal {
-    // console.log('transfering nfts and fees');
+    console.log('transfering nfts and fees');
     // transfer NFTs
     _transferMultipleNFTs(seller, buyer, nfts);
     // transfer fees
@@ -751,7 +770,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     address to,
     OrderTypes.OrderItem[] calldata nfts
   ) internal {
-    // console.log('batch transferring nfts');
+    console.log('batch transferring nfts');
     uint256 numNfts = nfts.length;
     for (uint256 i = 0; i < numNfts; ) {
       _transferNFTs(from, to, nfts[i]);
@@ -786,8 +805,14 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   ) internal {
     uint256 numTokens = item.tokens.length;
     for (uint256 i = 0; i < numTokens; ) {
-      // console.log('transfering erc721 from collection', item.collection, 'with tokenId', item.tokens[i].tokenId);
-      // console.log('from address', from, 'to address', to);
+      console.log('transfering erc721 from collection');
+      console.logAddress(item.collection);
+      console.log('with tokenId');
+      console.logUint(item.tokens[i].tokenId);
+      console.log('from address');
+      console.logAddress(from);
+      console.log('to address');
+      console.logAddress(to);
       IERC721(item.collection).safeTransferFrom(from, to, item.tokens[i].tokenId);
       unchecked {
         ++i;
@@ -802,9 +827,16 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
   ) internal {
     uint256 numTokens = item.tokens.length;
     for (uint256 i = 0; i < numTokens; ) {
-      // console.log('transfering erc1155 from collection', item.collection, 'with tokenId', item.tokens[i].tokenId);
-      // console.log('num tokens', item.tokens[i].numTokens);
-      // console.log('from address', from, 'to address', to);
+      console.log('transfering erc1155 from collection');
+      console.logAddress(item.collection);
+      console.log('with tokenId');
+      console.logUint(item.tokens[i].tokenId);
+      console.log('num tokens');
+      console.logUint(item.tokens[i].numTokens);
+      console.log('from address');
+      console.logAddress(from);
+      console.log('to address');
+      console.logAddress(to);
       IERC1155(item.collection).safeTransferFrom(from, to, item.tokens[i].tokenId, item.tokens[i].numTokens, '');
       unchecked {
         ++i;
@@ -821,7 +853,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     uint256 minBpsToSeller,
     address complication
   ) internal {
-    // console.log('transfering fees');
+    console.log('transfering fees');
     // creator fee
     uint256 totalFees = _sendFeesToCreators(complication, buyer, nfts, amount, currency);
 
@@ -829,10 +861,13 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     totalFees += _sendFeesToProtocol(complication, buyer, amount, currency);
 
     // check min bps to seller is met
-    // console.log('amount:', amount);
-    // console.log('totalFees:', totalFees);
+    console.log('amount');
+    console.logUint(amount);
+    console.log('totalFees');
+    console.logUint(totalFees);
     uint256 remainingAmount = amount - totalFees;
-    // console.log('remainingAmount:', remainingAmount);
+    console.log('remainingAmount');
+    console.logUint(remainingAmount);
     require((remainingAmount * 10000) >= (minBpsToSeller * amount), 'Fees: Higher than expected');
 
     // ETH
@@ -864,8 +899,9 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     uint256 amount,
     address currency
   ) internal returns (uint256) {
-    // console.log('sending fees to creators');
-    // console.log('avg sale price', amount / items.length);
+    console.log('sending fees to creators');
+    console.log('avg sale price');
+    console.logUint(amount / items.length);
     uint256 creatorsFee = 0;
     IFeeManager feeManager = IFeeManager(CREATOR_FEE_MANAGER);
     uint256 numItems = items.length;
@@ -876,7 +912,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
         amount / numItems // amount per collection on avg
       );
       if (feeRecipient != address(0) && feeAmount != 0) {
-        // console.log('fee amount', feeAmount);
+        console.log('fee amount');
+        console.logUint(feeAmount);
         if (currency == address(0)) {
           // transfer amount to fee recipient
           (bool sent, ) = feeRecipient.call{value: feeAmount}('');
@@ -890,7 +927,8 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
         ++h;
       }
     }
-    // console.log('creatorsFee:', creatorsFee);
+    console.log('creatorsFee');
+    console.logUint(creatorsFee);
     return creatorsFee;
   }
 
@@ -900,24 +938,22 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     uint256 amount,
     address currency
   ) internal returns (uint256) {
-    // console.log('sending fees to protocol');
+    console.log('sending fees to protocol');
     uint256 protocolFeeBps = IComplication(complication).getProtocolFee();
     uint256 protocolFee = (protocolFeeBps * amount) / 10000;
-    if (currency == address(0)) {
-      // transfer amount to protocol
-      (bool sent, ) = address(this).call{value: protocolFee}('');
-      require(sent, 'failed to send protocol fee to protocol');
-    } else {
+    if (currency != address(0)) {
       IERC20(currency).safeTransferFrom(buyer, address(this), protocolFee);
     }
     return protocolFee;
   }
 
   function _refundMatchExecutionGasFeeFromBuyer(uint256 startGas, address buyer) internal {
-    // console.log('refunding gas fees to executor for sale executed on behalf of', buyer);
+    console.log('refunding gas fees to executor for sale executed on behalf of');
+    console.logAddress(buyer);
     // todo: check weth transfer gas cost
     uint256 gasCost = (startGas - gasleft() + 30000) * tx.gasprice;
-    // console.log('gasCost:', gasCost);
+    console.log('gasCost');
+    console.logUint(gasCost);
     IERC20(WETH).safeTransferFrom(buyer, MATCH_EXECUTOR, gasCost);
   }
 

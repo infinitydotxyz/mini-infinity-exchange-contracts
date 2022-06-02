@@ -938,7 +938,7 @@ describe('Exchange_Varying_Prices', function () {
   // ================================================== MATCH ORDERS ===================================================
 
   describe('Match_0_0', () => {
-    it('Should not match due to price non overlap', async function () {
+    it('Should not match due to price non overlap 1', async function () {
       const buyOrder = buyOrders[0];
       const sellOrder = sellOrders[0];
       const isSellOrder = true;
@@ -985,14 +985,11 @@ describe('Exchange_Varying_Prices', function () {
         );
       }, 0);
       console.log('total numTokens in order', numTokens);
-      const gasEstimate = await infinityExchange
-        .connect(signer3)
-        .estimateGas.matchOrders([sellOrder], [buyOrder], [constructedOrder]);
-      console.log('gasEstimate', gasEstimate.toNumber());
-      console.log('gasEstimate per token', gasEstimate / numTokens);
 
       // initiate exchange by 3rd party
-      await infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder]);
+      await expect(
+        infinityExchange.connect(signer3).matchOrders([sellOrder], [buyOrder], [constructedOrder])
+      ).to.be.revertedWith('Price is not valid');
 
       // owners after sale; should remain same
       for (const item of nfts) {
@@ -1011,12 +1008,12 @@ describe('Exchange_Varying_Prices', function () {
         parseFloat(ethers.utils.formatEther(signer2Balance))
       );
       // gas cost
-      expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.lessThan(
+      expect(parseFloat(ethers.utils.formatEther(signer1TokenBalance))).to.be.equal(
         parseFloat(ethers.utils.formatEther(signer1Balance))
       );
       const buyerBalance1 = parseFloat(ethers.utils.formatEther(signer1TokenBalance));
       const buyerBalance2 = parseFloat(ethers.utils.formatEther(signer1Balance));
-      expect(buyerBalance1).to.be.lessThan(buyerBalance2); // less than because of the gas refund
+      expect(buyerBalance1).to.be.equal(buyerBalance2); // less than because of the gas refund
       signer1Balance = signer1TokenBalance;
       signer2Balance = signer2TokenBalance;
     });
@@ -1166,7 +1163,9 @@ describe('Exchange_Varying_Prices', function () {
       );
       console.log('=========current buy order price for match=========', ethers.utils.formatEther(buyPrice.toString()));
       const salePrice = calculateSignedOrderPriceAt(
-        nowSeconds().add(totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced + totalEvmIncreasedTimeSoFarSinceSellOrderPlaced),
+        nowSeconds().add(
+          totalEvmIncreasedTimeSoFarSinceBuyOrderPlaced + totalEvmIncreasedTimeSoFarSinceSellOrderPlaced
+        ),
         sellOrder
       );
 

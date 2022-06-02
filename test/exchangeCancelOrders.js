@@ -8,7 +8,7 @@ const {
   approveERC20,
   signFormattedOrder
 } = require('../helpers/orders');
-const { nowSeconds, trimLowerCase } = require('@infinityxyz/lib/utils');
+const { nowSeconds, trimLowerCase, NULL_ADDRESS } = require('@infinityxyz/lib/utils');
 const { erc721Abi } = require('../abi/erc721');
 const { erc20Abi } = require('../abi/erc20');
 
@@ -542,7 +542,9 @@ describe('Exchange_Cancel_Orders', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(INITIAL_SUPPLY.div(2));
 
       // try to perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
+      await expect(infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder])).to.be.revertedWith(
+        'maker order must be valid'
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -762,7 +764,9 @@ describe('Exchange_Cancel_Orders', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder]);
+      await expect(infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder])).to.be.revertedWith(
+        'maker order must be valid'
+      );
 
       // owners after sale
       for (const item of nfts) {

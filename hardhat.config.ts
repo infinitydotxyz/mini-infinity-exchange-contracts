@@ -28,7 +28,7 @@ export default {
     mainnet: {
       url: 'https://eth-mainnet.alchemyapi.io/v2/' + process.env.ALCHEMY_MAINNET_KEY,
       accounts: [process.env.ETH_MAINNET_PRIV_KEY, process.env.ETH_MAINNET_PRIV_KEY_2],
-      gasPrice: parseUnits('30', 'gwei').toNumber()
+      gasPrice: parseUnits('70', 'gwei').toNumber()
     },
     polygonprod: {
       url: 'https://polygon-mainnet.g.alchemy.com/v2/' + process.env.ALCHEMY_POLYGON_MAIN_KEY,
@@ -44,8 +44,8 @@ export default {
           viaIR: true,
           optimizer: {
             enabled: true,
-            runs: 99999999
-            // runs: 1 // todo: set to 99999999
+            // runs: 99999999
+            runs: 1 // todo: set to 99999999
           }
         }
       }
@@ -57,11 +57,11 @@ export default {
   // etherscan: {
   //   apiKey: process.env.POLYGONSCAN_API_KEY
   // }
-  // contractSizer: {
-  //   alphaSort: true,
-  //   runOnCompile: true,
-  //   disambiguatePaths: false
-  // },
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false
+  },
   gasReporter: {
     enabled: true,
     currency: 'USD'
