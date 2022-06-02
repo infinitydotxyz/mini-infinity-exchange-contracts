@@ -6,7 +6,8 @@
   "scripts": {
     "test": "npx hardhat test --grep Exchange_Invalid",
     "build": "rimraf artifacts && rimraf cache && npx hardhat compile --force",
-    "update:lib": "npm update @infinityxyz/lib"
+    "update:lib": "npm update @infinityxyz/lib",
+    "format": "npx prettier --write ."
   },
   "repository": {
     "type": "git",

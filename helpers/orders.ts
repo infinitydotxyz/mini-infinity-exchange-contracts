@@ -225,13 +225,7 @@ export async function grantApprovals(
     if (!order.isSellOrder) {
       // approve currencies
       const currentPrice = getCurrentOrderPrice(order);
-      await approveERC20(
-        user.address,
-        order.execParams.currencyAddress,
-        currentPrice,
-        signer,
-        exchange
-      );
+      await approveERC20(user.address, order.execParams.currencyAddress, currentPrice, signer, exchange);
     } else {
       // approve collections
       await approveERC721(user.address, order.nfts, signer, exchange);

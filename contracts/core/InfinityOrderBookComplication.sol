@@ -74,10 +74,7 @@ contract InfinityOrderBookComplication is IComplication, Ownable {
     (uint256 startTime, uint256 endTime) = (makerOrder.constraints[3], makerOrder.constraints[4]);
     bool _isTimeValid = startTime <= block.timestamp && endTime >= block.timestamp;
     require(_isTimeValid, 'Time is not valid');
-    (uint256 currentMakerPrice, uint256 currentTakerPrice) = (
-      getCurrentPrice(makerOrder),
-      getCurrentPrice(takerOrder)
-    );
+    (uint256 currentMakerPrice, uint256 currentTakerPrice) = (getCurrentPrice(makerOrder), getCurrentPrice(takerOrder));
     bool _isPriceValid = arePricesWithinErrorBound(currentMakerPrice, currentTakerPrice);
     require(_isPriceValid, 'Price is not valid');
     bool numItemsValid = areTakerNumItemsValid(makerOrder, takerOrder);

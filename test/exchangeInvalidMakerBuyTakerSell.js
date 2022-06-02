@@ -575,7 +575,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'sides must match'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -644,7 +644,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'Number of items is not valid'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -729,7 +729,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'Items do not intersect'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -827,7 +827,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'currencies must match'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -906,9 +906,9 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       expect(await token.balanceOf(signer2.address)).to.equal(signer2Balance);
 
       // perform exchange
-      await expect(
-        infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])
-      ).to.be.revertedWith('taker cant have more tokenIds per coll than maker');
+      await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
+        'taker cant have more tokenIds per coll than maker'
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -1028,7 +1028,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'maker order must be valid'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -1112,7 +1112,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'Price is not valid'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {
@@ -1254,7 +1254,7 @@ describe('Exchange_Invalid_Maker_Buy_Taker_Sell', function () {
       // perform exchange
       await expect(infinityExchange.connect(signer2).takeOrders([buyOrder], [sellOrder])).to.be.revertedWith(
         'complications must match'
-      );;
+      );
 
       // owners after sale
       for (const item of nfts) {

@@ -583,7 +583,9 @@ describe('Exchange_ETH_Maker_Sell_Taker_Buy', function () {
         );
       }, 0);
       console.log('total numTokens in order', numTokens);
-      const gasEstimate = await infinityExchange.connect(signer1).estimateGas.takeOrders([sellOrder], [buyOrder], options);
+      const gasEstimate = await infinityExchange
+        .connect(signer1)
+        .estimateGas.takeOrders([sellOrder], [buyOrder], options);
       console.log('gasEstimate', gasEstimate.toNumber());
       console.log('gasEstimate per token', gasEstimate / numTokens);
 
@@ -1499,7 +1501,7 @@ describe('Exchange_ETH_Maker_Sell_Taker_Buy', function () {
         .estimateGas.takeOrders([sellOrder], [buyOrder], options);
       console.log('gasEstimate', gasEstimate.toNumber());
       console.log('gasEstimate per token', gasEstimate / numTokens);
-      
+
       await infinityExchange.connect(signer1).takeOrders([sellOrder], [buyOrder], options);
 
       // owners after sale
