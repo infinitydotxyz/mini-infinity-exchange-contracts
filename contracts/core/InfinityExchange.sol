@@ -131,7 +131,7 @@ contract InfinityExchange is ReentrancyGuard, Ownable {
     // console.log('user min order nonce', msg.sender, userMinOrderNonce[msg.sender]);
     for (uint256 i = 0; i < numNonces;) {
       // console.log('order nonce', orderNonces[i]);
-      require(orderNonces[i] > userMinOrderNonce[msg.sender], 'nonce too low');
+      require(orderNonces[i] >= userMinOrderNonce[msg.sender], 'nonce too low');
       require(!isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]], 'nonce already executed or cancelled');
       isUserOrderNonceExecutedOrCancelled[msg.sender][orderNonces[i]] = true;
       unchecked {
